@@ -1,0 +1,6 @@
+{
+  "name": "Community Ledger",
+  "description": "A smart event finance ledger to collect, track, and transparently manage community donations and expenses with automated payment receipt parsing.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
