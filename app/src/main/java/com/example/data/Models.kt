@@ -25,5 +25,6 @@ data class TransactionEntity(
     val date: Long = System.currentTimeMillis(),
     val transactionId: String = "",
     val isVerified: Boolean = true,
-    val notes: String? = null
+    val notes: String? = null,
+    val uploaderEmail: String = "banothgopikrishna19@gmail.com"
 )

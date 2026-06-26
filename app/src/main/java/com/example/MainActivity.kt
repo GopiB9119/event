@@ -25,14 +25,7 @@ class MainActivity : ComponentActivity() {
     }
 
     setContent {
-      val themeMode by viewModel.themeMode.collectAsStateWithLifecycle()
-      val darkTheme = when (themeMode) {
-        "Light" -> false
-        "Dark" -> true
-        else -> isSystemInDarkTheme()
-      }
-
-      MyApplicationTheme(darkTheme = darkTheme) {
+      MyApplicationTheme(darkTheme = false) {
         AppContent(viewModel = viewModel)
       }
     }

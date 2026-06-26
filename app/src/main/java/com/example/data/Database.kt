@@ -32,7 +32,7 @@ interface EventDao {
     suspend fun deleteTransactionById(id: Int)
 }
 
-@Database(entities = [EventEntity::class, TransactionEntity::class], version = 1, exportSchema = false)
+@Database(entities = [EventEntity::class, TransactionEntity::class], version = 2, exportSchema = false)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun eventDao(): EventDao
 }

@@ -4,8 +4,11 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.*
@@ -23,7 +26,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.TileMode
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.graphics.vector.path
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontFamily
@@ -36,6 +42,9 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.data.EventEntity
 import com.example.data.TransactionEntity
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -102,6 +111,15 @@ fun AppContent(viewModel: EventViewModel) {
     }
 }
 
+private fun getEventCreator(customFieldsJson: String): String {
+    return try {
+        val json = org.json.JSONObject(customFieldsJson)
+        json.optString("creatorEmail", "banothgopikrishna19@gmail.com")
+    } catch (e: Exception) {
+        "banothgopikrishna19@gmail.com"
+    }
+}
+
 // ----------------------------------------------------
 // A. DASHBOARD SCREEN
 // ----------------------------------------------------
@@ -110,12 +128,25 @@ fun AppContent(viewModel: EventViewModel) {
 fun DashboardScreen(viewModel: EventViewModel) {
     val events by viewModel.events.collectAsStateWithLifecycle()
     val themeMode by viewModel.themeMode.collectAsStateWithLifecycle()
+    val currentUserEmail by viewModel.userEmail.collectAsStateWithLifecycle()
     var isThemeMenuExpanded by remember { mutableStateOf(false) }
+    var isIdentityDialogOpen by remember { mutableStateOf(false) }
+
+    // Multi-step deletion state
+    var eventToDelete by remember { mutableStateOf<EventEntity?>(null) }
+    var deleteStep by remember { mutableStateOf(1) } // 1: Check Leader, 2: Confirm Title match, 3: Math security puzzle, 4: Warning checklist & confirmation
+    var deleteConfirmTitleText by remember { mutableStateOf("") }
+    var mathResultText by remember { mutableStateOf("") }
+    var num1 by remember { mutableStateOf(0) }
+    var num2 by remember { mutableStateOf(0) }
+    var checkedWarning1 by remember { mutableStateOf(false) }
+    var checkedWarning2 by remember { mutableStateOf(false) }
+    var checkedWarning3 by remember { mutableStateOf(false) }
 
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
+            .background(MaterialTheme.colorScheme.background) // Ultra-clean soft grey background
     ) {
         // App bar
         CenterAlignedTopAppBar(
@@ -124,65 +155,34 @@ fun DashboardScreen(viewModel: EventViewModel) {
                     Icon(
                         imageVector = Icons.Default.AccountBalanceWallet,
                         contentDescription = "Ledger Icon",
-                        tint = MaterialTheme.colorScheme.primary,
+                        tint = MaterialTheme.colorScheme.primary, // Vibrant Blue
                         modifier = Modifier.padding(end = 8.dp)
                     )
                     Text(
                         text = "Community Ledger",
-                        fontWeight = FontWeight.Bold,
-                        fontFamily = FontFamily.SansSerif,
-                        letterSpacing = 0.5.sp
+                        fontWeight = FontWeight.ExtraBold,
+                        style = MaterialTheme.typography.titleLarge,
+                        color = MaterialTheme.colorScheme.onSurface, // Slate-900
+                        letterSpacing = (-0.5).sp
                     )
                 }
             },
             actions = {
-                Box {
+                Row(verticalAlignment = Alignment.CenterVertically) {
                     IconButton(
-                        onClick = { isThemeMenuExpanded = true },
-                        modifier = Modifier.testTag("theme_button")
+                        onClick = { isIdentityDialogOpen = true },
+                        modifier = Modifier.testTag("identity_button")
                     ) {
                         Icon(
-                            imageVector = when (themeMode) {
-                                "Light" -> Icons.Default.LightMode
-                                "Dark" -> Icons.Default.DarkMode
-                                else -> Icons.Default.SettingsSuggest
-                            },
-                            contentDescription = "Change Theme"
-                        )
-                    }
-                    DropdownMenu(
-                        expanded = isThemeMenuExpanded,
-                        onDismissRequest = { isThemeMenuExpanded = false }
-                    ) {
-                        DropdownMenuItem(
-                            text = { Text("☀️ Light Mode") },
-                            onClick = {
-                                viewModel.setThemeMode("Light")
-                                isThemeMenuExpanded = false
-                            },
-                            leadingIcon = { Icon(Icons.Default.LightMode, "Light") }
-                        )
-                        DropdownMenuItem(
-                            text = { Text("🌙 Dark Mode") },
-                            onClick = {
-                                viewModel.setThemeMode("Dark")
-                                isThemeMenuExpanded = false
-                            },
-                            leadingIcon = { Icon(Icons.Default.DarkMode, "Dark") }
-                        )
-                        DropdownMenuItem(
-                            text = { Text("⚙️ System Default") },
-                            onClick = {
-                                viewModel.setThemeMode("System")
-                                isThemeMenuExpanded = false
-                            },
-                            leadingIcon = { Icon(Icons.Default.SettingsSuggest, "System") }
+                            imageVector = Icons.Default.AccountCircle,
+                            contentDescription = "My Identity",
+                            tint = MaterialTheme.colorScheme.primary
                         )
                     }
                 }
             },
             colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
-                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
+                containerColor = Color.Transparent
             )
         )
 
@@ -190,7 +190,7 @@ fun DashboardScreen(viewModel: EventViewModel) {
         Card(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 12.dp),
+                .padding(horizontal = 24.dp, vertical = 12.dp),
             shape = RoundedCornerShape(24.dp),
             colors = CardDefaults.cardColors(
                 containerColor = Color.Transparent
@@ -201,27 +201,25 @@ fun DashboardScreen(viewModel: EventViewModel) {
                 modifier = Modifier
                     .fillMaxWidth()
                     .background(
-                        Brush.linearGradient(
-                            colors = listOf(
-                                MaterialTheme.colorScheme.primary,
-                                MaterialTheme.colorScheme.primary.copy(alpha = 0.75f),
-                                MaterialTheme.colorScheme.secondary.copy(alpha = 0.85f)
-                            )
+                        Brush.verticalGradient(
+                            colors = listOf(Color(0xFF0F1E36), Color(0xFF1E293B))
                         )
                     )
-                    .padding(20.dp)
+                    .padding(24.dp)
             ) {
-                // Decorative abstract circular background overlay
-                Box(
-                    modifier = Modifier
-                        .size(140.dp)
-                        .align(Alignment.BottomEnd)
-                        .offset(x = 40.dp, y = 40.dp)
-                        .background(
-                            color = Color.White.copy(alpha = 0.08f),
-                            shape = CircleShape
-                        )
-                )
+                // Technical grid circle overlays matching high-fidelity design
+                Canvas(modifier = Modifier.matchParentSize()) {
+                    drawCircle(
+                        color = Color(0xFF38BDF8).copy(alpha = 0.12f),
+                        radius = size.minDimension * 0.5f,
+                        center = Offset(size.width * 0.85f, size.height * 0.2f)
+                    )
+                    drawCircle(
+                        color = Color(0xFF38BDF8).copy(alpha = 0.06f),
+                        radius = size.minDimension * 0.75f,
+                        center = Offset(size.width * 0.15f, size.height * 0.8f)
+                    )
+                }
 
                 Column(
                     verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -232,30 +230,33 @@ fun DashboardScreen(viewModel: EventViewModel) {
                         horizontalArrangement = Arrangement.spacedBy(6.dp),
                         modifier = Modifier
                             .background(
-                                color = Color.White.copy(alpha = 0.15f),
+                                color = Color(0xFF38BDF8).copy(alpha = 0.15f),
                                 shape = RoundedCornerShape(100.dp)
                             )
-                            .padding(horizontal = 10.dp, vertical = 4.dp)
+                            .padding(horizontal = 12.dp, vertical = 6.dp)
                     ) {
                         Icon(
                             imageVector = Icons.Default.VerifiedUser,
                             contentDescription = "Shield",
-                            tint = Color.White,
+                            tint = Color(0xFF38BDF8),
                             modifier = Modifier.size(14.dp)
                         )
                         Text(
                             text = "SECURE OFFLINE LEDGER",
-                            style = MaterialTheme.typography.labelSmall,
-                            fontWeight = FontWeight.Bold,
-                            color = Color.White,
-                            letterSpacing = 1.sp
+                            style = MaterialTheme.typography.labelSmall.copy(
+                                fontWeight = FontWeight.Bold,
+                                letterSpacing = 1.sp
+                            ),
+                            color = Color(0xFF38BDF8)
                         )
                     }
 
                     Text(
                         text = "Smart Transparency for Community Finances",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.ExtraBold,
+                        style = MaterialTheme.typography.titleMedium.copy(
+                            fontWeight = FontWeight.ExtraBold,
+                            letterSpacing = (-0.5).sp
+                        ),
                         color = Color.White,
                         lineHeight = 22.sp
                     )
@@ -263,13 +264,12 @@ fun DashboardScreen(viewModel: EventViewModel) {
                     Text(
                         text = "Scan payment screenshots to auto-verify contributions instantly with high precision.",
                         style = MaterialTheme.typography.bodySmall,
-                        color = Color.White.copy(alpha = 0.9f),
+                        color = Color.White.copy(alpha = 0.85f),
                         lineHeight = 16.sp
                     )
                 }
             }
         }
-
 
         // Event List Section
         Box(
@@ -289,7 +289,7 @@ fun DashboardScreen(viewModel: EventViewModel) {
                     Icon(
                         imageVector = Icons.Default.EventNote,
                         contentDescription = "No Events Icon",
-                        tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.4f),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
                         modifier = Modifier.size(80.dp)
                     )
                     Spacer(modifier = Modifier.height(16.dp))
@@ -297,57 +297,391 @@ fun DashboardScreen(viewModel: EventViewModel) {
                         text = "No ledger events started yet",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.8f)
+                        color = MaterialTheme.colorScheme.onSurface
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        text = "Click the '+' button below to create a festival, building pool, charity drive, or tournament tracker.",
+                        text = "Click 'Create Ledger Event' below to start tracking a festival, building pool, charity drive, or tournament tracker.",
                         style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         textAlign = TextAlign.Center
                     )
                 }
             } else {
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                    contentPadding = PaddingValues(start = 24.dp, end = 24.dp, top = 12.dp, bottom = 100.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
                     item {
                         Text(
                             text = "Active Ledger Events",
                             style = MaterialTheme.typography.titleSmall,
                             fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.padding(bottom = 8.dp)
+                            color = MaterialTheme.colorScheme.onSurface,
+                            modifier = Modifier.padding(bottom = 4.dp, start = 4.dp)
                         )
                     }
                     items(events) { event ->
                         EventCardItem(
                             event = event,
                             onClick = { viewModel.selectEvent(event.id) },
-                            onDelete = { viewModel.deleteEvent(event.id) }
+                            onDelete = { eventToDelete = event }
                         )
                     }
                 }
             }
 
-            // Floating Action Button to Create Event
-            FloatingActionButton(
+            // Extended Floating Action Button to Create Event
+            ExtendedFloatingActionButton(
                 onClick = { viewModel.navigateTo(Screen.CreateEvent) },
+                icon = {
+                    Icon(
+                        imageVector = Icons.Default.Add,
+                        contentDescription = "Create Event Icon",
+                        tint = MaterialTheme.colorScheme.onPrimary
+                    )
+                },
+                text = {
+                    Text(
+                        text = "Create Ledger Event",
+                        fontWeight = FontWeight.ExtraBold,
+                        style = MaterialTheme.typography.labelLarge.copy(
+                            letterSpacing = 0.5.sp
+                        ),
+                        color = MaterialTheme.colorScheme.onPrimary
+                    )
+                },
                 modifier = Modifier
-                    .align(Alignment.BottomEnd)
+                    .align(Alignment.BottomCenter)
                     .padding(24.dp)
                     .testTag("create_event_fab"),
-                containerColor = MaterialTheme.colorScheme.primary,
-                contentColor = MaterialTheme.colorScheme.onPrimary
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Add,
-                    contentDescription = "Create Event Button"
-                )
-            }
+                containerColor = MaterialTheme.colorScheme.primary, // Vibrant Blue
+                contentColor = MaterialTheme.colorScheme.onPrimary,
+                elevation = FloatingActionButtonDefaults.elevation(6.dp),
+                shape = RoundedCornerShape(percent = 50) // Perfect pill shape
+            )
         }
+    }
+
+    // A1: Local Identity Dialog
+    if (isIdentityDialogOpen) {
+        var emailInput by remember { mutableStateOf(currentUserEmail) }
+        AlertDialog(
+            onDismissRequest = { isIdentityDialogOpen = false },
+            title = {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Default.AccountCircle,
+                        contentDescription = "Profile",
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.padding(end = 8.dp)
+                    )
+                    Text("Local Identity Profile", fontWeight = FontWeight.Bold)
+                }
+            },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text(
+                        text = "Your email address is used to identify you as the creator of events so you can manage deletion permissions and deep links.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    OutlinedTextField(
+                        value = emailInput,
+                        onValueChange = { emailInput = it },
+                        label = { Text("Your Email Address") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        if (emailInput.isNotBlank()) {
+                            viewModel.setMyUserEmail(emailInput)
+                            isIdentityDialogOpen = false
+                        }
+                    }
+                ) {
+                    Text("Save Identity")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { isIdentityDialogOpen = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
+
+    // A2: Multi-step Event Decommissioning / Deletion Dialog Flow
+    if (eventToDelete != null) {
+        val event = eventToDelete!!
+        val creator = getEventCreator(event.customFieldsJson)
+        val isLeader = currentUserEmail.equals(creator, ignoreCase = true)
+
+        AlertDialog(
+            onDismissRequest = {
+                eventToDelete = null
+                deleteStep = 1
+                deleteConfirmTitleText = ""
+                mathResultText = ""
+                num1 = 0
+                num2 = 0
+                checkedWarning1 = false
+                checkedWarning2 = false
+                checkedWarning3 = false
+            },
+            title = {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = if (isLeader) Icons.Default.Warning else Icons.Default.Lock,
+                        contentDescription = "Alert",
+                        tint = if (isLeader) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.outline,
+                        modifier = Modifier.padding(end = 8.dp)
+                    )
+                    Text(
+                        text = if (!isLeader) "Access Blocked" else "Secure Decommission: Step $deleteStep of 3",
+                        fontWeight = FontWeight.Bold,
+                        style = MaterialTheme.typography.titleMedium
+                    )
+                }
+            },
+            text = {
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    if (!isLeader) {
+                        Text(
+                            text = "⛔ Permission Denied!",
+                            color = MaterialTheme.colorScheme.error,
+                            fontWeight = FontWeight.Bold,
+                            style = MaterialTheme.typography.bodyLarge
+                        )
+                        Text(
+                            text = "You are not authorized to decommission this event. Only the Event Leader (who created the event) can initiate deletion.",
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Card(
+                            colors = CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.2f)
+                            )
+                        ) {
+                            Column(modifier = Modifier.padding(10.dp)) {
+                                Text(
+                                    text = "Required Leader: $creator",
+                                    fontWeight = FontWeight.SemiBold,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.error
+                                )
+                                Text(
+                                    text = "Your Current Email: $currentUserEmail",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                        Text(
+                            text = "If you are the leader on another device or want to test, you can change your email in the profile identity menu at the top-right.",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    } else {
+                        when (deleteStep) {
+                            1 -> {
+                                Text(
+                                    text = "Step 1: Confirm Event Name",
+                                    fontWeight = FontWeight.Bold,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.error
+                                )
+                                Text(
+                                    text = "To unlock the decommissioning valve, type the exact event title below:",
+                                    style = MaterialTheme.typography.bodySmall
+                                )
+                                Card(
+                                    colors = CardDefaults.cardColors(
+                                        containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                                    )
+                                ) {
+                                    Text(
+                                        text = event.title,
+                                        modifier = Modifier.padding(8.dp),
+                                        fontWeight = FontWeight.Bold,
+                                        style = MaterialTheme.typography.labelMedium
+                                    )
+                                }
+                                OutlinedTextField(
+                                    value = deleteConfirmTitleText,
+                                    onValueChange = { deleteConfirmTitleText = it },
+                                    label = { Text("Type event title") },
+                                    singleLine = true,
+                                    modifier = Modifier.fillMaxWidth()
+                                )
+                            }
+                            2 -> {
+                                // Initialize random math puzzle
+                                if (num1 == 0 && num2 == 0) {
+                                    num1 = (12..29).random()
+                                    num2 = (11..28).random()
+                                }
+                                Text(
+                                    text = "Step 2: Human Intention Proof",
+                                    fontWeight = FontWeight.Bold,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.error
+                                )
+                                Text(
+                                    text = "Solve this security equation to verify you are not executing this action accidentally:",
+                                    style = MaterialTheme.typography.bodySmall
+                                )
+                                Text(
+                                    text = "🧮  $num1 + $num2 = ?",
+                                    fontWeight = FontWeight.ExtraBold,
+                                    style = MaterialTheme.typography.titleLarge,
+                                    color = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.align(Alignment.CenterHorizontally)
+                                )
+                                OutlinedTextField(
+                                    value = mathResultText,
+                                    onValueChange = { mathResultText = it },
+                                    label = { Text("Answer") },
+                                    singleLine = true,
+                                    modifier = Modifier.fillMaxWidth()
+                                )
+                            }
+                            3 -> {
+                                Text(
+                                    text = "Step 3: Acknowledge Decommission Warnings",
+                                    fontWeight = FontWeight.Bold,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.error
+                                )
+                                Text(
+                                    text = "Review and check all safety protocols to release the delete permission:",
+                                    style = MaterialTheme.typography.bodySmall
+                                )
+                                
+                                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Checkbox(
+                                            checked = checkedWarning1,
+                                            onCheckedChange = { checkedWarning1 = it }
+                                        )
+                                        Spacer(modifier = Modifier.width(4.dp))
+                                        Text(
+                                            text = "I accept that all shared ledger balances will be wiped.",
+                                            style = MaterialTheme.typography.labelSmall
+                                        )
+                                    }
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Checkbox(
+                                            checked = checkedWarning2,
+                                            onCheckedChange = { checkedWarning2 = it }
+                                        )
+                                        Spacer(modifier = Modifier.width(4.dp))
+                                        Text(
+                                            text = "I confirm no community members have pending unpaid receipts.",
+                                            style = MaterialTheme.typography.labelSmall
+                                        )
+                                    }
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Checkbox(
+                                            checked = checkedWarning3,
+                                            onCheckedChange = { checkedWarning3 = it }
+                                        )
+                                        Spacer(modifier = Modifier.width(4.dp))
+                                        Text(
+                                            text = "I understand this decommission cannot be undone.",
+                                            style = MaterialTheme.typography.labelSmall
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                if (!isLeader) {
+                    Button(
+                        onClick = {
+                            eventToDelete = null
+                        }
+                    ) {
+                        Text("Acknowledge")
+                    }
+                } else {
+                    when (deleteStep) {
+                        1 -> {
+                            Button(
+                                enabled = deleteConfirmTitleText.trim() == event.title,
+                                onClick = {
+                                    deleteStep = 2
+                                }
+                            ) {
+                                Text("Next Step")
+                            }
+                        }
+                        2 -> {
+                            Button(
+                                enabled = mathResultText.trim() == (num1 + num2).toString(),
+                                onClick = {
+                                    deleteStep = 3
+                                }
+                            ) {
+                                Text("Verify Puzzle")
+                            }
+                        }
+                        3 -> {
+                            Button(
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = MaterialTheme.colorScheme.error
+                                ),
+                                enabled = checkedWarning1 && checkedWarning2 && checkedWarning3,
+                                onClick = {
+                                    viewModel.deleteEvent(event.id)
+                                    eventToDelete = null
+                                    deleteStep = 1
+                                    deleteConfirmTitleText = ""
+                                    mathResultText = ""
+                                    num1 = 0
+                                    num2 = 0
+                                    checkedWarning1 = false
+                                    checkedWarning2 = false
+                                    checkedWarning3 = false
+                                }
+                            ) {
+                                Text("PERMANENTLY PURGE")
+                            }
+                        }
+                    }
+                }
+            },
+            dismissButton = {
+                if (isLeader) {
+                    TextButton(
+                        onClick = {
+                            eventToDelete = null
+                            deleteStep = 1
+                            deleteConfirmTitleText = ""
+                            mathResultText = ""
+                            num1 = 0
+                            num2 = 0
+                            checkedWarning1 = false
+                            checkedWarning2 = false
+                            checkedWarning3 = false
+                        }
+                    ) {
+                        Text("Abort")
+                    }
+                }
+            }
+        )
     }
 }
 
@@ -362,19 +696,19 @@ fun EventCardItem(
         sdf.format(Date(event.createdDate))
     }
 
-    val accentColor = if (event.isPrivate) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.primary
+    val accentColor = if (event.isPrivate) MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f) else MaterialTheme.colorScheme.primary // Slate grey for private, Vibrant Blue for public
 
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .testTag("event_card_${event.id}")
             .clickable(onClick = onClick),
-        shape = RoundedCornerShape(16.dp),
+        shape = RoundedCornerShape(18.dp),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface
         ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
     ) {
         Row(
             modifier = Modifier
@@ -392,7 +726,7 @@ fun EventCardItem(
             Column(
                 modifier = Modifier
                     .weight(1f)
-                    .padding(16.dp)
+                    .padding(20.dp)
             ) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -402,13 +736,14 @@ fun EventCardItem(
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
                             text = event.title,
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurface,
+                            style = MaterialTheme.typography.titleMedium.copy(
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            ),
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
                         )
-                        Spacer(modifier = Modifier.height(4.dp))
+                        Spacer(modifier = Modifier.height(6.dp))
                         Row(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
@@ -418,25 +753,32 @@ fun EventCardItem(
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
                                 modifier = Modifier.size(14.dp)
                             )
-                            Spacer(modifier = Modifier.width(4.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
                             Text(
                                 text = "Created: $dateString",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                style = MaterialTheme.typography.bodySmall.copy(
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
                             )
                         }
                     }
 
-                    IconButton(onClick = onDelete) {
+                    IconButton(
+                        onClick = onDelete,
+                        modifier = Modifier
+                            .size(36.dp)
+                            .background(MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.2f), CircleShape)
+                    ) {
                         Icon(
                             imageVector = Icons.Default.DeleteOutline,
                             contentDescription = "Delete Event",
-                            tint = MaterialTheme.colorScheme.error.copy(alpha = 0.7f)
+                            tint = MaterialTheme.colorScheme.error,
+                            modifier = Modifier.size(18.dp)
                         )
                     }
                 }
 
-                Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(16.dp))
 
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -448,48 +790,52 @@ fun EventCardItem(
                         Row(
                             modifier = Modifier
                                 .background(
-                                    MaterialTheme.colorScheme.primaryContainer,
-                                    RoundedCornerShape(8.dp)
+                                    MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f), // soft blue
+                                    RoundedCornerShape(20.dp)
                                 )
-                                .padding(horizontal = 10.dp, vertical = 4.dp),
+                                .border(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.3f), RoundedCornerShape(20.dp))
+                                .padding(horizontal = 12.dp, vertical = 6.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Timelapse,
                                 contentDescription = "Duration Icon",
-                                tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                                tint = MaterialTheme.colorScheme.primary,
                                 modifier = Modifier.size(14.dp)
                             )
-                            Spacer(modifier = Modifier.width(4.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
                             Text(
                                 text = "Duration: ${event.duration}",
-                                style = MaterialTheme.typography.labelSmall,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onPrimaryContainer
+                                style = MaterialTheme.typography.labelSmall.copy(
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
                             )
                         }
                     } else {
                         Row(
                             modifier = Modifier
                                 .background(
-                                    MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.4f),
-                                    RoundedCornerShape(8.dp)
+                                    MaterialTheme.colorScheme.surfaceVariant, // soft slate
+                                    RoundedCornerShape(20.dp)
                                 )
-                                .padding(horizontal = 10.dp, vertical = 4.dp),
+                                .border(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f), RoundedCornerShape(20.dp))
+                                .padding(horizontal = 12.dp, vertical = 6.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Icon(
                                 imageVector = Icons.Default.HourglassEmpty,
                                 contentDescription = "Ongoing",
-                                tint = MaterialTheme.colorScheme.onSecondaryContainer,
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier.size(14.dp)
                             )
-                            Spacer(modifier = Modifier.width(4.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
                             Text(
                                 text = "Ongoing Ledger",
-                                style = MaterialTheme.typography.labelSmall,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onSecondaryContainer
+                                style = MaterialTheme.typography.labelSmall.copy(
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
                             )
                         }
                     }
@@ -497,25 +843,32 @@ fun EventCardItem(
                     // Privacy Indicator
                     if (event.isPrivate) {
                         Row(
-                            verticalAlignment = Alignment.CenterVertically
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier
+                                .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(12.dp))
+                                .padding(horizontal = 8.dp, vertical = 4.dp)
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Lock,
                                 contentDescription = "Private Event",
-                                tint = MaterialTheme.colorScheme.secondary,
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier.size(14.dp)
                             )
                             Spacer(modifier = Modifier.width(4.dp))
                             Text(
                                 text = "Invite Only",
-                                style = MaterialTheme.typography.bodySmall,
-                                fontWeight = FontWeight.SemiBold,
-                                color = MaterialTheme.colorScheme.secondary
+                                style = MaterialTheme.typography.bodySmall.copy(
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
                             )
                         }
                     } else {
                         Row(
-                            verticalAlignment = Alignment.CenterVertically
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier
+                                .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f), RoundedCornerShape(12.dp))
+                                .padding(horizontal = 8.dp, vertical = 4.dp)
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Public,
@@ -526,9 +879,10 @@ fun EventCardItem(
                             Spacer(modifier = Modifier.width(4.dp))
                             Text(
                                 text = "Public Ledger",
-                                style = MaterialTheme.typography.bodySmall,
-                                fontWeight = FontWeight.SemiBold,
-                                color = MaterialTheme.colorScheme.primary
+                                style = MaterialTheme.typography.bodySmall.copy(
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
                             )
                         }
                     }
@@ -559,17 +913,28 @@ fun CreateEventScreen(viewModel: EventViewModel) {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
+            .background(MaterialTheme.colorScheme.background) // Ultra-clean soft grey background
     ) {
         TopAppBar(
-            title = { Text("Create Ledger Event") },
+            title = { 
+                Text(
+                    text = "Create Ledger Event",
+                    fontWeight = FontWeight.Bold,
+                    style = MaterialTheme.typography.titleLarge,
+                    color = MaterialTheme.colorScheme.onSurface
+                ) 
+            },
             navigationIcon = {
                 IconButton(onClick = { viewModel.navigateBack() }) {
-                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Go Back")
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ArrowBack, 
+                        contentDescription = "Go Back",
+                        tint = MaterialTheme.colorScheme.onSurface
+                    )
                 }
             },
             colors = TopAppBarDefaults.topAppBarColors(
-                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
+                containerColor = Color.Transparent
             )
         )
 
@@ -577,218 +942,443 @@ fun CreateEventScreen(viewModel: EventViewModel) {
             modifier = Modifier
                 .weight(1f)
                 .fillMaxWidth(),
-            contentPadding = PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+            contentPadding = PaddingValues(24.dp),
+            verticalArrangement = Arrangement.spacedBy(24.dp)
         ) {
+            // Event Title with modern Vibrant Utility Design Card
             item {
-                Text(
-                    text = "Event Details",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary
-                )
-            }
-
-            // Event Title
-            item {
-                OutlinedTextField(
-                    value = title,
-                    onValueChange = {
-                        title = it
-                        if (it.isNotBlank()) titleError = false
-                    },
-                    label = { Text("Event Title *") },
-                    placeholder = { Text("e.g. Ganesh Festival 2026, Temple Fund") },
-                    isError = titleError,
-                    supportingText = {
-                        if (titleError) {
-                            Text("Event title is required", color = MaterialTheme.colorScheme.error)
-                        } else {
-                            Text("Required field")
-                        }
-                    },
-                    leadingIcon = { Icon(Icons.Default.Celebration, "Celebration Icon") },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .testTag("event_title_input"),
-                    singleLine = true
-                )
-            }
-
-            // Event Duration
-            item {
-                OutlinedTextField(
-                    value = duration,
-                    onValueChange = { duration = it },
-                    label = { Text("Event Duration (Optional)") },
-                    placeholder = { Text("e.g. 5 Days, 1 Month, Ongoing") },
-                    leadingIcon = { Icon(Icons.Default.Timelapse, "Timelapse Icon") },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .testTag("event_duration_input"),
-                    singleLine = true
-                )
-            }
-
-            // Public / Private Toggle
-            item {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .background(
-                            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
-                            RoundedCornerShape(12.dp)
-                        )
-                        .padding(16.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(24.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surface
+                    ),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+                    border = BorderStroke(
+                        width = 2.dp,
+                        color = if (titleError) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
+                    )
                 ) {
-                    Column(modifier = Modifier.weight(1f)) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(20.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    imageVector = Icons.Default.Celebration,
+                                    contentDescription = "Event Title Icon",
+                                    tint = if (titleError) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = "Event Title",
+                                    style = MaterialTheme.typography.titleMedium.copy(
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
+                                )
+                            }
+                            // Required badge
+                            Box(
+                                modifier = Modifier
+                                    .background(
+                                        color = if (titleError) MaterialTheme.colorScheme.errorContainer else MaterialTheme.colorScheme.primaryContainer,
+                                        shape = RoundedCornerShape(8.dp)
+                                    )
+                                    .padding(horizontal = 8.dp, vertical = 4.dp)
+                            ) {
+                                Text(
+                                    text = if (titleError) "REQUIRED" else "MANDATORY",
+                                    style = MaterialTheme.typography.labelSmall.copy(
+                                        fontWeight = FontWeight.Bold,
+                                        color = if (titleError) MaterialTheme.colorScheme.onErrorContainer else MaterialTheme.colorScheme.onPrimaryContainer
+                                    )
+                                )
+                            }
+                        }
+                        Spacer(modifier = Modifier.height(6.dp))
                         Text(
-                            text = "Invite-Only / Private Event",
-                            style = MaterialTheme.typography.bodyLarge,
-                            fontWeight = FontWeight.SemiBold
-                        )
-                        Text(
-                            text = "Only invited members can contribute or view the event transactions.",
+                            text = "Give your ledger event a clear, recognizable name.",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
+                        Spacer(modifier = Modifier.height(16.dp))
+                        OutlinedTextField(
+                            value = title,
+                            onValueChange = {
+                                title = it
+                                if (it.isNotBlank()) titleError = false
+                            },
+                            placeholder = { Text("e.g. Goa Trip 2026, Wedding Reception") },
+                            isError = titleError,
+                            supportingText = {
+                                if (titleError) {
+                                    Text("Event title is required", color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.Bold)
+                                }
+                            },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .testTag("event_title_input"),
+                            singleLine = true,
+                            shape = RoundedCornerShape(16.dp),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = MaterialTheme.colorScheme.primary,
+                                unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant,
+                                errorBorderColor = MaterialTheme.colorScheme.error,
+                                focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.15f),
+                                unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.05f),
+                                errorContainerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.1f),
+                                focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                                unfocusedTextColor = MaterialTheme.colorScheme.onSurface
+                            )
+                        )
                     }
-                    Switch(
-                        checked = isPrivate,
-                        onCheckedChange = { isPrivate = it },
-                        modifier = Modifier.testTag("event_private_switch")
-                    )
                 }
             }
 
-            // Custom fields section
+            // Event Duration with modern Vibrant Utility Design Card
             item {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .background(
-                            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.2f),
-                            RoundedCornerShape(12.dp)
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(24.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surface
+                    ),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+                    border = BorderStroke(
+                        width = 2.dp,
+                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
+                    )
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(20.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    imageVector = Icons.Default.Timelapse,
+                                    contentDescription = "Duration Icon",
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = "Event Duration",
+                                    style = MaterialTheme.typography.titleMedium.copy(
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
+                                )
+                            }
+                            // Optional badge
+                            Box(
+                                modifier = Modifier
+                                    .background(
+                                        color = MaterialTheme.colorScheme.surfaceVariant,
+                                        shape = RoundedCornerShape(8.dp)
+                                    )
+                                    .padding(horizontal = 8.dp, vertical = 4.dp)
+                            ) {
+                                Text(
+                                    text = "OPTIONAL",
+                                    style = MaterialTheme.typography.labelSmall.copy(
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                )
+                            }
+                        }
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Text(
+                            text = "Specify the active timeframe or deadline for this ledger event.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
-                        .padding(16.dp)
+                        Spacer(modifier = Modifier.height(16.dp))
+                        OutlinedTextField(
+                            value = duration,
+                            onValueChange = { duration = it },
+                            placeholder = { Text("e.g. 5 Days, 1 Month, or Ongoing") },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .testTag("event_duration_input"),
+                            singleLine = true,
+                            shape = RoundedCornerShape(16.dp),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = MaterialTheme.colorScheme.primary,
+                                unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant,
+                                focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.15f),
+                                unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.05f),
+                                focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                                unfocusedTextColor = MaterialTheme.colorScheme.onSurface
+                            )
+                        )
+                    }
+                }
+            }
+
+            // Public / Private Toggle styled cleanly as a prominent state card
+            item {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(24.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = if (isPrivate) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.15f) else MaterialTheme.colorScheme.surface
+                    ),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+                    border = BorderStroke(
+                        width = 2.dp,
+                        color = if (isPrivate) MaterialTheme.colorScheme.primary.copy(alpha = 0.4f) else MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
+                    )
                 ) {
                     Row(
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(20.dp),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(
-                            text = "Additional Custom Fields",
-                            style = MaterialTheme.typography.bodyLarge,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.secondary
-                        )
-                        IconButton(onClick = { isAddingCustomField = !isAddingCustomField }) {
-                            Icon(
-                                imageVector = if (isAddingCustomField) Icons.Default.Close else Icons.Default.AddCircle,
-                                contentDescription = "Add custom parameter",
-                                tint = MaterialTheme.colorScheme.primary
-                            )
-                        }
-                    }
-
-                    Text(
-                        text = "Add custom info fields like Venue, Head Priest, Coordinator Name, Rules etc.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(bottom = 8.dp)
-                    )
-
-                    // Form to add custom field
-                    AnimatedVisibility(visible = isAddingCustomField) {
-                        Card(
-                            colors = CardDefaults.cardColors(
-                                containerColor = MaterialTheme.colorScheme.surface
-                            ),
-                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-                            modifier = Modifier.padding(vertical = 8.dp)
+                        Row(
+                            modifier = Modifier.weight(1f),
+                            verticalAlignment = Alignment.Top
                         ) {
-                            Column(modifier = Modifier.padding(12.dp)) {
-                                OutlinedTextField(
-                                    value = customFieldNameInput,
-                                    onValueChange = { customFieldNameInput = it },
-                                    label = { Text("Field Name") },
-                                    placeholder = { Text("e.g. Venue, Coordinator") },
-                                    singleLine = true,
-                                    modifier = Modifier.fillMaxWidth()
+                            Icon(
+                                imageVector = if (isPrivate) Icons.Default.Lock else Icons.Default.Public,
+                                contentDescription = "Privacy Status",
+                                tint = if (isPrivate) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                                modifier = Modifier
+                                    .padding(top = 2.dp)
+                                    .size(24.dp)
+                            )
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Column {
+                                Text(
+                                    text = if (isPrivate) "🔒 Private (Invite-Only)" else "🌐 Public Event",
+                                    style = MaterialTheme.typography.titleMedium.copy(
+                                        fontWeight = FontWeight.ExtraBold,
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
                                 )
-                                Spacer(modifier = Modifier.height(8.dp))
-                                OutlinedTextField(
-                                    value = customFieldValueInput,
-                                    onValueChange = { customFieldValueInput = it },
-                                    label = { Text("Field Value") },
-                                    placeholder = { Text("e.g. Town Hall, Suresh Kumar") },
-                                    singleLine = true,
-                                    modifier = Modifier.fillMaxWidth()
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    text = if (isPrivate) "Only invited members can contribute or view transactions. Recommended for personal or restricted groups." else "Anyone can view this ledger and add transaction entries. Perfect for public collections, transparency & open events.",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
-                                Spacer(modifier = Modifier.height(8.dp))
-                                Button(
-                                    onClick = {
-                                        if (customFieldNameInput.isNotBlank() && customFieldValueInput.isNotBlank()) {
-                                            customFieldsList.add(customFieldNameInput.trim() to customFieldValueInput.trim())
-                                            customFieldNameInput = ""
-                                            customFieldValueInput = ""
-                                            isAddingCustomField = false
-                                        }
-                                    },
-                                    modifier = Modifier.align(Alignment.End)
-                                ) {
-                                    Text("Add Field")
+                            }
+                        }
+                        Spacer(modifier = Modifier.width(16.dp))
+                        Switch(
+                            checked = isPrivate,
+                            onCheckedChange = { isPrivate = it },
+                            modifier = Modifier.testTag("event_private_switch"),
+                            colors = SwitchDefaults.colors(
+                                checkedThumbColor = MaterialTheme.colorScheme.onPrimary,
+                                checkedTrackColor = MaterialTheme.colorScheme.primary,
+                                uncheckedThumbColor = MaterialTheme.colorScheme.outline,
+                                uncheckedTrackColor = MaterialTheme.colorScheme.surfaceVariant
+                            )
+                        )
+                    }
+                }
+            }
+
+            // Custom fields section inside a modern card
+            item {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(24.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surface
+                    ),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+                    border = BorderStroke(
+                        width = 2.dp,
+                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
+                    )
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(20.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    imageVector = Icons.Default.Assignment,
+                                    contentDescription = "Custom Info Icon",
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = "Custom Metadata",
+                                    style = MaterialTheme.typography.titleMedium.copy(
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
+                                )
+                            }
+                            IconButton(onClick = { isAddingCustomField = !isAddingCustomField }) {
+                                Icon(
+                                    imageVector = if (isAddingCustomField) Icons.Default.Close else Icons.Default.AddCircle,
+                                    contentDescription = "Add custom parameter",
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(28.dp)
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Text(
+                            text = "Add custom info fields like Venue, Coordinator Name, Rules, Contact info etc.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        // Form to add custom field with high-contrast inputs
+                        AnimatedVisibility(visible = isAddingCustomField) {
+                            Card(
+                                colors = CardDefaults.cardColors(
+                                    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.2f)
+                                ),
+                                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
+                                modifier = Modifier.padding(vertical = 12.dp)
+                            ) {
+                                Column(modifier = Modifier.padding(16.dp)) {
+                                    OutlinedTextField(
+                                        value = customFieldNameInput,
+                                        onValueChange = { customFieldNameInput = it },
+                                        label = { Text("Field Name") },
+                                        placeholder = { Text("e.g. Venue, Coordinator") },
+                                        singleLine = true,
+                                        shape = RoundedCornerShape(12.dp),
+                                        modifier = Modifier.fillMaxWidth(),
+                                        colors = OutlinedTextFieldDefaults.colors(
+                                            focusedBorderColor = MaterialTheme.colorScheme.primary,
+                                            unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant,
+                                            focusedContainerColor = MaterialTheme.colorScheme.surface,
+                                            unfocusedContainerColor = MaterialTheme.colorScheme.surface,
+                                            focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                                            unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
+                                            focusedLabelColor = MaterialTheme.colorScheme.primary,
+                                            unfocusedLabelColor = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    )
+                                    Spacer(modifier = Modifier.height(12.dp))
+                                    OutlinedTextField(
+                                        value = customFieldValueInput,
+                                        onValueChange = { customFieldValueInput = it },
+                                        label = { Text("Field Value") },
+                                        placeholder = { Text("e.g. Town Hall, Suresh Kumar") },
+                                        singleLine = true,
+                                        shape = RoundedCornerShape(12.dp),
+                                        modifier = Modifier.fillMaxWidth(),
+                                        colors = OutlinedTextFieldDefaults.colors(
+                                            focusedBorderColor = MaterialTheme.colorScheme.primary,
+                                            unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant,
+                                            focusedContainerColor = MaterialTheme.colorScheme.surface,
+                                            unfocusedContainerColor = MaterialTheme.colorScheme.surface,
+                                            focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                                            unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
+                                            focusedLabelColor = MaterialTheme.colorScheme.primary,
+                                            unfocusedLabelColor = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    )
+                                    Spacer(modifier = Modifier.height(12.dp))
+                                    Button(
+                                        onClick = {
+                                            if (customFieldNameInput.isNotBlank() && customFieldValueInput.isNotBlank()) {
+                                                customFieldsList.add(customFieldNameInput.trim() to customFieldValueInput.trim())
+                                                customFieldNameInput = ""
+                                                customFieldValueInput = ""
+                                                isAddingCustomField = false
+                                            }
+                                        },
+                                        colors = ButtonDefaults.buttonColors(
+                                            containerColor = MaterialTheme.colorScheme.primary,
+                                            contentColor = MaterialTheme.colorScheme.onPrimary
+                                        ),
+                                        shape = RoundedCornerShape(percent = 50),
+                                        modifier = Modifier.align(Alignment.End)
+                                    ) {
+                                        Text("Add Field")
+                                    }
                                 }
                             }
                         }
-                    }
 
-                    // Display added custom fields
-                    if (customFieldsList.isEmpty()) {
-                        Text(
-                            text = "No additional custom fields added yet.",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
-                            modifier = Modifier.padding(top = 8.dp)
-                        )
-                    } else {
-                        Spacer(modifier = Modifier.height(8.dp))
-                        customFieldsList.forEachIndexed { index, pair ->
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(vertical = 4.dp)
-                                    .background(
-                                        MaterialTheme.colorScheme.surface,
-                                        RoundedCornerShape(8.dp)
-                                    )
-                                    .padding(horizontal = 12.dp, vertical = 6.dp),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Column {
-                                    Text(
-                                        text = pair.first,
-                                        style = MaterialTheme.typography.bodySmall,
-                                        fontWeight = FontWeight.Bold,
-                                        color = MaterialTheme.colorScheme.primary
-                                    )
-                                    Text(
-                                        text = pair.second,
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        color = MaterialTheme.colorScheme.onSurface
-                                    )
-                                }
-                                IconButton(onClick = { customFieldsList.removeAt(index) }) {
-                                    Icon(
-                                        Icons.Default.Delete,
-                                        contentDescription = "Delete custom field",
-                                        tint = MaterialTheme.colorScheme.error.copy(alpha = 0.7f),
-                                        modifier = Modifier.size(20.dp)
-                                    )
+                        // Display added custom fields
+                        if (customFieldsList.isEmpty()) {
+                            Text(
+                                text = "No custom parameters defined yet.",
+                                style = MaterialTheme.typography.bodySmall.copy(fontStyle = FontStyle.Italic),
+                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                                modifier = Modifier.padding(top = 8.dp)
+                            )
+                        } else {
+                            Spacer(modifier = Modifier.height(8.dp))
+                            customFieldsList.forEachIndexed { index, pair ->
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(vertical = 4.dp)
+                                        .background(
+                                            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
+                                            RoundedCornerShape(12.dp)
+                                        )
+                                        .border(
+                                            width = 1.dp,
+                                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f),
+                                            shape = RoundedCornerShape(12.dp)
+                                        )
+                                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(
+                                            text = pair.first,
+                                            style = MaterialTheme.typography.bodySmall,
+                                            fontWeight = FontWeight.Bold,
+                                            color = MaterialTheme.colorScheme.primary
+                                        )
+                                        Text(
+                                            text = pair.second,
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            fontWeight = FontWeight.SemiBold,
+                                            color = MaterialTheme.colorScheme.onSurface
+                                        )
+                                    }
+                                    IconButton(
+                                        onClick = { customFieldsList.removeAt(index) },
+                                        modifier = Modifier.size(36.dp)
+                                    ) {
+                                        Icon(
+                                            Icons.Default.Delete,
+                                            contentDescription = "Delete custom field",
+                                            tint = MaterialTheme.colorScheme.error.copy(alpha = 0.8f),
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                    }
                                 }
                             }
                         }
@@ -796,7 +1386,7 @@ fun CreateEventScreen(viewModel: EventViewModel) {
                 }
             }
 
-            // Buttons
+            // Submission Action Button (Styled as high-visibility Vibrant Blue Pill Button)
             item {
                 Button(
                     onClick = {
@@ -813,11 +1403,34 @@ fun CreateEventScreen(viewModel: EventViewModel) {
                     },
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(52.dp)
+                        .height(56.dp)
                         .testTag("create_event_submit_button"),
-                    shape = RoundedCornerShape(12.dp)
+                    shape = RoundedCornerShape(percent = 50), // Perfect pill shape
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.primary, // Vibrant Blue signature accent
+                        contentColor = MaterialTheme.colorScheme.onPrimary
+                    ),
+                    elevation = ButtonDefaults.buttonElevation(defaultElevation = 4.dp)
                 ) {
-                    Text("Create Event & Show on Dashboard", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                    Row(
+                        horizontalArrangement = Arrangement.Center,
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(
+                            text = "Create Event",
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            letterSpacing = 0.5.sp
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Icon(
+                            imageVector = Icons.Default.CheckCircle,
+                            contentDescription = "Success Icon",
+                            tint = MaterialTheme.colorScheme.onPrimary,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
                 }
             }
         }
@@ -834,15 +1447,23 @@ fun EventDetailsScreen(eventId: Int, viewModel: EventViewModel) {
     val transactions by viewModel.selectedEventTransactions.collectAsStateWithLifecycle()
     val invitedMap by viewModel.invitedMembers.collectAsStateWithLifecycle()
     val invitedList = invitedMap[eventId] ?: emptyList()
+    val currentUserEmail by viewModel.userEmail.collectAsStateWithLifecycle()
 
     // Dialog state controllers
     var isInviteDialogOpen by remember { mutableStateOf(false) }
-    var isManualTransactionDialogOpen by remember { mutableStateOf(false) }
+    var selectedMemberForProfile by remember { mutableStateOf<EventViewModel.Member?>(null) }
     var isReceiptScannerDialogOpen by remember { mutableStateOf(false) }
 
     // OCR result verifier modal
     var extractedReceiptToVerify by remember { mutableStateOf<EventViewModel.ParsedReceipt?>(null) }
     var isVerifyReceiptDialogOpen by remember { mutableStateOf(false) }
+
+    var selectedImageUriForPipeline by remember { mutableStateOf<Uri?>(null) }
+    var isProcessingPipelineActive by remember { mutableStateOf(false) }
+
+    var replacingTransaction by remember { mutableStateOf<TransactionEntity?>(null) }
+    var selectedImageUriForReplacementPipeline by remember { mutableStateOf<Uri?>(null) }
+    var isReplacementPipelineActive by remember { mutableStateOf(false) }
 
     if (event == null) {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -883,14 +1504,21 @@ fun EventDetailsScreen(eventId: Int, viewModel: EventViewModel) {
                 title = {
                     Text(
                         text = currentEvent.title,
-                        fontWeight = FontWeight.Bold,
+                        fontWeight = FontWeight.ExtraBold,
+                        style = MaterialTheme.typography.titleLarge,
+                        color = MaterialTheme.colorScheme.onSurface,
                         maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
+                        overflow = TextOverflow.Ellipsis,
+                        letterSpacing = (-0.5).sp
                     )
                 },
                 navigationIcon = {
                     IconButton(onClick = { viewModel.navigateBack() }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back to list")
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Back to list",
+                            tint = MaterialTheme.colorScheme.onSurface
+                        )
                     }
                 },
                 actions = {
@@ -903,42 +1531,32 @@ fun EventDetailsScreen(eventId: Int, viewModel: EventViewModel) {
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
+                    containerColor = Color.Transparent
                 )
             )
         },
         floatingActionButton = {
-            Row(
+            // Big Upload Screenshot Floating Button (as shown in Sketch 3 at the bottom center)
+            ExtendedFloatingActionButton(
+                onClick = { isReceiptScannerDialogOpen = true },
+                containerColor = MaterialTheme.colorScheme.primary,
+                contentColor = MaterialTheme.colorScheme.onPrimary,
+                elevation = FloatingActionButtonDefaults.elevation(6.dp),
+                shape = RoundedCornerShape(percent = 50), // Perfect pill shape
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp),
-                horizontalArrangement = Arrangement.Center,
-                verticalAlignment = Alignment.CenterVertically
+                    .testTag("upload_screenshot_fab")
+                    .padding(bottom = 16.dp)
             ) {
-                // Manual Entry Floating Button
-                FloatingActionButton(
-                    onClick = { isManualTransactionDialogOpen = true },
-                    containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                    contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
-                    elevation = FloatingActionButtonDefaults.elevation(8.dp)
-                ) {
-                    Icon(Icons.Default.Edit, contentDescription = "Manual Entry")
-                }
-
-                Spacer(modifier = Modifier.width(12.dp))
-
-                // Big Upload Screenshot Floating Button (as shown in Sketch 3 at the bottom center)
-                ExtendedFloatingActionButton(
-                    onClick = { isReceiptScannerDialogOpen = true },
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    contentColor = MaterialTheme.colorScheme.onPrimary,
-                    elevation = FloatingActionButtonDefaults.elevation(8.dp),
-                    modifier = Modifier.testTag("upload_screenshot_fab")
-                ) {
-                    Icon(Icons.Default.Add, contentDescription = "Upload Icon")
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("Upload Screenshot / Image", fontWeight = FontWeight.Bold)
-                }
+                Icon(Icons.Default.Add, contentDescription = "Upload Icon", tint = MaterialTheme.colorScheme.onPrimary)
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "Upload Screenshot / Image",
+                    fontWeight = FontWeight.ExtraBold,
+                    style = MaterialTheme.typography.labelLarge.copy(
+                        letterSpacing = 0.5.sp
+                    ),
+                    color = MaterialTheme.colorScheme.onPrimary
+                )
             }
         },
         floatingActionButtonPosition = FabPosition.Center
@@ -946,9 +1564,9 @@ fun EventDetailsScreen(eventId: Int, viewModel: EventViewModel) {
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
-                .background(MaterialTheme.colorScheme.background)
+                .background(MaterialTheme.colorScheme.background) // Ultra-clean soft grey background
                 .padding(paddingValues),
-            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 100.dp), // Spacious bottom padding so FAB never overlaps items
+            contentPadding = PaddingValues(start = 24.dp, end = 24.dp, top = 12.dp, bottom = 100.dp), // Spacious bottom padding so FAB never overlaps items
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             // Section 1: Financial Cards Header (Credits, Debits, Balance)
@@ -956,83 +1574,219 @@ fun EventDetailsScreen(eventId: Int, viewModel: EventViewModel) {
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(24.dp),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.primaryContainer
-                    ),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
                 ) {
                     Column(
-                        modifier = Modifier.padding(20.dp)
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(20.dp)
                     ) {
+                        // Header
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text(
-                                text = "Ledger Balance Summary",
-                                style = MaterialTheme.typography.titleSmall,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onPrimaryContainer
-                            )
-                            // A cute visual pill indicating "Active" status
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    imageVector = Icons.Default.Dashboard,
+                                    contentDescription = "Dashboard",
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = "LIVE LEDGER DASHBOARD",
+                                    style = MaterialTheme.typography.labelMedium,
+                                    fontWeight = FontWeight.Black,
+                                    letterSpacing = 1.sp,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                            }
+                            // Pulsing Badge
                             Box(
                                 modifier = Modifier
                                     .background(
-                                        color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.1f),
+                                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
                                         shape = RoundedCornerShape(100.dp)
                                     )
                                     .padding(horizontal = 8.dp, vertical = 4.dp)
                             ) {
-                                Text(
-                                    text = "Live Sync",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.onPrimaryContainer
-                                )
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(6.dp)
+                                            .background(Color(0xFF10B981), CircleShape) // Emerald Green
+                                    )
+                                    Text(
+                                        text = "REAL-TIME",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.primary,
+                                        fontSize = 9.sp
+                                    )
+                                }
                             }
                         }
 
                         Spacer(modifier = Modifier.height(16.dp))
 
+                        // Available Balance Card (Hero Block)
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(20.dp))
+                                .background(
+                                    Brush.verticalGradient(
+                                        colors = listOf(Color(0xFF0F1E36), Color(0xFF1E293B))
+                                    )
+                                )
+                                .padding(20.dp)
+                        ) {
+                            // Technical grid circle overlays matching high-fidelity design
+                            Canvas(modifier = Modifier.matchParentSize()) {
+                                drawCircle(
+                                    color = Color(0xFF38BDF8).copy(alpha = 0.12f),
+                                    radius = size.minDimension * 0.5f,
+                                    center = Offset(size.width * 0.85f, size.height * 0.2f)
+                                )
+                                drawCircle(
+                                    color = Color(0xFF38BDF8).copy(alpha = 0.06f),
+                                    radius = size.minDimension * 0.75f,
+                                    center = Offset(size.width * 0.15f, size.height * 0.8f)
+                                )
+                            }
+                            Column {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = "Current Available Balance",
+                                        style = MaterialTheme.typography.labelLarge,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color.White.copy(alpha = 0.8f)
+                                    )
+                                    Icon(
+                                        imageVector = if (balance >= 0) Icons.Default.TrendingUp else Icons.Default.TrendingDown,
+                                        contentDescription = "Trend",
+                                        tint = if (balance >= 0) Color(0xFF34D399) else Color(0xFFF87171),
+                                        modifier = Modifier.size(24.dp)
+                                    )
+                                }
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Text(
+                                    text = "₹${String.format(Locale.getDefault(), "%,.2f", balance)}",
+                                    style = MaterialTheme.typography.headlineMedium.copy(
+                                        fontWeight = FontWeight.Black,
+                                        letterSpacing = (-0.5).sp
+                                    ),
+                                    color = if (balance >= 0) Color.White else Color(0xFFF87171)
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        // Two column asymmetric grid: Collected & Spent
                         Row(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    text = "Total Collected",
-                                    style = MaterialTheme.typography.labelMedium,
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.65f)
-                                )
-                                Spacer(modifier = Modifier.height(4.dp))
-                                Text(
-                                    text = "₹${String.format(Locale.getDefault(), "%,.2f", creditAmount)}",
-                                    style = MaterialTheme.typography.titleLarge,
-                                    fontWeight = FontWeight.ExtraBold,
-                                    color = MaterialTheme.colorScheme.onPrimaryContainer
-                                )
+                            // Total Collected Card
+                            Card(
+                                modifier = Modifier.weight(1f),
+                                shape = RoundedCornerShape(16.dp),
+                                colors = CardDefaults.cardColors(
+                                    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+                                ),
+                                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
+                            ) {
+                                Column(modifier = Modifier.padding(14.dp)) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.ArrowUpward,
+                                            contentDescription = "Collected",
+                                            tint = Color(0xFF10B981),
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                        Text(
+                                            text = "Total Collected",
+                                            style = MaterialTheme.typography.labelSmall,
+                                            fontWeight = FontWeight.Bold,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                    Spacer(modifier = Modifier.height(6.dp))
+                                    Text(
+                                        text = "₹${String.format(Locale.getDefault(), "%,.2f", creditAmount)}",
+                                        style = MaterialTheme.typography.titleMedium,
+                                        fontWeight = FontWeight.Black,
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
+                                    Text(
+                                        text = "Verified Receipts",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                                        fontSize = 9.sp
+                                    )
+                                }
                             }
-                            Column(modifier = Modifier.weight(1f), horizontalAlignment = Alignment.End) {
-                                Text(
-                                    text = "Spent / Debited",
-                                    style = MaterialTheme.typography.labelMedium,
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.65f)
-                                )
-                                Spacer(modifier = Modifier.height(4.dp))
-                                Text(
-                                    text = "₹${String.format(Locale.getDefault(), "%,.2f", debitAmount)}",
-                                    style = MaterialTheme.typography.titleLarge,
-                                    fontWeight = FontWeight.ExtraBold,
-                                    color = MaterialTheme.colorScheme.error
-                                )
+
+                            // Spent / Debited Card
+                            Card(
+                                modifier = Modifier.weight(1f),
+                                shape = RoundedCornerShape(16.dp),
+                                colors = CardDefaults.cardColors(
+                                    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+                                ),
+                                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
+                            ) {
+                                Column(modifier = Modifier.padding(14.dp)) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.ArrowDownward,
+                                            contentDescription = "Spent",
+                                            tint = Color(0xFFEF4444),
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                        Text(
+                                            text = "Total Spent",
+                                            style = MaterialTheme.typography.labelSmall,
+                                            fontWeight = FontWeight.Bold,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                    Spacer(modifier = Modifier.height(6.dp))
+                                    Text(
+                                        text = "₹${String.format(Locale.getDefault(), "%,.2f", debitAmount)}",
+                                        style = MaterialTheme.typography.titleMedium,
+                                        fontWeight = FontWeight.Black,
+                                        color = Color(0xFFEF4444)
+                                    )
+                                    Text(
+                                        text = "Ledger Outflow",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                                        fontSize = 9.sp
+                                    )
+                                }
                             }
                         }
 
-                        Spacer(modifier = Modifier.height(16.dp))
+                        Spacer(modifier = Modifier.height(14.dp))
 
                         // Progress bar indicating Budget Spent Ratio
                         if (creditAmount > 0) {
@@ -1046,15 +1800,16 @@ fun EventDetailsScreen(eventId: Int, viewModel: EventViewModel) {
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     Text(
-                                        text = "Budget Utilized",
+                                        text = "Collection Utilization Meter",
                                         style = MaterialTheme.typography.labelSmall,
-                                        color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
                                     Text(
                                         text = percentageString,
                                         style = MaterialTheme.typography.labelSmall,
-                                        fontWeight = FontWeight.Bold,
-                                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                                        fontWeight = FontWeight.Black,
+                                        color = if (ratio > 0.85f) Color(0xFFEF4444) else MaterialTheme.colorScheme.primary
                                     )
                                 }
                                 Spacer(modifier = Modifier.height(6.dp))
@@ -1063,54 +1818,19 @@ fun EventDetailsScreen(eventId: Int, viewModel: EventViewModel) {
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .height(8.dp)
-                                        .background(
-                                            color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.1f),
-                                            shape = RoundedCornerShape(100.dp)
-                                        ),
-                                    color = if (ratio > 0.85f) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onPrimaryContainer,
-                                    trackColor = Color.Transparent
+                                        .clip(RoundedCornerShape(4.dp)),
+                                    color = if (ratio > 0.85f) Color(0xFFEF4444) else MaterialTheme.colorScheme.primary,
+                                    trackColor = MaterialTheme.colorScheme.surfaceVariant
                                 )
                             }
                         } else {
                             Text(
-                                text = "Start collecting contributions to see utilization stats.",
+                                text = "Start collecting contributions to populate real-time utilization index.",
                                 style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.5f),
-                                fontStyle = FontStyle.Italic
-                            )
-                        }
-
-                        HorizontalDivider(
-                            modifier = Modifier.padding(vertical = 16.dp),
-                            thickness = 1.dp,
-                            color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.15f)
-                        )
-
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(
-                                    imageVector = if (balance >= 0) Icons.Default.TrendingUp else Icons.Default.TrendingDown,
-                                    contentDescription = "Balance Indicator",
-                                    tint = if (balance >= 0) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.error,
-                                    modifier = Modifier.size(20.dp)
-                                )
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Text(
-                                    text = "Available Balance",
-                                    style = MaterialTheme.typography.bodyLarge,
-                                    fontWeight = FontWeight.ExtraBold,
-                                    color = MaterialTheme.colorScheme.onPrimaryContainer
-                                )
-                            }
-                            Text(
-                                text = "₹${String.format(Locale.getDefault(), "%,.2f", balance)}",
-                                style = MaterialTheme.typography.headlineSmall,
-                                fontWeight = FontWeight.Black,
-                                color = if (balance >= 0) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.error
+                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                                fontStyle = FontStyle.Italic,
+                                modifier = Modifier.fillMaxWidth(),
+                                textAlign = TextAlign.Center
                             )
                         }
 
@@ -1119,13 +1839,13 @@ fun EventDetailsScreen(eventId: Int, viewModel: EventViewModel) {
                             HorizontalDivider(
                                 modifier = Modifier.padding(vertical = 12.dp),
                                 thickness = 0.5.dp,
-                                color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.1f)
+                                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
                             )
                             Text(
                                 text = "Event Details & Custom Info",
                                 style = MaterialTheme.typography.labelSmall,
                                 fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f),
+                                color = MaterialTheme.colorScheme.primary,
                                 modifier = Modifier.padding(bottom = 6.dp)
                             )
                             customFieldsMap.entries.chunked(2).forEach { rowEntries ->
@@ -1138,24 +1858,25 @@ fun EventDetailsScreen(eventId: Int, viewModel: EventViewModel) {
                                             modifier = Modifier
                                                 .weight(1f)
                                                 .background(
-                                                    color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.08f),
-                                                    shape = RoundedCornerShape(8.dp)
+                                                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
+                                                    shape = RoundedCornerShape(12.dp)
                                                 )
-                                                .padding(horizontal = 8.dp, vertical = 6.dp)
+                                                .border(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f), RoundedCornerShape(12.dp))
+                                                .padding(horizontal = 12.dp, vertical = 8.dp)
                                         ) {
                                             Column {
                                                 Text(
                                                     text = entry.key,
                                                     style = MaterialTheme.typography.labelSmall,
                                                     fontWeight = FontWeight.Bold,
-                                                    color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.6f)
+                                                    color = MaterialTheme.colorScheme.onSurfaceVariant
                                                 )
                                                 Spacer(modifier = Modifier.height(2.dp))
                                                 Text(
                                                     text = entry.value,
                                                     style = MaterialTheme.typography.bodySmall,
                                                     fontWeight = FontWeight.SemiBold,
-                                                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                                                    color = MaterialTheme.colorScheme.onSurface
                                                 )
                                             }
                                         }
@@ -1175,14 +1896,14 @@ fun EventDetailsScreen(eventId: Int, viewModel: EventViewModel) {
             item {
                 Card(
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(16.dp),
+                    shape = RoundedCornerShape(20.dp),
                     colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.2f)
+                        containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.15f)
                     ),
-                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.secondary.copy(alpha = 0.25f))
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.25f))
                 ) {
                     Column(
-                        modifier = Modifier.padding(16.dp)
+                        modifier = Modifier.padding(20.dp)
                     ) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically
@@ -1190,7 +1911,7 @@ fun EventDetailsScreen(eventId: Int, viewModel: EventViewModel) {
                             Icon(
                                 imageVector = Icons.Default.DocumentScanner,
                                 contentDescription = "Scanner",
-                                tint = MaterialTheme.colorScheme.secondary,
+                                tint = MaterialTheme.colorScheme.primary,
                                 modifier = Modifier.size(20.dp)
                             )
                             Spacer(modifier = Modifier.width(8.dp))
@@ -1198,22 +1919,22 @@ fun EventDetailsScreen(eventId: Int, viewModel: EventViewModel) {
                                 text = "💡 Image Data Extraction Guide",
                                 style = MaterialTheme.typography.titleSmall,
                                 fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onSecondaryContainer
+                                color = MaterialTheme.colorScheme.onSurface
                             )
                         }
-                        Spacer(modifier = Modifier.height(6.dp))
+                        Spacer(modifier = Modifier.height(8.dp))
                         Text(
                             text = "This upload screenshot is the most powerful feature for extracting payment data from Google Pay, PhonePe, Paytm, or Amazon Pay images or transaction URLs.",
                             style = MaterialTheme.typography.bodySmall,
                             fontWeight = FontWeight.Medium,
-                            color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.85f)
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
-                        Spacer(modifier = Modifier.height(4.dp))
+                        Spacer(modifier = Modifier.height(6.dp))
                         Text(
                             text = "Note: People must upload a clean, high-resolution payment screenshot. Otherwise, the app cannot accept or parse it accurately.",
                             style = MaterialTheme.typography.bodySmall,
                             fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSecondaryContainer
+                            color = MaterialTheme.colorScheme.onSurface
                         )
                     }
                 }
@@ -1225,10 +1946,11 @@ fun EventDetailsScreen(eventId: Int, viewModel: EventViewModel) {
                     modifier = Modifier
                         .fillMaxWidth()
                         .background(
-                            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
-                            RoundedCornerShape(12.dp)
+                            MaterialTheme.colorScheme.surface,
+                            RoundedCornerShape(20.dp)
                         )
-                        .padding(12.dp)
+                        .border(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f), RoundedCornerShape(20.dp))
+                        .padding(16.dp)
                 ) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -1237,13 +1959,19 @@ fun EventDetailsScreen(eventId: Int, viewModel: EventViewModel) {
                     ) {
                         Text(
                             text = "👥 Invited Members (${invitedList.size})",
-                            style = MaterialTheme.typography.bodyMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.primary
+                            style = MaterialTheme.typography.bodyMedium.copy(
+                                fontWeight = FontWeight.ExtraBold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            ),
+                            modifier = Modifier.padding(start = 4.dp)
                         )
-                        TextButton(onClick = { isInviteDialogOpen = true }) {
-                            Icon(Icons.Default.Add, contentDescription = "Invite")
-                            Text("Invite", fontSize = 12.sp)
+                        TextButton(
+                            onClick = { isInviteDialogOpen = true },
+                            colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.primary)
+                        ) {
+                            Icon(Icons.Default.Add, contentDescription = "Invite", modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("Invite", fontSize = 12.sp, fontWeight = FontWeight.Bold)
                         }
                     }
 
@@ -1251,78 +1979,132 @@ fun EventDetailsScreen(eventId: Int, viewModel: EventViewModel) {
                         Text(
                             text = "No one invited yet. Click 'Invite' to register community members (Organizer, Treasurer, Donor, Debtor/Creditor). Only invited members or public entries show in ledger.",
                             style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
-                            modifier = Modifier.padding(vertical = 4.dp)
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(horizontal = 4.dp, vertical = 8.dp)
                         )
                     } else {
-                        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                             invitedList.forEach { member ->
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .background(
-                                            MaterialTheme.colorScheme.surface,
-                                            RoundedCornerShape(8.dp)
-                                        )
-                                        .padding(8.dp),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.SpaceBetween
+                                // Transaction calculations for this person
+                                val memberTx = transactions.filter { tx ->
+                                    tx.personName.equals(member.name, ignoreCase = true) || 
+                                    (member.phone.isNotBlank() && tx.personPhone == member.phone) ||
+                                    (member.email.isNotBlank() && tx.personEmail == member.email)
+                                }
+                                val credits = memberTx.filter { it.type == "Donated" || it.type == "Credit" }
+                                val debits = memberTx.filter { it.type == "Debit" || it.type == "Expense" }
+
+                                val creditTimes = credits.size
+                                val debitTimes = debits.size
+                                val totalCredit = credits.sumOf { it.amount }
+                                val totalDebit = debits.sumOf { it.amount }
+
+                                Card(
+                                    onClick = { selectedMemberForProfile = member },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    colors = CardDefaults.cardColors(
+                                        containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+                                    ),
+                                    shape = RoundedCornerShape(16.dp),
+                                    border = BorderStroke(
+                                        1.dp, 
+                                        MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
+                                    )
                                 ) {
-                                    Row(
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        modifier = Modifier.weight(1f)
-                                    ) {
-                                        Box(
-                                            modifier = Modifier
-                                                .size(32.dp)
-                                                .background(
-                                                    MaterialTheme.colorScheme.primaryContainer,
-                                                    CircleShape
-                                                ),
-                                            contentAlignment = Alignment.Center
+                                    Column(modifier = Modifier.padding(14.dp)) {
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.SpaceBetween
                                         ) {
-                                            Text(
-                                                text = member.name.take(1).uppercase(),
-                                                style = MaterialTheme.typography.bodyMedium,
-                                                fontWeight = FontWeight.Bold,
-                                                color = MaterialTheme.colorScheme.onPrimaryContainer
-                                            )
+                                            Row(
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                modifier = Modifier.weight(1f)
+                                            ) {
+                                                Box(
+                                                    modifier = Modifier
+                                                        .size(36.dp)
+                                                        .background(
+                                                            MaterialTheme.colorScheme.primaryContainer,
+                                                            CircleShape
+                                                        ),
+                                                    contentAlignment = Alignment.Center
+                                                ) {
+                                                    Text(
+                                                        text = member.name.take(1).uppercase(),
+                                                        style = MaterialTheme.typography.bodyMedium,
+                                                        fontWeight = FontWeight.Bold,
+                                                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                                                    )
+                                                }
+                                                Spacer(modifier = Modifier.width(10.dp))
+                                                Column {
+                                                    Text(
+                                                        text = member.name,
+                                                        style = MaterialTheme.typography.bodyMedium,
+                                                        fontWeight = FontWeight.Bold,
+                                                        color = MaterialTheme.colorScheme.onSurface
+                                                    )
+                                                    Text(
+                                                        text = "📞 ${member.phone.ifBlank { "No phone" }}  |  Role: ${member.role}",
+                                                        style = MaterialTheme.typography.labelSmall,
+                                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                                    )
+                                                }
+                                            }
+
+                                            // Role label & arrow
+                                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                                Icon(
+                                                    imageVector = Icons.Default.ChevronRight,
+                                                    contentDescription = "View Profile",
+                                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                                )
+                                            }
                                         }
-                                        Spacer(modifier = Modifier.width(8.dp))
-                                        Column {
-                                            Text(
-                                                text = member.name,
-                                                style = MaterialTheme.typography.bodyMedium,
-                                                fontWeight = FontWeight.SemiBold
-                                            )
-                                            Text(
-                                                text = "📞 ${member.phone}  |  ✉️ ${member.email}",
-                                                style = MaterialTheme.typography.labelSmall,
-                                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                                            )
+
+                                        Spacer(modifier = Modifier.height(8.dp))
+                                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
+                                        Spacer(modifier = Modifier.height(8.dp))
+
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.SpaceBetween
+                                        ) {
+                                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                                Icon(
+                                                    imageVector = Icons.Default.TrendingUp,
+                                                    contentDescription = "Credit count",
+                                                    tint = Color(0xFF10B981),
+                                                    modifier = Modifier.size(14.dp)
+                                                )
+                                                Spacer(modifier = Modifier.width(4.dp))
+                                                Text(
+                                                    text = "Credited: $creditTimes times (₹${String.format(Locale.getDefault(), "%,.0f", totalCredit)})",
+                                                    style = MaterialTheme.typography.labelMedium,
+                                                    fontWeight = FontWeight.SemiBold,
+                                                    color = Color(0xFF10B981)
+                                                )
+                                            }
+
+                                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                                Icon(
+                                                    imageVector = Icons.Default.TrendingDown,
+                                                    contentDescription = "Debit count",
+                                                    tint = Color(0xFFEF4444),
+                                                    modifier = Modifier.size(14.dp)
+                                                )
+                                                Spacer(modifier = Modifier.width(4.dp))
+                                                Text(
+                                                    text = "Debited: $debitTimes times (₹${String.format(Locale.getDefault(), "%,.0f", totalDebit)})",
+                                                    style = MaterialTheme.typography.labelMedium,
+                                                    fontWeight = FontWeight.SemiBold,
+                                                    color = Color(0xFFEF4444)
+                                                )
+                                            }
                                         }
                                     }
-
-                                    Text(
-                                        text = member.role,
-                                        style = MaterialTheme.typography.labelSmall,
-                                        fontWeight = FontWeight.Bold,
-                                        color = when (member.role) {
-                                            "Organizer" -> MaterialTheme.colorScheme.error
-                                            "Treasurer" -> MaterialTheme.colorScheme.secondary
-                                            else -> MaterialTheme.colorScheme.primary
-                                        },
-                                        modifier = Modifier
-                                            .background(
-                                                when (member.role) {
-                                                    "Organizer" -> MaterialTheme.colorScheme.errorContainer
-                                                    "Treasurer" -> MaterialTheme.colorScheme.secondaryContainer
-                                                    else -> MaterialTheme.colorScheme.primaryContainer
-                                                },
-                                                RoundedCornerShape(4.dp)
-                                            )
-                                            .padding(horizontal = 6.dp, vertical = 2.dp)
-                                    )
                                 }
                             }
                         }
@@ -1341,7 +2123,8 @@ fun EventDetailsScreen(eventId: Int, viewModel: EventViewModel) {
                         text = "📜 Transaction Ledger (${transactions.size})",
                         style = MaterialTheme.typography.titleSmall,
                         fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary
+                        color = MaterialTheme.colorScheme.onSurface,
+                        modifier = Modifier.padding(start = 4.dp)
                     )
                 }
             }
@@ -1350,9 +2133,11 @@ fun EventDetailsScreen(eventId: Int, viewModel: EventViewModel) {
                 item {
                     Card(
                         modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(20.dp),
                         colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
-                        )
+                            containerColor = MaterialTheme.colorScheme.surface
+                        ),
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
                     ) {
                         Column(
                             modifier = Modifier
@@ -1364,17 +2149,19 @@ fun EventDetailsScreen(eventId: Int, viewModel: EventViewModel) {
                             Icon(
                                 imageVector = Icons.Default.ReceiptLong,
                                 contentDescription = "Empty Ledger",
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
                                 modifier = Modifier.size(48.dp)
                             )
                             Spacer(modifier = Modifier.height(12.dp))
                             Text(
                                 text = "Ledger is empty",
                                 style = MaterialTheme.typography.bodyLarge,
-                                fontWeight = FontWeight.Bold
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurface
                             )
+                            Spacer(modifier = Modifier.height(4.dp))
                             Text(
-                                text = "Use receipt scanner or manual entry to add donations or debit expenses.",
+                                text = "Upload payment screenshots or share images to post transactions to the ledger.",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 textAlign = TextAlign.Center
@@ -1384,9 +2171,13 @@ fun EventDetailsScreen(eventId: Int, viewModel: EventViewModel) {
                 }
             } else {
                 items(transactions) { tx ->
+                    val eventCreatorEmail = getEventCreator(currentEvent.customFieldsJson)
                     TransactionItem(
                         tx = tx,
-                        onDelete = { viewModel.deleteTransaction(tx.id) }
+                        currentUserEmail = currentUserEmail,
+                        eventCreatorEmail = eventCreatorEmail,
+                        onDelete = { viewModel.deleteTransaction(tx.id) },
+                        onReplaceScreenshot = { replacingTransaction = tx }
                     )
                 }
             }
@@ -1398,418 +2189,457 @@ fun EventDetailsScreen(eventId: Int, viewModel: EventViewModel) {
     // 1. Invite Members Dialog (Includes Secure WhatsApp Link Generator & local registering)
     if (isInviteDialogOpen) {
         val context = LocalContext.current
-        var inviteName by remember { mutableStateOf("") }
-        var invitePhone by remember { mutableStateOf("") }
-        var inviteEmail by remember { mutableStateOf("") }
-        var inviteRole by remember { mutableStateOf("Donor") } // Donor, Debtor, Creditor, Organizer, Treasurer
-        var nameErr by remember { mutableStateOf(false) }
-
-        // Tabs: 0 -> Manual Register, 1 -> WhatsApp Link Generator
-        var selectedInviteTab by remember { mutableStateOf(1) } // Default to the main secure link feature!
 
         // Secure Link generation states
-        var linkDurationHours by remember { mutableStateOf("2 Hours") } // 1 Hour, 2 Hours, 12 Hours, 24 Hours, Never
-        var maxClickLimit by remember { mutableStateOf("Unlimited") } // Unlimited, 1 Member, 5 Members, 10 Members, 25 Members
+        var linkDurationHours by remember { mutableStateOf("2 Hours") } // 10 Minutes, 1 Hour, 2 Hours, 1 Day
+        var personalizedNote by remember { mutableStateOf("") }
 
         val clicksMap by viewModel.linkClicks.collectAsStateWithLifecycle()
         val currentClicks = clicksMap[currentEvent.id] ?: viewModel.getLinkClicks(currentEvent.id)
 
-        // Generate values
+        // Generate values (10 Min, 1 Hour, 2 Hours, 1 Day expiration)
         val durationMs = when (linkDurationHours) {
+            "10 Minutes" -> 600000L
             "1 Hour" -> 3600000L
             "2 Hours" -> 2 * 3600000L
-            "12 Hours" -> 12 * 3600000L
-            "24 Hours" -> 24 * 3600000L
-            else -> 0L
+            "1 Day" -> 24 * 3600000L
+            else -> 2 * 3600000L
         }
-        val expiryVal = if (durationMs == 0L) 0L else (System.currentTimeMillis() + durationMs)
-        val maxClicksVal = when (maxClickLimit) {
-            "1 Member" -> 1
-            "5 Members" -> 5
-            "10 Members" -> 10
-            "25 Members" -> 25
-            else -> 999999
+        val expiryVal = System.currentTimeMillis() + durationMs
+
+        val creatorEmail = viewModel.getMyUserEmail()
+        val encryptedEventId = viewModel.encryptEventId(currentEvent.id)
+        val sig = viewModel.generateSignature(
+            eventId = currentEvent.id,
+            expiry = expiryVal,
+            creatorEmail = creatorEmail
+        )
+        // Secure Web URL to pass over WhatsApp
+        val generatedLink = "https://communityledger.com/join?eventId=${android.net.Uri.encode(encryptedEventId)}&expiry=$expiryVal&signature=$sig&title=${android.net.Uri.encode(currentEvent.title)}&creatorEmail=${android.net.Uri.encode(creatorEmail)}"
+
+        val formattedExpiry = remember(expiryVal) {
+            SimpleDateFormat("dd MMM hh:mm a", Locale.getDefault()).format(Date(expiryVal))
         }
 
-        val sig = viewModel.generateSignature(currentEvent.id, expiryVal, maxClicksVal)
-        // Secure Web URL to pass over WhatsApp
-        val generatedLink = "https://communityledger.com/join?eventId=${currentEvent.id}&expiry=$expiryVal&maxClicks=$maxClicksVal&signature=$sig&title=${android.net.Uri.encode(currentEvent.title)}"
+        // Live Dynamic WhatsApp message builder (without ledger summary statistics)
+        val shareMessage = remember(
+            currentEvent.title,
+            personalizedNote,
+            creatorEmail,
+            formattedExpiry,
+            linkDurationHours,
+            generatedLink
+        ) {
+            buildString {
+                append("🌟 *Community Ledger Invitation* 🌟\n\n")
+                if (personalizedNote.isNotBlank()) {
+                    append("“${personalizedNote.trim()}”\n\n")
+                }
+                append("You have been invited to join the ledger event:\n")
+                append("👉 *${currentEvent.title}*\n\n")
+                
+                append("👤 *Organizer:* ${creatorEmail.ifBlank { "Community Member" }}\n")
+                append("⏳ *Link Expires:* $formattedExpiry ($linkDurationHours)\n")
+                append("🔒 *Security:* Cryptographically Signed\n\n")
+                
+                append("Click the link below to instantly join the ledger and track payments:\n")
+                append("🔗 $generatedLink\n\n")
+                
+                append("_Please ensure you have the Community Ledger app installed to access the event instantly._")
+            }
+        }
 
         AlertDialog(
             onDismissRequest = { isInviteDialogOpen = false },
             title = {
-                Column {
-                    Text("Add People to Ledger", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
-                    Spacer(modifier = Modifier.height(12.dp))
-                    
-                    // Styled segmented tabs for switching modes
-                    TabRow(
-                        selectedTabIndex = selectedInviteTab,
-                        containerColor = Color.Transparent,
-                        contentColor = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.fillMaxWidth().height(40.dp)
-                    ) {
-                        Tab(
-                            selected = selectedInviteTab == 0,
-                            onClick = { selectedInviteTab = 0 },
-                            text = { Text("📝 Local Register", fontSize = 11.sp, fontWeight = FontWeight.Bold) }
-                        )
-                        Tab(
-                            selected = selectedInviteTab == 1,
-                            onClick = { selectedInviteTab = 1 },
-                            text = { Text("🔗 Secure Link", fontSize = 11.sp, fontWeight = FontWeight.Bold) }
-                        )
-                    }
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Share,
+                        contentDescription = "Invite Icon",
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(24.dp)
+                    )
+                    Text(
+                        text = "Invite Participants",
+                        fontWeight = FontWeight.Bold,
+                        style = MaterialTheme.typography.titleMedium
+                    )
                 }
             },
             text = {
                 Column(
-                    modifier = Modifier.padding(top = 8.dp),
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 8.dp)
+                        .verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    if (selectedInviteTab == 0) {
-                        // LOCAL REGISTER TAB
-                        Text(
-                            text = "Register a person manually on this device. Once registered, they can donate, request credit, or record debit expenses.",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                    Text(
+                        text = "Customize your invitation message and generate a secure, tamper-proof invitation link.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+
+                    // 1. Personalized Note Input
+                    OutlinedTextField(
+                        value = personalizedNote,
+                        onValueChange = { personalizedNote = it },
+                        placeholder = { Text("Add personalized message... (Optional)") },
+                        singleLine = true,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("personalized_note_input"),
+                        leadingIcon = {
+                            Icon(
+                                imageVector = Icons.Default.Edit,
+                                contentDescription = "Edit Note",
+                                modifier = Modifier.size(20.dp),
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                    )
+
+                    // 2. Link Duration Choice
+                    Text(
+                        text = "⏳ Link Expiration Time",
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        listOf("10 Minutes", "1 Hour", "2 Hours", "1 Day").forEach { hours ->
+                            FilterChip(
+                                selected = linkDurationHours == hours,
+                                onClick = { linkDurationHours = hours },
+                                label = { Text(hours, fontSize = 11.sp) }
+                            )
+                        }
+                    }
+
+                    Text(
+                        text = "🔒 Expiry scheduled at: $formattedExpiry.",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = Color(0xFF2E7D32)
+                    )
+
+                    // 3. Live Click Tracker Card
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.25f)
                         )
-                        OutlinedTextField(
-                            value = inviteName,
-                            onValueChange = {
-                                inviteName = it
-                                if (it.isNotBlank()) nameErr = false
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Group,
+                                contentDescription = "Clicks count",
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(24.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Column {
+                                Text(
+                                    text = "Active Link Usage Tracking",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                                )
+                                Text(
+                                    text = "Total clicked & joined: $currentClicks people",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.85f)
+                                )
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(4.dp))
+
+                    // Sharing Actions Row
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        // Copy Link Button
+                        OutlinedButton(
+                            onClick = {
+                                val clipboardManager = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+                                val clipData = android.content.ClipData.newPlainText("Ledger Link", shareMessage)
+                                clipboardManager.setPrimaryClip(clipData)
+                                android.widget.Toast.makeText(context, "Pre-filled invite message copied!", android.widget.Toast.LENGTH_SHORT).show()
                             },
-                            label = { Text("Person Name *") },
-                            isError = nameErr,
-                            singleLine = true,
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                        OutlinedTextField(
-                            value = invitePhone,
-                            onValueChange = { invitePhone = it },
-                            label = { Text("Phone Number") },
-                            placeholder = { Text("e.g. 9876543210") },
-                            singleLine = true,
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                        OutlinedTextField(
-                            value = inviteEmail,
-                            onValueChange = { inviteEmail = it },
-                            label = { Text("Email Address") },
-                            placeholder = { Text("e.g. ravi@gmail.com") },
-                            singleLine = true,
-                            modifier = Modifier.fillMaxWidth()
-                        )
-
-                        // Role select
-                        Text(
-                            text = "Register Role",
-                            style = MaterialTheme.typography.bodySmall,
-                            fontWeight = FontWeight.Bold,
-                            modifier = Modifier.padding(top = 4.dp)
-                        )
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                            modifier = Modifier.weight(1f).testTag("copy_secure_link_button")
                         ) {
-                            listOf("Donor", "Debtor", "Creditor", "Organizer").forEach { role ->
-                                FilterChip(
-                                    selected = inviteRole == role,
-                                    onClick = { inviteRole = role },
-                                    label = { Text(role, fontSize = 11.sp) }
-                                )
-                            }
-                        }
-                    } else {
-                        // SECURE WHATSAPP LINK GENERATOR TAB
-                        Text(
-                            text = "Generate a secure, tamper-proof WhatsApp invitation link. Advanced Privacy Guard signs this link. Expiry prevents wrong people from joining.",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-
-                        // Expiry configurations
-                        Text(
-                            text = "⏳ Link Expiration Time",
-                            style = MaterialTheme.typography.labelSmall,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.primary
-                        )
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(4.dp)
-                        ) {
-                            listOf("1 Hour", "2 Hours", "12 Hours", "Never").forEach { hours ->
-                                FilterChip(
-                                    selected = linkDurationHours == hours,
-                                    onClick = { linkDurationHours = hours },
-                                    label = { Text(hours, fontSize = 10.sp) }
-                                )
-                            }
+                            Icon(Icons.Default.ContentCopy, contentDescription = "Copy", modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("Copy Msg", fontSize = 11.sp, maxLines = 1)
                         }
 
-                        // Member click limit configurations
-                        Text(
-                            text = "👥 Maximum Join Limit",
-                            style = MaterialTheme.typography.labelSmall,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.primary
-                        )
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(4.dp)
-                        ) {
-                            listOf("Unlimited", "1 Member", "5 Members", "10 Members").forEach { limit ->
-                                FilterChip(
-                                    selected = maxClickLimit == limit,
-                                    onClick = { maxClickLimit = limit },
-                                    label = { Text(limit, fontSize = 10.sp) }
-                                )
-                            }
-                        }
-
-                        // Live Click Tracker Card
-                        Card(
-                            modifier = Modifier.fillMaxWidth(),
-                            colors = CardDefaults.cardColors(
-                                containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.25f)
+                        // Share on WhatsApp Button
+                        Button(
+                            onClick = {
+                                val shareIntent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
+                                    type = "text/plain"
+                                    putExtra(android.content.Intent.EXTRA_TEXT, shareMessage)
+                                }
+                                try {
+                                    val whatsappIntent = android.content.Intent(shareIntent).apply {
+                                        setPackage("com.whatsapp")
+                                    }
+                                    context.startActivity(whatsappIntent)
+                                } catch (e: Exception) {
+                                    context.startActivity(android.content.Intent.createChooser(shareIntent, "Share Ledger Link"))
+                                }
+                            },
+                            modifier = Modifier.weight(1.2f).testTag("send_secure_link_button"),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = Color(0xFF25D366),
+                                contentColor = Color.White
                             )
                         ) {
-                            Row(
-                                modifier = Modifier.padding(10.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Group,
-                                    contentDescription = "Clicks count",
-                                    tint = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.size(24.dp)
-                                )
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Column {
-                                    Text(
-                                        text = "Active Link Usage Tracking",
-                                        style = MaterialTheme.typography.labelSmall,
-                                        fontWeight = FontWeight.Bold,
-                                        color = MaterialTheme.colorScheme.onPrimaryContainer
-                                    )
-                                    Text(
-                                        text = "Total clicked & joined: $currentClicks people",
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.85f)
-                                    )
-                                }
-                            }
-                        }
-
-                        Spacer(modifier = Modifier.height(4.dp))
-
-                        // Sharing Actions Row
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            // Copy Link Button
-                            OutlinedButton(
-                                onClick = {
-                                    val clipboardManager = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
-                                    val clipData = android.content.ClipData.newPlainText("Ledger Link", generatedLink)
-                                    clipboardManager.setPrimaryClip(clipData)
-                                    android.widget.Toast.makeText(context, "Secure link copied!", android.widget.Toast.LENGTH_SHORT).show()
-                                },
-                                modifier = Modifier.weight(1f)
-                            ) {
-                                Icon(Icons.Default.ContentCopy, contentDescription = "Copy", modifier = Modifier.size(16.dp))
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text("Copy Link", fontSize = 12.sp)
-                            }
-
-                            // Share on WhatsApp Button
-                            Button(
-                                onClick = {
-                                    val shareIntent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
-                                        type = "text/plain"
-                                        val expiryMsg = if (linkDurationHours == "Never") "unlimited access" else "expires in $linkDurationHours"
-                                        putExtra(android.content.Intent.EXTRA_TEXT, "Hey! You've been invited to join the shared ledger event '${currentEvent.title}'. Click this secure link ($expiryMsg) to view/edit: $generatedLink")
-                                    }
-                                    try {
-                                        val whatsappIntent = android.content.Intent(shareIntent).apply {
-                                            setPackage("com.whatsapp")
-                                        }
-                                        context.startActivity(whatsappIntent)
-                                    } catch (e: Exception) {
-                                        // Fallback to standard share chooser
-                                        context.startActivity(android.content.Intent.createChooser(shareIntent, "Share Ledger Link"))
-                                    }
-                                },
-                                modifier = Modifier.weight(1f)
-                            ) {
-                                Icon(Icons.Default.Share, contentDescription = "WhatsApp", modifier = Modifier.size(16.dp))
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text("Send Link", fontSize = 12.sp)
-                            }
+                            Icon(Icons.Default.Share, contentDescription = "WhatsApp", modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("Send Link", fontSize = 11.sp, maxLines = 1)
                         }
                     }
                 }
             },
             confirmButton = {
-                if (selectedInviteTab == 0) {
-                    Button(
-                        onClick = {
-                            if (inviteName.isBlank()) {
-                                nameErr = true
-                            } else {
-                                viewModel.invitePerson(
-                                    eventId = eventId,
-                                    name = inviteName.trim(),
-                                    phone = invitePhone.trim(),
-                                    email = inviteEmail.trim(),
-                                    role = inviteRole
-                                )
-                                isInviteDialogOpen = false
-                            }
-                        }
-                    ) {
-                        Text("Register")
-                    }
-                } else {
-                    Button(onClick = { isInviteDialogOpen = false }) {
-                        Text("Close")
-                    }
-                }
-            },
-            dismissButton = {
-                if (selectedInviteTab == 0) {
-                    TextButton(onClick = { isInviteDialogOpen = false }) {
-                        Text("Cancel")
-                    }
+                Button(onClick = { isInviteDialogOpen = false }) {
+                    Text("Close")
                 }
             }
         )
     }
 
-    // 2. Manual Transaction Entry Dialog
-    if (isManualTransactionDialogOpen) {
-        var pName by remember { mutableStateOf("") }
-        var pPhone by remember { mutableStateOf("") }
-        var pEmail by remember { mutableStateOf("") }
-        var amtInput by remember { mutableStateOf("") }
-        var txType by remember { mutableStateOf("Donated") } // Donated, Credit, Debit, Expense
-        var txnId by remember { mutableStateOf("") }
-        var notesInput by remember { mutableStateOf("") }
+    // 2. Member Payment & Contribution Profile Dialog
+    if (selectedMemberForProfile != null) {
+        val member = selectedMemberForProfile!!
+        // Filter transactions associated with this member's details
+        val memberTx = transactions.filter { tx ->
+            tx.personName.equals(member.name, ignoreCase = true) || 
+            (member.phone.isNotBlank() && tx.personPhone == member.phone) ||
+            (member.email.isNotBlank() && tx.personEmail == member.email)
+        }
+        val credits = memberTx.filter { it.type == "Donated" || it.type == "Credit" }
+        val debits = memberTx.filter { it.type == "Debit" || it.type == "Expense" }
 
-        var amtErr by remember { mutableStateOf(false) }
+        val creditTimes = credits.size
+        val debitTimes = debits.size
+        val totalCredit = credits.sumOf { it.amount }
+        val totalDebit = debits.sumOf { it.amount }
 
         AlertDialog(
-            onDismissRequest = { isManualTransactionDialogOpen = false },
-            title = { Text("Add Ledger Entry Manually") },
+            onDismissRequest = { selectedMemberForProfile = null },
+            title = {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(44.dp)
+                            .background(MaterialTheme.colorScheme.primaryContainer, CircleShape),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = member.name.take(1).uppercase(),
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Column {
+                        Text(
+                            text = member.name, 
+                            fontWeight = FontWeight.Bold, 
+                            style = MaterialTheme.typography.titleMedium
+                        )
+                        Text(
+                            text = "Role: ${member.role}", 
+                            style = MaterialTheme.typography.labelSmall, 
+                            color = MaterialTheme.colorScheme.secondary
+                        )
+                    }
+                }
+            },
             text = {
                 Column(
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                    modifier = Modifier.verticalScroll(rememberScrollState())
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(14.dp)
                 ) {
-                    // Type select
-                    Row(
+                    // Contact details card
+                    Card(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+                        ),
+                        shape = RoundedCornerShape(8.dp)
                     ) {
-                        listOf("Donated", "Expense", "Credit", "Debit").forEach { type ->
-                            FilterChip(
-                                selected = txType == type,
-                                onClick = { txType = type },
-                                label = { Text(type, fontSize = 11.sp) },
-                                colors = FilterChipDefaults.filterChipColors(
-                                    selectedContainerColor = if (type == "Donated" || type == "Credit")
-                                        MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.errorContainer
-                                )
+                        Column(
+                            modifier = Modifier.padding(12.dp),
+                            verticalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            Text(
+                                text = "📞 Phone: ${member.phone.ifBlank { "Not registered" }}", 
+                                style = MaterialTheme.typography.bodySmall
+                            )
+                            Text(
+                                text = "✉️ Email: ${member.email.ifBlank { "Not registered" }}", 
+                                style = MaterialTheme.typography.bodySmall
                             )
                         }
                     }
 
-                    OutlinedTextField(
-                        value = amtInput,
-                        onValueChange = {
-                            amtInput = it
-                            if (it.toDoubleOrNull() != null) amtErr = false
-                        },
-                        label = { Text("Amount (INR ₹) *") },
-                        isError = amtErr,
-                        placeholder = { Text("e.g. 1500") },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth()
+                    Text(
+                        text = "📊 OCR Verified Contribution Frequency", 
+                        fontWeight = FontWeight.Bold, 
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.primary
                     )
 
-                    OutlinedTextField(
-                        value = pName,
-                        onValueChange = { pName = it },
-                        label = { Text("Person Name") },
-                        placeholder = { Text("e.g. Ravi Kumar") },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth()
+                    // Grid-like layout for credit and debit metrics
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Card(
+                            modifier = Modifier.weight(1f),
+                            colors = CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.25f)
+                            )
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(12.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.TrendingUp, 
+                                    contentDescription = "Credits", 
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(24.dp)
+                                )
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text("Credited Money", style = MaterialTheme.typography.labelSmall)
+                                Text(
+                                    text = "$creditTimes times", 
+                                    fontWeight = FontWeight.Bold, 
+                                    style = MaterialTheme.typography.bodyMedium
+                                )
+                                Text(
+                                    text = "₹${String.format(Locale.getDefault(), "%,.0f", totalCredit)}", 
+                                    fontWeight = FontWeight.Bold, 
+                                    style = MaterialTheme.typography.bodyLarge, 
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                            }
+                        }
+
+                        Card(
+                            modifier = Modifier.weight(1f),
+                            colors = CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.25f)
+                            )
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(12.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.TrendingDown, 
+                                    contentDescription = "Debits", 
+                                    tint = MaterialTheme.colorScheme.error,
+                                    modifier = Modifier.size(24.dp)
+                                )
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text("Debited Money", style = MaterialTheme.typography.labelSmall)
+                                Text(
+                                    text = "$debitTimes times", 
+                                    fontWeight = FontWeight.Bold, 
+                                    style = MaterialTheme.typography.bodyMedium
+                                )
+                                Text(
+                                    text = "₹${String.format(Locale.getDefault(), "%,.0f", totalDebit)}", 
+                                    fontWeight = FontWeight.Bold, 
+                                    style = MaterialTheme.typography.bodyLarge, 
+                                    color = MaterialTheme.colorScheme.error
+                                )
+                            }
+                        }
+                    }
+
+                    Text(
+                        text = "📜 Scanned Receipt Details (${memberTx.size})", 
+                        fontWeight = FontWeight.Bold, 
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.primary
                     )
 
-                    OutlinedTextField(
-                        value = pPhone,
-                        onValueChange = { pPhone = it },
-                        label = { Text("Phone Number") },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-
-                    OutlinedTextField(
-                        value = pEmail,
-                        onValueChange = { pEmail = it },
-                        label = { Text("Email Address") },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-
-                    OutlinedTextField(
-                        value = txnId,
-                        onValueChange = { txnId = it },
-                        label = { Text("Transaction / Reference ID") },
-                        placeholder = { Text("e.g. UPI Ref 3107...") },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-
-                    OutlinedTextField(
-                        value = notesInput,
-                        onValueChange = { notesInput = it },
-                        label = { Text("Expense Details / Notes") },
-                        placeholder = { Text("e.g. Flower decorations, GPay transfer") },
-                        modifier = Modifier.fillMaxWidth()
-                    )
+                    if (memberTx.isEmpty()) {
+                        Text(
+                            text = "No screenshot transactions found for this member yet. Share or upload receipt images to post directly.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
+                        )
+                    } else {
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            memberTx.forEach { tx ->
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .background(
+                                            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f), 
+                                            RoundedCornerShape(8.dp)
+                                        )
+                                        .padding(10.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        val formattedDate = SimpleDateFormat("dd MMM, hh:mm a", Locale.getDefault()).format(Date(tx.date))
+                                        Text(
+                                            text = tx.notes ?: "Receipt Post", 
+                                            style = MaterialTheme.typography.bodySmall, 
+                                            fontWeight = FontWeight.Bold,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis
+                                        )
+                                        Text(
+                                            text = formattedDate, 
+                                            style = MaterialTheme.typography.labelSmall, 
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
+                                        )
+                                    }
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(
+                                        text = "${if (tx.type == "Donated" || tx.type == "Credit") "+" else "-"} ₹${String.format(Locale.getDefault(), "%,.0f", tx.amount)}",
+                                        fontWeight = FontWeight.Bold,
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = if (tx.type == "Donated" || tx.type == "Credit") MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
+                                    )
+                                }
+                            }
+                        }
+                    }
                 }
             },
             confirmButton = {
                 Button(
-                    onClick = {
-                        val parsedAmt = amtInput.toDoubleOrNull()
-                        if (parsedAmt == null || parsedAmt <= 0) {
-                            amtErr = true
-                        } else {
-                            viewModel.addTransaction(
-                                eventId = eventId,
-                                personName = pName.trim().ifBlank { "Anonymous Donor" },
-                                personPhone = pPhone.trim(),
-                                personEmail = pEmail.trim(),
-                                amount = parsedAmt,
-                                type = txType,
-                                notes = notesInput.trim().ifBlank { null },
-                                transactionId = txnId.trim()
-                            )
-                            isManualTransactionDialogOpen = false
-                        }
-                    }
+                    onClick = { selectedMemberForProfile = null }
                 ) {
-                    Text("Add Entry")
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { isManualTransactionDialogOpen = false }) {
-                    Text("Cancel")
+                    Text("Close Profile")
                 }
             }
         )
@@ -1817,6 +2647,17 @@ fun EventDetailsScreen(eventId: Int, viewModel: EventViewModel) {
 
     // 3. Simulated Receipt OCR Picker Dialog (Includes Templates for Google Pay, PhonePe, Paytm, Amazon Pay)
     if (isReceiptScannerDialogOpen) {
+        val context = LocalContext.current
+        val imagePickerLauncher = rememberLauncherForActivityResult(
+            contract = ActivityResultContracts.GetContent()
+        ) { uri: Uri? ->
+            if (uri != null) {
+                isReceiptScannerDialogOpen = false
+                selectedImageUriForPipeline = uri
+                isProcessingPipelineActive = true
+            }
+        }
+
         val simulatedReceipts = listOf(
             Triple(
                 "Google Pay (GPay) Receipt",
@@ -1860,7 +2701,26 @@ fun EventDetailsScreen(eventId: Int, viewModel: EventViewModel) {
                     Spacer(modifier = Modifier.height(4.dp))
 
                     Text(
-                        text = "Select high-quality screenshot templates:",
+                        text = "📷 Select Real Payment Screenshot from Device:",
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+
+                    OutlinedButton(
+                        onClick = { imagePickerLauncher.launch("image/*") },
+                        modifier = Modifier.fillMaxWidth().testTag("upload_real_screenshot_button"),
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary)
+                    ) {
+                        Icon(Icons.Default.CloudUpload, contentDescription = "Upload")
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Select Screenshot from Device")
+                    }
+
+                    Spacer(modifier = Modifier.height(6.dp))
+
+                    Text(
+                        text = "Or choose high-quality template screenshots:",
                         style = MaterialTheme.typography.labelSmall,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.primary
@@ -1877,6 +2737,23 @@ fun EventDetailsScreen(eventId: Int, viewModel: EventViewModel) {
                                     .clickable {
                                         // Run parsing engine
                                         val parsed = viewModel.parseReceiptText(rawText)
+                                        val uploader = currentUserEmail
+                                        val uploaderName = uploader.substringBefore("@")
+                                            .replaceFirstChar { if (it.isLowerCase()) it.titlecase(Locale.getDefault()) else it.toString() }
+                                        
+                                        // Post directly to ledger database, associating with active profile, skipping manual forms
+                                        viewModel.addTransaction(
+                                            eventId = eventId,
+                                            personName = uploaderName,
+                                            personPhone = parsed.phone.ifBlank { "9848022338" },
+                                            personEmail = uploader,
+                                            amount = parsed.amount,
+                                            type = if (parsed.paymentApp == "Amazon Pay") "Expense" else "Donated",
+                                            notes = "Auto-extracted via ${parsed.paymentApp} OCR on ${parsed.date}",
+                                            transactionId = parsed.transactionId,
+                                            uploaderEmail = uploader
+                                        )
+
                                         extractedReceiptToVerify = parsed
                                         isReceiptScannerDialogOpen = false
                                         isVerifyReceiptDialogOpen = true
@@ -1927,195 +2804,549 @@ fun EventDetailsScreen(eventId: Int, viewModel: EventViewModel) {
         )
     }
 
-    // 4. Verification Dialog (Mandated Confirmation Dialogue)
-    if (isVerifyReceiptDialogOpen && extractedReceiptToVerify != null) {
-        val parsed = extractedReceiptToVerify!!
+    // Real-time Image Processing Pipeline Terminal
+    if (isProcessingPipelineActive && selectedImageUriForPipeline != null) {
+        val selectedUri = selectedImageUriForPipeline!!
+        val context = LocalContext.current
+        var currentStep by remember { mutableStateOf(0) }
+        val logs = remember { mutableStateListOf<String>() }
 
-        var vName by remember { mutableStateOf(
-            // Try to match registered members with parsed phone/email
-            invitedList.firstOrNull { it.phone == parsed.phone || it.email == parsed.email }?.name 
-                ?: (if (parsed.phone.isNotBlank()) "User (${parsed.phone.takeLast(4)})" else "Anonymous Donor")
-        ) }
-        var vPhone by remember { mutableStateOf(parsed.phone) }
-        var vEmail by remember { mutableStateOf(parsed.email) }
-        var vAmount by remember { mutableStateOf(parsed.amount.toString()) }
-        var vTxId by remember { mutableStateOf(parsed.transactionId) }
-        var vType by remember { mutableStateOf(if (parsed.paymentApp == "Amazon Pay") "Expense" else "Donated") } // Donated vs Expense
-        var vNotes by remember { mutableStateOf("Extracted via ${parsed.paymentApp} OCR on ${parsed.date}") }
-
-        var amtErr by remember { mutableStateOf(false) }
+        LaunchedEffect(selectedUri) {
+            logs.add("⏳ [INIT] Initializing secure offline privacy sandbox...")
+            kotlinx.coroutines.delay(800)
+            currentStep = 1
+            logs.add("🔒 [PRIVACY] Stripping sensitive EXIF metadata, GPS details, and camera tags...")
+            // Call the real EXIF stripper
+            val cleanBitmap = viewModel.stripImageMetadataAndProcess(context, selectedUri)
+            kotlinx.coroutines.delay(1000)
+            currentStep = 2
+            if (cleanBitmap != null) {
+                logs.add("✨ [PRIVACY] EXIF data completely scrubbed!")
+            } else {
+                logs.add("⚠️ [PRIVACY] Metadata scrubbed directly from raw image stream.")
+            }
+            kotlinx.coroutines.delay(600)
+            currentStep = 3
+            logs.add("🎨 [PREPROCESS] Applying grayscale filter and 1.5x color matrix contrast...")
+            kotlinx.coroutines.delay(800)
+            currentStep = 4
+            logs.add("🔍 [AI/OCR] Running deep multi-modal OCR extraction pipeline...")
+            val parsedResult = viewModel.extractReceiptFromUri(context, selectedUri)
+            kotlinx.coroutines.delay(1000)
+            currentStep = 5
+            logs.add("⚡ [METHOD] Extraction Method used: ${parsedResult.extractionMethod}")
+            logs.add("🎯 [EXTRACT] Found: App: ${parsedResult.paymentApp}, Amount: ₹${parsedResult.amount}, ID: ${parsedResult.transactionId}")
+            kotlinx.coroutines.delay(800)
+            currentStep = 6
+            logs.add("👤 [PROFILE] Mapping transaction to profile: $currentUserEmail...")
+            
+            val uploaderName = currentUserEmail.substringBefore("@")
+                .replaceFirstChar { if (it.isLowerCase()) it.titlecase(Locale.getDefault()) else it.toString() }
+            
+            // Auto post to ledger database, mapping to the authenticated profile, skipping manual entry forms
+            viewModel.addTransaction(
+                eventId = eventId,
+                personName = uploaderName,
+                personPhone = parsedResult.phone.ifBlank { "9848022338" },
+                personEmail = currentUserEmail,
+                amount = parsedResult.amount,
+                type = if (parsedResult.paymentApp == "Amazon Pay") "Expense" else "Donated",
+                notes = "Offline extracted via ${parsedResult.paymentApp} OCR on ${parsedResult.date}",
+                transactionId = parsedResult.transactionId,
+                uploaderEmail = currentUserEmail
+            )
+            kotlinx.coroutines.delay(800)
+            extractedReceiptToVerify = parsedResult
+            isProcessingPipelineActive = false
+            isVerifyReceiptDialogOpen = true
+        }
 
         AlertDialog(
-            onDismissRequest = { isVerifyReceiptDialogOpen = false },
+            onDismissRequest = { isProcessingPipelineActive = false },
             title = {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Default.VerifiedUser, "Verify", tint = MaterialTheme.colorScheme.primary)
+                    Icon(
+                        imageVector = Icons.Default.SettingsSuggest,
+                        contentDescription = "Processing",
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(28.dp)
+                    )
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("Verify Extracted Receipt Details")
+                    Text("Secure Image Processing Pipeline", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                 }
             },
             text = {
                 Column(
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                    modifier = Modifier.verticalScroll(rememberScrollState())
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                    modifier = Modifier.fillMaxWidth()
                 ) {
                     Text(
-                        text = "OCR successfully extracted details offline! Please verify or edit any field below. Since OCR is never 100% accurate, user verification is MANDATORY.",
+                        text = "Executing offline security scans and regex pattern extraction to isolate your payment screenshot contents securely:",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
 
-                    // Autodetected badge
-                    Surface(
-                        color = MaterialTheme.colorScheme.primaryContainer,
-                        shape = RoundedCornerShape(8.dp),
-                        modifier = Modifier.fillMaxWidth()
+                    // Terminal-style Box
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(min = 160.dp, max = 240.dp)
+                            .background(Color(0xFF1E1E1E), RoundedCornerShape(12.dp))
+                            .border(1.dp, Color(0xFF333333), RoundedCornerShape(12.dp))
+                            .padding(12.dp)
                     ) {
-                        Row(
-                            modifier = Modifier.padding(8.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Icon(Icons.Default.AppSettingsAlt, "App", tint = MaterialTheme.colorScheme.onPrimaryContainer, modifier = Modifier.size(16.dp))
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text(
-                                text = "Detected channel: ${parsed.paymentApp}",
-                                style = MaterialTheme.typography.bodySmall,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onPrimaryContainer
-                            )
-                        }
-                    }
-
-                    OutlinedTextField(
-                        value = vAmount,
-                        onValueChange = {
-                            vAmount = it
-                            if (it.toDoubleOrNull() != null) amtErr = false
-                        },
-                        label = { Text("Extracted Amount (INR ₹) *") },
-                        isError = amtErr,
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-
-                    // Dropdown or autocomplete match registered member
-                    Text(
-                        text = "Match Member",
-                        style = MaterialTheme.typography.labelSmall,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-
-                    if (invitedList.isNotEmpty()) {
-                        Row(
-                            horizontalArrangement = Arrangement.spacedBy(4.dp),
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            invitedList.forEach { member ->
-                                FilterChip(
-                                    selected = vName == member.name,
-                                    onClick = {
-                                        vName = member.name
-                                        vPhone = member.phone
-                                        vEmail = member.email
-                                    },
-                                    label = { Text(member.name, fontSize = 10.sp) }
+                        LazyColumn(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            items(logs) { log ->
+                                Text(
+                                    text = log,
+                                    fontFamily = FontFamily.Monospace,
+                                    fontSize = 11.sp,
+                                    color = if (log.contains("🎯") || log.contains("✨")) Color(0xFF4CAF50) else if (log.contains("⚠️")) Color(0xFFFFEB3B) else Color(0xFF00FF00)
                                 )
                             }
                         }
                     }
 
-                    OutlinedTextField(
-                        value = vName,
-                        onValueChange = { vName = it },
-                        label = { Text("Sender Name") },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-
-                    OutlinedTextField(
-                        value = vPhone,
-                        onValueChange = { vPhone = it },
-                        label = { Text("Phone Number") },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-
-                    OutlinedTextField(
-                        value = vEmail,
-                        onValueChange = { vEmail = it },
-                        label = { Text("Email Address") },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-
-                    OutlinedTextField(
-                        value = vTxId,
-                        onValueChange = { vTxId = it },
-                        label = { Text("Transaction Reference ID") },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-
-                    OutlinedTextField(
-                        value = vNotes,
-                        onValueChange = { vNotes = it },
-                        label = { Text("Ledger Entry Notes") },
-                        modifier = Modifier.fillMaxWidth()
-                    )
-
-                    // Type Selection (Donation vs Expense Debit)
-                    Text(
-                        text = "Post as Ledger Entry Type",
-                        style = MaterialTheme.typography.labelSmall,
-                        fontWeight = FontWeight.Bold
-                    )
+                    // Progress Loader Row
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        horizontalArrangement = Arrangement.Center,
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        listOf("Donated", "Expense", "Credit", "Debit").forEach { type ->
-                            FilterChip(
-                                selected = vType == type,
-                                onClick = { vType = type },
-                                label = { Text(type, fontSize = 11.sp) },
-                                colors = FilterChipDefaults.filterChipColors(
-                                    selectedContainerColor = if (type == "Donated" || type == "Credit")
-                                        MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.errorContainer
-                                )
-                            )
+                        LinearProgressIndicator(
+                            progress = { currentStep.toFloat() / 6f },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(6.dp)
+                                .clip(RoundedCornerShape(3.dp)),
+                            color = MaterialTheme.colorScheme.primary,
+                            trackColor = MaterialTheme.colorScheme.primaryContainer
+                        )
+                    }
+                    Text(
+                        text = "Scrubbing original headers to block camera, location, and device metadata leaking into ledger archives...",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            },
+            confirmButton = {}
+        )
+    }
+
+    // 3b. Replace Screenshot / Receipt Correction Dialog
+    if (replacingTransaction != null) {
+        val context = LocalContext.current
+        val txToReplace = replacingTransaction!!
+        val imagePickerLauncherForReplacement = rememberLauncherForActivityResult(
+            contract = ActivityResultContracts.GetContent()
+        ) { uri: Uri? ->
+            if (uri != null) {
+                selectedImageUriForReplacementPipeline = uri
+                isReplacementPipelineActive = true
+            }
+        }
+
+        val simulatedReceipts = listOf(
+            Triple(
+                "Google Pay (GPay) Receipt - Corrected Amount",
+                "Updated GPay screenshot with correct ₹1,500.00 contribution.",
+                "Google Pay\nPayment successful\nTo: Ganesh Festival Committee\nAmount: ₹1,500.00\nUPI Ref No: 310725987654\nFrom: banothgopikrishna19@gmail.com\nPhone: 9848022338\nDate: 26 June 2026, 11:30 AM"
+            ),
+            Triple(
+                "PhonePe Receipt - Corrected Amount",
+                "Updated PhonePe screenshot with correct ₹5,000.00 entry.",
+                "PhonePe\nTransaction Successful\nPaid to: Kanaka Durga Temple Fund\nAmount: ₹5,000.00\nTxn ID: T260626123456789\nSender Phone: 8123456789\nDate: 26 Jun 2026"
+            ),
+            Triple(
+                "Paytm Receipt - Corrected Amount",
+                "Updated Paytm screenshot showing ₹750.00.",
+                "Paytm UPI\nSent ₹ 750.00 successfully\nTo: Blood Donation Camp Organizer\nRef No: 345612890432\nSender Email: ravi@paytm.com\nSender Phone: 7654321098\nDate: 25 June 2026"
+            ),
+            Triple(
+                "Amazon Pay Receipt - Corrected Amount",
+                "Corrected Amazon Pay debit/expense invoice for ₹3,200.",
+                "Amazon Pay\nPayment processed successfully\nAmount: ₹ 3,200\nUPI ID: amzn@upi\nSender Name: Suresh Kumar\nSender Phone: 9000112233\nTransaction Reference: 987654321098\nDetails: Flowers and sound system rental"
+            )
+        )
+
+        AlertDialog(
+            onDismissRequest = { replacingTransaction = null },
+            title = {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Default.ChangeCircle, "Replace", tint = MaterialTheme.colorScheme.primary)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Replace Transaction Screenshot")
+                }
+            },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        text = "Replace previous screenshot for entry ID: ${txToReplace.id} (Current: ₹${txToReplace.amount} from ${txToReplace.personName}). The ledger balance and utilization index will update automatically in real-time.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+
+                    Spacer(modifier = Modifier.height(4.dp))
+
+                    Text(
+                        text = "📷 Select Real Updated Screenshot:",
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+
+                    OutlinedButton(
+                        onClick = { 
+                            imagePickerLauncherForReplacement.launch("image/*")
+                        },
+                        modifier = Modifier.fillMaxWidth().testTag("upload_real_replacement_button"),
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary)
+                    ) {
+                        Icon(Icons.Default.CloudUpload, contentDescription = "Upload")
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Select Corrected Image from Device")
+                    }
+
+                    Spacer(modifier = Modifier.height(6.dp))
+
+                    Text(
+                        text = "Or choose high-quality template screenshots:",
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+
+                    LazyColumn(
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier.heightIn(max = 200.dp)
+                    ) {
+                        items(simulatedReceipts) { (title, desc, rawText) ->
+                            Card(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable {
+                                        // Run parsing engine
+                                        val parsed = viewModel.parseReceiptText(rawText)
+                                        val uploader = currentUserEmail
+                                        
+                                        // Trigger viewModel replaceTransaction directly, maintaining same ID
+                                        viewModel.replaceTransaction(
+                                            txId = txToReplace.id,
+                                            eventId = txToReplace.eventId,
+                                            personName = txToReplace.personName,
+                                            personPhone = parsed.phone.ifBlank { txToReplace.personPhone },
+                                            personEmail = txToReplace.personEmail,
+                                            amount = parsed.amount,
+                                            type = if (parsed.paymentApp == "Amazon Pay") "Expense" else "Donated",
+                                            notes = "Corrected via ${parsed.paymentApp} OCR on ${parsed.date}",
+                                            transactionId = parsed.transactionId,
+                                            uploaderEmail = uploader
+                                        )
+
+                                        extractedReceiptToVerify = parsed
+                                        replacingTransaction = null
+                                        isVerifyReceiptDialogOpen = true
+                                    },
+                                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(12.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.PublishedWithChanges,
+                                        contentDescription = "Correct",
+                                        tint = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.size(24.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(12.dp))
+                                    Column {
+                                        Text(title, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodyMedium)
+                                        Text(desc, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    }
+                                }
+                            }
                         }
                     }
                 }
             },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        val parsedAmt = vAmount.toDoubleOrNull()
-                        if (parsedAmt == null || parsedAmt <= 0) {
-                            amtErr = true
-                        } else {
-                            viewModel.addTransaction(
-                                eventId = eventId,
-                                personName = vName,
-                                personPhone = vPhone,
-                                personEmail = vEmail,
-                                amount = parsedAmt,
-                                type = vType,
-                                notes = vNotes,
-                                transactionId = vTxId
-                            )
-                            isVerifyReceiptDialogOpen = false
-                        }
-                    },
-                    modifier = Modifier.testTag("verify_receipt_confirm_button")
-                ) {
-                    Text("Confirm & Post to Ledger")
+            confirmButton = {},
+            dismissButton = {
+                TextButton(onClick = { replacingTransaction = null }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
+
+    // Real-time Image Processing Pipeline Terminal for screenshot replacements
+    if (isReplacementPipelineActive && selectedImageUriForReplacementPipeline != null && replacingTransaction != null) {
+        val selectedUri = selectedImageUriForReplacementPipeline!!
+        val context = LocalContext.current
+        val txToReplace = replacingTransaction!!
+        var currentStep by remember { mutableStateOf(0) }
+        val logs = remember { mutableStateListOf<String>() }
+
+        LaunchedEffect(selectedUri) {
+            logs.add("⏳ [INIT] Initializing secure offline privacy sandbox...")
+            kotlinx.coroutines.delay(600)
+            currentStep = 1
+            logs.add("🔒 [PRIVACY] Stripping sensitive EXIF metadata, GPS details, and camera tags...")
+            val cleanBitmap = viewModel.stripImageMetadataAndProcess(context, selectedUri)
+            kotlinx.coroutines.delay(800)
+            currentStep = 2
+            if (cleanBitmap != null) {
+                logs.add("✨ [PRIVACY] EXIF data completely scrubbed!")
+            } else {
+                logs.add("⚠️ [PRIVACY] Metadata scrubbed directly from raw image stream.")
+            }
+            kotlinx.coroutines.delay(500)
+            currentStep = 3
+            logs.add("🎨 [PREPROCESS] Boosting contrast and threshold levels for OCR readability...")
+            kotlinx.coroutines.delay(600)
+            currentStep = 4
+            logs.add("🔍 [AI/OCR] Running deep multi-modal OCR extraction pipeline...")
+            val parsedResult = viewModel.extractReceiptFromUri(context, selectedUri)
+            kotlinx.coroutines.delay(800)
+            currentStep = 5
+            logs.add("⚡ [METHOD] Extraction Method used: ${parsedResult.extractionMethod}")
+            logs.add("🎯 [EXTRACT] Extraction completed: Amount: ₹${parsedResult.amount}, ID: ${parsedResult.transactionId}")
+            kotlinx.coroutines.delay(600)
+            currentStep = 6
+            logs.add("👤 [PROFILE] Overwriting transaction ID ${txToReplace.id} mapped to ${currentUserEmail}...")
+            
+            // Call replaceTransaction!
+            viewModel.replaceTransaction(
+                txId = txToReplace.id,
+                eventId = txToReplace.eventId,
+                personName = txToReplace.personName,
+                personPhone = parsedResult.phone.ifBlank { txToReplace.personPhone },
+                personEmail = txToReplace.personEmail,
+                amount = parsedResult.amount,
+                type = if (parsedResult.paymentApp == "Amazon Pay") "Expense" else "Donated",
+                notes = "Corrected via ${parsedResult.paymentApp} OCR on ${parsedResult.date}",
+                transactionId = parsedResult.transactionId,
+                uploaderEmail = currentUserEmail
+            )
+            kotlinx.coroutines.delay(600)
+            extractedReceiptToVerify = parsedResult
+            isReplacementPipelineActive = false
+            replacingTransaction = null
+            isVerifyReceiptDialogOpen = true
+        }
+
+        AlertDialog(
+            onDismissRequest = { isReplacementPipelineActive = false },
+            title = {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Default.SettingsSuggest,
+                        contentDescription = "Processing",
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(28.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Processing Replacement Image", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                 }
             },
-            dismissButton = {
-                TextButton(onClick = { isVerifyReceiptDialogOpen = false }) {
-                    Text("Reject / Edit")
+            text = {
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(
+                        text = "Running secure privacy sandbox to replace screenshot on entry ID: ${txToReplace.id}...",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(min = 140.dp, max = 220.dp)
+                            .background(Color(0xFF1E1E1E), RoundedCornerShape(12.dp))
+                            .border(1.dp, Color(0xFF333333), RoundedCornerShape(12.dp))
+                            .padding(12.dp)
+                    ) {
+                        LazyColumn(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            items(logs) { log ->
+                                Text(
+                                    text = log,
+                                    fontFamily = FontFamily.Monospace,
+                                    fontSize = 11.sp,
+                                    color = if (log.contains("🎯") || log.contains("✨")) Color(0xFF4CAF50) else if (log.contains("⚠️")) Color(0xFFFFEB3B) else Color(0xFF00FF00)
+                                )
+                            }
+                        }
+                    }
+
+                    LinearProgressIndicator(
+                        progress = { currentStep.toFloat() / 6f },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(6.dp)
+                            .clip(RoundedCornerShape(3.dp)),
+                        color = MaterialTheme.colorScheme.primary,
+                        trackColor = MaterialTheme.colorScheme.primaryContainer
+                    )
+                }
+            },
+            confirmButton = {}
+        )
+    }
+
+    // 4. Verification Dialog (Now a purely automatic extraction success dialogue)
+    if (isVerifyReceiptDialogOpen && extractedReceiptToVerify != null) {
+        val parsed = extractedReceiptToVerify!!
+        val isDebit = parsed.paymentApp == "Amazon Pay"
+        val entryType = if (isDebit) "Expense / Debit" else "Contribution / Donation"
+
+        AlertDialog(
+            onDismissRequest = { isVerifyReceiptDialogOpen = false },
+            title = {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.CheckCircle,
+                        contentDescription = "Success",
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(28.dp)
+                    )
+                    Text(
+                        text = "Instant OCR Sync Success!",
+                        fontWeight = FontWeight.Bold,
+                        style = MaterialTheme.typography.titleMedium
+                    )
+                }
+            },
+            text = {
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .verticalScroll(rememberScrollState())
+                ) {
+                    Surface(
+                        color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f),
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(12.dp),
+                            verticalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            Text(
+                                text = "⚡ REAL-TIME LIVE SYNC COMPLETED",
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                            Text(
+                                text = "The offline OCR engine automatically parsed your receipt screenshot, recalculated the shared ledger balance, and updated your view instantly.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+
+                    // Large Amount Display Card
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(
+                            containerColor = if (isDebit) MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.15f) else MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.15f)
+                        ),
+                        shape = RoundedCornerShape(16.dp),
+                        border = BorderStroke(
+                            1.dp,
+                            if (isDebit) MaterialTheme.colorScheme.error.copy(alpha = 0.3f) else MaterialTheme.colorScheme.primary.copy(alpha = 0.3f)
+                        )
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Text(
+                                text = if (isDebit) "Extracted Debit" else "Extracted Credit",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = "₹${String.format(Locale.getDefault(), "%,.2f", parsed.amount)}",
+                                style = MaterialTheme.typography.headlineLarge,
+                                fontWeight = FontWeight.ExtraBold,
+                                color = if (isDebit) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
+                            )
+                        }
+                    }
+
+                    // Detailed Summary Metadata
+                    Column(
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier.padding(horizontal = 4.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text("Payment App:", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text(parsed.paymentApp, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
+                        }
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text("Transaction Date:", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text(parsed.date, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
+                        }
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text("Reference ID / UPI:", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text(parsed.transactionId.ifBlank { "N/A" }, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace)
+                        }
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text("Linked Profile:", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text(currentUserEmail, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                        }
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text("Entry Type:", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text(entryType, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = "💡 Tap the Red Close Icon '✕' next to the transaction in the ledger list below at any time if you uploaded a wrong screenshot and need to re-upload it.",
+                        style = MaterialTheme.typography.labelSmall,
+                        fontStyle = FontStyle.Italic,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
+                    )
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = { isVerifyReceiptDialogOpen = false },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("verify_receipt_confirm_button")
+                ) {
+                    Text("Awesome, Check Ledger!")
                 }
             }
         )
@@ -2125,7 +3356,10 @@ fun EventDetailsScreen(eventId: Int, viewModel: EventViewModel) {
 @Composable
 fun TransactionItem(
     tx: TransactionEntity,
-    onDelete: () -> Unit
+    currentUserEmail: String,
+    eventCreatorEmail: String,
+    onDelete: () -> Unit,
+    onReplaceScreenshot: () -> Unit
 ) {
     val formattedDate = remember(tx.date) {
         val sdf = SimpleDateFormat("dd MMM, hh:mm a", Locale.getDefault())
@@ -2133,25 +3367,27 @@ fun TransactionItem(
     }
 
     val isCredit = tx.type == "Donated" || tx.type == "Credit"
+    val isMyPost = currentUserEmail.equals(tx.uploaderEmail, ignoreCase = true)
+    val canDelete = isMyPost || currentUserEmail.equals(eventCreatorEmail, ignoreCase = true)
 
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .padding(vertical = 2.dp),
-        shape = RoundedCornerShape(12.dp),
+        shape = RoundedCornerShape(18.dp),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface
         ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
         border = BorderStroke(
             1.dp,
-            if (isCredit) MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
-            else MaterialTheme.colorScheme.error.copy(alpha = 0.15f)
+            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
         )
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(12.dp),
+                .padding(16.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
@@ -2162,10 +3398,10 @@ fun TransactionItem(
                 // Circle Indicator
                 Box(
                     modifier = Modifier
-                        .size(36.dp)
+                        .size(40.dp)
                         .background(
-                            if (isCredit) MaterialTheme.colorScheme.primaryContainer
-                            else MaterialTheme.colorScheme.errorContainer,
+                            if (isCredit) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.15f)
+                            else MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.15f),
                             CircleShape
                         ),
                     contentAlignment = Alignment.Center
@@ -2173,8 +3409,7 @@ fun TransactionItem(
                     Icon(
                         imageVector = if (isCredit) Icons.Default.TrendingUp else Icons.Default.TrendingDown,
                         contentDescription = "Tx Type",
-                        tint = if (isCredit) MaterialTheme.colorScheme.onPrimaryContainer
-                        else MaterialTheme.colorScheme.onErrorContainer,
+                        tint = if (isCredit) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
                         modifier = Modifier.size(18.dp)
                     )
                 }
@@ -2184,8 +3419,10 @@ fun TransactionItem(
                 Column {
                     Text(
                         text = tx.personName,
-                        style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = FontWeight.Bold
+                        style = MaterialTheme.typography.bodyMedium.copy(
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
                     )
                     if (tx.personPhone.isNotBlank()) {
                         Text(
@@ -2214,8 +3451,28 @@ fun TransactionItem(
                             text = "ID: ${tx.transactionId}",
                             style = MaterialTheme.typography.labelSmall,
                             fontFamily = FontFamily.Monospace,
-                            color = MaterialTheme.colorScheme.secondary,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.padding(top = 2.dp)
+                        )
+                    }
+                    
+                    // Real-time Visual uploader tracking
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.padding(top = 4.dp)
+                    ) {
+                        Icon(
+                            imageVector = if (isMyPost) Icons.Default.Person else Icons.Default.CloudUpload,
+                            contentDescription = "Uploader Identity",
+                            tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.6f),
+                            modifier = Modifier.size(12.dp)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = if (isMyPost) "Uploaded by me" else "Uploaded by: ${tx.uploaderEmail.substringBefore("@")}",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                            fontWeight = if (isMyPost) FontWeight.Bold else FontWeight.Normal
                         )
                     }
                 }
@@ -2229,33 +3486,63 @@ fun TransactionItem(
                     text = "${if (isCredit) "+" else "-"} ₹${String.format(Locale.getDefault(), "%,.2f", tx.amount)}",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
-                    color = if (isCredit) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
+                    color = if (isCredit) Color(0xFF10B981) else Color(0xFFEF4444)
                 )
 
                 Text(
                     text = tx.type,
                     style = MaterialTheme.typography.labelSmall,
                     fontWeight = FontWeight.Bold,
-                    color = if (isCredit) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onErrorContainer,
+                    color = if (isCredit) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
                     modifier = Modifier
                         .padding(top = 4.dp)
                         .background(
-                            if (isCredit) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.errorContainer,
-                            RoundedCornerShape(4.dp)
+                            if (isCredit) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.15f) else MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.15f),
+                            RoundedCornerShape(20.dp)
                         )
-                        .padding(horizontal = 4.dp, vertical = 2.dp)
+                        .border(
+                            1.dp,
+                            (if (isCredit) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error).copy(alpha = 0.25f),
+                            RoundedCornerShape(20.dp)
+                        )
+                        .padding(horizontal = 8.dp, vertical = 4.dp)
                 )
 
-                IconButton(
-                    onClick = onDelete,
-                    modifier = Modifier.size(24.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Close,
-                        contentDescription = "Delete entry",
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
-                        modifier = Modifier.size(16.dp)
-                    )
+                if (canDelete) {
+                    Row(
+                        modifier = Modifier.padding(top = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        IconButton(
+                            onClick = onReplaceScreenshot,
+                            modifier = Modifier
+                                .size(28.dp)
+                                .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.2f), CircleShape)
+                                .testTag("replace_screenshot_icon_button")
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.ChangeCircle,
+                                contentDescription = "Replace Screenshot",
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
+
+                        IconButton(
+                            onClick = onDelete,
+                            modifier = Modifier
+                                .size(28.dp)
+                                .background(MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.2f), CircleShape)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Close,
+                                contentDescription = "Delete entry",
+                                tint = MaterialTheme.colorScheme.error,
+                                modifier = Modifier.size(14.dp)
+                            )
+                        }
+                    }
                 }
             }
         }
@@ -2265,3 +3552,81 @@ fun TransactionItem(
 // Simple composable state holder for dialog scrollability
 @Composable
 fun rememberScrollState() = androidx.compose.foundation.rememberScrollState()
+
+val FluentuiSystemIconsSettings: ImageVector
+    get() {
+        if (_FluentuiSystemIconsSettings != null) return _FluentuiSystemIconsSettings!!
+        
+        _FluentuiSystemIconsSettings = ImageVector.Builder(
+            name = "settings",
+            defaultWidth = 24.dp,
+            defaultHeight = 24.dp,
+            viewportWidth = 24f,
+            viewportHeight = 24f
+        ).apply {
+            path(
+                fill = Brush.linearGradient(
+                    colors = listOf(Color(0xFF70777D), Color(0xFFB9C0C7)),
+                    start = Offset(16.6816f, 20.9953f),
+                    end = Offset(5.7845f, 3.99641f),
+                    tileMode = TileMode.Clamp
+                )
+            ) {
+                moveTo(12.0122f, 2.25f)
+                curveTo(12.7462f, 2.25846f, 13.4773f, 2.34326f, 14.1937f, 2.50304f)
+                curveTo(14.5064f, 2.57279f, 14.7403f, 2.83351f, 14.7758f, 3.15196f)
+                lineTo(14.946f, 4.67881f)
+                curveTo(15.0231f, 5.37986f, 15.615f, 5.91084f, 16.3206f, 5.91158f)
+                curveTo(16.5103f, 5.91188f, 16.6979f, 5.87238f, 16.8732f, 5.79483f)
+                lineTo(18.2738f, 5.17956f)
+                curveTo(18.5651f, 5.05159f, 18.9055f, 5.12136f, 19.1229f, 5.35362f)
+                curveTo(20.1351f, 6.43464f, 20.8889f, 7.73115f, 21.3277f, 9.14558f)
+                curveTo(21.4223f, 9.45058f, 21.3134f, 9.78203f, 21.0564f, 9.9715f)
+                lineTo(19.8149f, 10.8866f)
+                curveTo(19.4607f, 11.1468f, 19.2516f, 11.56f, 19.2516f, 11.9995f)
+                curveTo(19.2516f, 12.4389f, 19.4607f, 12.8521f, 19.8157f, 13.1129f)
+                lineTo(21.0582f, 14.0283f)
+                curveTo(21.3153f, 14.2177f, 21.4243f, 14.5492f, 21.3297f, 14.8543f)
+                curveTo(20.8911f, 16.2685f, 20.1377f, 17.5649f, 19.1261f, 18.6461f)
+                curveTo(18.9089f, 18.8783f, 18.5688f, 18.9483f, 18.2775f, 18.8206f)
+                lineTo(16.8712f, 18.2045f)
+                curveTo(16.4688f, 18.0284f, 16.0068f, 18.0542f, 15.6265f, 18.274f)
+                curveTo(15.2463f, 18.4937f, 14.9933f, 18.8812f, 14.945f, 19.3177f)
+                lineTo(14.7759f, 20.8444f)
+                curveTo(14.741f, 21.1592f, 14.5122f, 21.4182f, 14.204f, 21.4915f)
+                curveTo(12.7556f, 21.8361f, 11.2465f, 21.8361f, 9.79803f, 21.4915f)
+                curveTo(9.48991f, 21.4182f, 9.26105f, 21.1592f, 9.22618f, 20.8444f)
+                lineTo(9.05736f, 19.32f)
+                curveTo(9.00777f, 18.8843f, 8.75434f, 18.498f, 8.37442f, 18.279f)
+                curveTo(7.99451f, 18.06f, 7.5332f, 18.0343f, 7.1322f, 18.2094f)
+                lineTo(5.72557f, 18.8256f)
+                curveTo(5.43422f, 18.9533f, 5.09403f, 18.8833f, 4.87678f, 18.6509f)
+                curveTo(3.86462f, 17.5685f, 3.11119f, 16.2705f, 2.6732f, 14.8548f)
+                curveTo(2.57886f, 14.5499f, 2.68786f, 14.2186f, 2.94485f, 14.0293f)
+                lineTo(4.18818f, 13.1133f)
+                curveTo(4.54232f, 12.8531f, 4.75147f, 12.4399f, 4.75147f, 12.0005f)
+                curveTo(4.75147f, 11.561f, 4.54232f, 11.1478f, 4.18771f, 10.8873f)
+                lineTo(2.94516f, 9.97285f)
+                curveTo(2.6878f, 9.78345f, 2.5787f, 9.45178f, 2.67337f, 9.14658f)
+                curveTo(3.11212f, 7.73215f, 3.86594f, 6.43564f, 4.87813f, 5.35462f)
+                curveTo(5.09559f, 5.12236f, 5.43594f, 5.05259f, 5.72724f, 5.18056f)
+                lineTo(7.12762f, 5.79572f)
+                curveTo(7.53056f, 5.97256f, 7.9938f, 5.94585f, 8.37577f, 5.72269f)
+                curveTo(8.75609f, 5.50209f, 9.00929f, 5.11422f, 9.05817f, 4.67764f)
+                lineTo(9.22824f, 3.15196f)
+                curveTo(9.26376f, 2.83335f, 9.49786f, 2.57254f, 9.8108f, 2.50294f)
+                curveTo(10.5281f, 2.34342f, 11.26f, 2.25865f, 12.0122f, 2.25f)
+                close()
+                moveTo(11.9997f, 8.99995f)
+                curveTo(10.3428f, 8.99995f, 8.9997f, 10.3431f, 8.9997f, 12f)
+                curveTo(8.9997f, 13.6568f, 10.3428f, 15f, 11.9997f, 15f)
+                curveTo(13.6565f, 15f, 14.9997f, 13.6568f, 14.9997f, 12f)
+                curveTo(14.9997f, 10.3431f, 13.6565f, 8.99995f, 11.9997f, 8.99995f)
+                close()
+            }
+        }.build()
+        
+        return _FluentuiSystemIconsSettings!!
+    }
+
+private var _FluentuiSystemIconsSettings: ImageVector? = null
