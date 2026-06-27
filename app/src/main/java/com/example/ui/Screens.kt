@@ -1,5 +1,9 @@
 package com.example.ui
 
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
+import android.content.Intent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -43,11 +47,20 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.data.EventEntity
 import com.example.data.TransactionEntity
 import android.net.Uri
+import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.material.icons.automirrored.filled.Assignment
+import androidx.compose.material.icons.automirrored.filled.EventNote
+import androidx.compose.material.icons.automirrored.filled.ReceiptLong
+import androidx.compose.material.icons.automirrored.filled.TrendingDown
+import androidx.compose.material.icons.automirrored.filled.TrendingUp
+import kotlinx.coroutines.delay
+import org.json.JSONObject
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import java.util.regex.Pattern
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -113,10 +126,10 @@ fun AppContent(viewModel: EventViewModel) {
 
 private fun getEventCreator(customFieldsJson: String): String {
     return try {
-        val json = org.json.JSONObject(customFieldsJson)
-        json.optString("creatorEmail", "banothgopikrishna19@gmail.com")
+        val json = JSONObject(customFieldsJson)
+        json.optString("creatorEmail", "")
     } catch (e: Exception) {
-        "banothgopikrishna19@gmail.com"
+        ""
     }
 }
 
@@ -152,14 +165,16 @@ fun DashboardScreen(viewModel: EventViewModel) {
         CenterAlignedTopAppBar(
             title = {
                 Row(verticalAlignment = Alignment.CenterVertically) {
+                    /*
                     Icon(
                         imageVector = Icons.Default.AccountBalanceWallet,
                         contentDescription = "Ledger Icon",
                         tint = MaterialTheme.colorScheme.primary, // Vibrant Blue
                         modifier = Modifier.padding(end = 8.dp)
                     )
+                    */
                     Text(
-                        text = "Community Ledger",
+                        text = "Dashboard",
                         fontWeight = FontWeight.ExtraBold,
                         style = MaterialTheme.typography.titleLarge,
                         color = MaterialTheme.colorScheme.onSurface, // Slate-900
@@ -235,6 +250,7 @@ fun DashboardScreen(viewModel: EventViewModel) {
                             )
                             .padding(horizontal = 12.dp, vertical = 6.dp)
                     ) {
+                        /*
                         Icon(
                             imageVector = Icons.Default.VerifiedUser,
                             contentDescription = "Shield",
@@ -242,17 +258,18 @@ fun DashboardScreen(viewModel: EventViewModel) {
                             modifier = Modifier.size(14.dp)
                         )
                         Text(
-                            text = "SECURE OFFLINE LEDGER",
+                            text = "",
                             style = MaterialTheme.typography.labelSmall.copy(
                                 fontWeight = FontWeight.Bold,
                                 letterSpacing = 1.sp
                             ),
                             color = Color(0xFF38BDF8)
                         )
+                        */
                     }
 
                     Text(
-                        text = "Smart Transparency for Community Finances",
+                        text = "Welcome to the Event Ledger",
                         style = MaterialTheme.typography.titleMedium.copy(
                             fontWeight = FontWeight.ExtraBold,
                             letterSpacing = (-0.5).sp
@@ -262,7 +279,7 @@ fun DashboardScreen(viewModel: EventViewModel) {
                     )
 
                     Text(
-                        text = "Scan payment screenshots to auto-verify contributions instantly with high precision.",
+                        text = "Track festival or event activities with ease. Create, manage, and decommission events securely.",
                         style = MaterialTheme.typography.bodySmall,
                         color = Color.White.copy(alpha = 0.85f),
                         lineHeight = 16.sp
@@ -287,21 +304,21 @@ fun DashboardScreen(viewModel: EventViewModel) {
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Icon(
-                        imageVector = Icons.Default.EventNote,
+                        imageVector = Icons.AutoMirrored.Filled.EventNote,
                         contentDescription = "No Events Icon",
                         tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
                         modifier = Modifier.size(80.dp)
                     )
                     Spacer(modifier = Modifier.height(16.dp))
                     Text(
-                        text = "No ledger events started yet",
+                        text = "No Active Events",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onSurface
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        text = "Click 'Create Ledger Event' below to start tracking a festival, building pool, charity drive, or tournament tracker.",
+                        text = "You haven't created any events yet. Tap the 'Create Event' button below to start tracking your festival or event activities.",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         textAlign = TextAlign.Center
@@ -315,7 +332,7 @@ fun DashboardScreen(viewModel: EventViewModel) {
                 ) {
                     item {
                         Text(
-                            text = "Active Ledger Events",
+                            text = "Active Events",
                             style = MaterialTheme.typography.titleSmall,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.onSurface,
@@ -344,7 +361,7 @@ fun DashboardScreen(viewModel: EventViewModel) {
                 },
                 text = {
                     Text(
-                        text = "Create Ledger Event",
+                        text = "Create Event",
                         fontWeight = FontWeight.ExtraBold,
                         style = MaterialTheme.typography.labelLarge.copy(
                             letterSpacing = 0.5.sp
@@ -377,13 +394,13 @@ fun DashboardScreen(viewModel: EventViewModel) {
                         tint = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.padding(end = 8.dp)
                     )
-                    Text("Local Identity Profile", fontWeight = FontWeight.Bold)
+                    Text("Google Sign-In", fontWeight = FontWeight.Bold)
                 }
             },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Text(
-                        text = "Your email address is used to identify you as the creator of events so you can manage deletion permissions and deep links.",
+                        text = "plaing to implement auth google firebase",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -405,7 +422,7 @@ fun DashboardScreen(viewModel: EventViewModel) {
                         }
                     }
                 ) {
-                    Text("Save Identity")
+                    Text("Save")
                 }
             },
             dismissButton = {
@@ -443,7 +460,7 @@ fun DashboardScreen(viewModel: EventViewModel) {
                         modifier = Modifier.padding(end = 8.dp)
                     )
                     Text(
-                        text = if (!isLeader) "Access Blocked" else "Secure Decommission: Step $deleteStep of 3",
+                        text = if (!isLeader) "Access Blocked" else "Secure: Step $deleteStep of 3",
                         fontWeight = FontWeight.Bold,
                         style = MaterialTheme.typography.titleMedium
                     )
@@ -656,7 +673,7 @@ fun DashboardScreen(viewModel: EventViewModel) {
                                     checkedWarning3 = false
                                 }
                             ) {
-                                Text("PERMANENTLY PURGE")
+                                Text("PERMANENTLY DELETE", color = MaterialTheme.colorScheme.onError)
                             }
                         }
                     }
@@ -677,7 +694,7 @@ fun DashboardScreen(viewModel: EventViewModel) {
                             checkedWarning3 = false
                         }
                     ) {
-                        Text("Abort")
+                        Text("Cancel")
                     }
                 }
             }
@@ -831,7 +848,7 @@ fun EventCardItem(
                             )
                             Spacer(modifier = Modifier.width(6.dp))
                             Text(
-                                text = "Ongoing Ledger",
+                                text = "Ongoing Event",
                                 style = MaterialTheme.typography.labelSmall.copy(
                                     fontWeight = FontWeight.Bold,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -878,7 +895,7 @@ fun EventCardItem(
                             )
                             Spacer(modifier = Modifier.width(4.dp))
                             Text(
-                                text = "Public Ledger",
+                                text = "Public Event",
                                 style = MaterialTheme.typography.bodySmall.copy(
                                     fontWeight = FontWeight.Bold,
                                     color = MaterialTheme.colorScheme.primary
@@ -918,7 +935,7 @@ fun CreateEventScreen(viewModel: EventViewModel) {
         TopAppBar(
             title = { 
                 Text(
-                    text = "Create Ledger Event",
+                    text = "Create Event",
                     fontWeight = FontWeight.Bold,
                     style = MaterialTheme.typography.titleLarge,
                     color = MaterialTheme.colorScheme.onSurface
@@ -1016,7 +1033,7 @@ fun CreateEventScreen(viewModel: EventViewModel) {
                                 title = it
                                 if (it.isNotBlank()) titleError = false
                             },
-                            placeholder = { Text("e.g. Goa Trip 2026, Wedding Reception") },
+                            placeholder = { Text("e.g. Ganesh Chaturthi") },
                             isError = titleError,
                             supportingText = {
                                 if (titleError) {
@@ -1103,7 +1120,7 @@ fun CreateEventScreen(viewModel: EventViewModel) {
                         }
                         Spacer(modifier = Modifier.height(6.dp))
                         Text(
-                            text = "Specify the active timeframe or deadline for this ledger event.",
+                            text = "Specify how long this event will remain active.",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -1111,7 +1128,7 @@ fun CreateEventScreen(viewModel: EventViewModel) {
                         OutlinedTextField(
                             value = duration,
                             onValueChange = { duration = it },
-                            placeholder = { Text("e.g. 5 Days, 1 Month, or Ongoing") },
+                            placeholder = { Text("e.g. how many days?") },
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .testTag("event_duration_input"),
@@ -1166,7 +1183,7 @@ fun CreateEventScreen(viewModel: EventViewModel) {
                             Spacer(modifier = Modifier.width(12.dp))
                             Column {
                                 Text(
-                                    text = if (isPrivate) "🔒 Private (Invite-Only)" else "🌐 Public Event",
+                                    text = if (isPrivate) "🔒 Private (Invite-Only)" else "Public Event",
                                     style = MaterialTheme.typography.titleMedium.copy(
                                         fontWeight = FontWeight.ExtraBold,
                                         color = MaterialTheme.colorScheme.onSurface
@@ -1174,7 +1191,7 @@ fun CreateEventScreen(viewModel: EventViewModel) {
                                 )
                                 Spacer(modifier = Modifier.height(4.dp))
                                 Text(
-                                    text = if (isPrivate) "Only invited members can contribute or view transactions. Recommended for personal or restricted groups." else "Anyone can view this ledger and add transaction entries. Perfect for public collections, transparency & open events.",
+                                    text = if (isPrivate) "Only invited members can contribute or view transactions." else "Anyone with the link can view and contribute to this event.",
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
@@ -1222,14 +1239,14 @@ fun CreateEventScreen(viewModel: EventViewModel) {
                         ) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Icon(
-                                    imageVector = Icons.Default.Assignment,
+                                    imageVector = Icons.AutoMirrored.Filled.Assignment,
                                     contentDescription = "Custom Info Icon",
                                     tint = MaterialTheme.colorScheme.primary,
                                     modifier = Modifier.size(20.dp)
                                 )
                                 Spacer(modifier = Modifier.width(8.dp))
                                 Text(
-                                    text = "Custom Metadata",
+                                    text = "Custom Info Fields",
                                     style = MaterialTheme.typography.titleMedium.copy(
                                         fontWeight = FontWeight.Bold,
                                         color = MaterialTheme.colorScheme.onSurface
@@ -1239,7 +1256,7 @@ fun CreateEventScreen(viewModel: EventViewModel) {
                             IconButton(onClick = { isAddingCustomField = !isAddingCustomField }) {
                                 Icon(
                                     imageVector = if (isAddingCustomField) Icons.Default.Close else Icons.Default.AddCircle,
-                                    contentDescription = "Add custom parameter",
+                                    contentDescription = "Add custom info field",
                                     tint = MaterialTheme.colorScheme.primary,
                                     modifier = Modifier.size(28.dp)
                                 )
@@ -1452,7 +1469,6 @@ fun EventDetailsScreen(eventId: Int, viewModel: EventViewModel) {
     // Dialog state controllers
     var isInviteDialogOpen by remember { mutableStateOf(false) }
     var selectedMemberForProfile by remember { mutableStateOf<EventViewModel.Member?>(null) }
-    var isReceiptScannerDialogOpen by remember { mutableStateOf(false) }
 
     // OCR result verifier modal
     var extractedReceiptToVerify by remember { mutableStateOf<EventViewModel.ParsedReceipt?>(null) }
@@ -1464,6 +1480,15 @@ fun EventDetailsScreen(eventId: Int, viewModel: EventViewModel) {
     var replacingTransaction by remember { mutableStateOf<TransactionEntity?>(null) }
     var selectedImageUriForReplacementPipeline by remember { mutableStateOf<Uri?>(null) }
     var isReplacementPipelineActive by remember { mutableStateOf(false) }
+
+    val receiptImagePickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        if (uri != null) {
+            selectedImageUriForPipeline = uri
+            isProcessingPipelineActive = true
+        }
+    }
 
     if (event == null) {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -1486,7 +1511,7 @@ fun EventDetailsScreen(eventId: Int, viewModel: EventViewModel) {
         } else {
             val clean = json.trim().removePrefix("{").removeSuffix("}")
             val map = mutableMapOf<String, String>()
-            val pattern = java.util.regex.Pattern.compile("\"([^\"]*)\":\"([^\"]*)\"")
+            val pattern = Pattern.compile("\"([^\"]*)\":\"([^\"]*)\"")
             val matcher = pattern.matcher(clean)
             while (matcher.find()) {
                 val key = matcher.group(1) ?: ""
@@ -1538,7 +1563,7 @@ fun EventDetailsScreen(eventId: Int, viewModel: EventViewModel) {
         floatingActionButton = {
             // Big Upload Screenshot Floating Button (as shown in Sketch 3 at the bottom center)
             ExtendedFloatingActionButton(
-                onClick = { isReceiptScannerDialogOpen = true },
+                onClick = { receiptImagePickerLauncher.launch("image/*") },
                 containerColor = MaterialTheme.colorScheme.primary,
                 contentColor = MaterialTheme.colorScheme.onPrimary,
                 elevation = FloatingActionButtonDefaults.elevation(6.dp),
@@ -1550,7 +1575,7 @@ fun EventDetailsScreen(eventId: Int, viewModel: EventViewModel) {
                 Icon(Icons.Default.Add, contentDescription = "Upload Icon", tint = MaterialTheme.colorScheme.onPrimary)
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
-                    text = "Upload Screenshot / Image",
+                    text = "Scan Receipt",
                     fontWeight = FontWeight.ExtraBold,
                     style = MaterialTheme.typography.labelLarge.copy(
                         letterSpacing = 0.5.sp
@@ -1589,22 +1614,25 @@ fun EventDetailsScreen(eventId: Int, viewModel: EventViewModel) {
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(
-                                    imageVector = Icons.Default.Dashboard,
-                                    contentDescription = "Dashboard",
-                                    tint = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.size(20.dp)
-                                )
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text(
-                                    text = "LIVE LEDGER DASHBOARD",
-                                    style = MaterialTheme.typography.labelMedium,
-                                    fontWeight = FontWeight.Black,
-                                    letterSpacing = 1.sp,
-                                    color = MaterialTheme.colorScheme.primary
-                                )
-                            }
+                            /*
+                             * Header row for the ledger summary card.
+                             *
+                             * Purpose: visually anchors the card using an icon and a concise
+                             * label so users immediately recognize the section as the
+                             * live ledger dashboard. The icon provides a quick affordance
+                             * while the label uses bold, small-caps-like styling for emphasis.
+                             *
+                             * Visual details:
+                             * - Small dashboard icon colored with `primary` to signal live info
+                             * - Horizontal spacing of 8.dp between icon and text for balance
+                             * - `Text` uses `labelMedium` with `FontWeight.Black` and
+                             *   increased `letterSpacing` to match the compact, high-contrast header
+                             * - Color uses `primary` to align with the real-time status badge
+                             *
+                             * Accessibility: Keep `contentDescription` on the icon so screen
+                             * readers announce "Dashboard" and the label text remains readable
+                             * at small sizes.
+                             */
                             // Pulsing Badge
                             Box(
                                 modifier = Modifier
@@ -1623,13 +1651,24 @@ fun EventDetailsScreen(eventId: Int, viewModel: EventViewModel) {
                                             .size(6.dp)
                                             .background(Color(0xFF10B981), CircleShape) // Emerald Green
                                     )
-                                    Text(
-                                        text = "REAL-TIME",
-                                        style = MaterialTheme.typography.labelSmall,
-                                        fontWeight = FontWeight.Bold,
-                                        color = MaterialTheme.colorScheme.primary,
-                                        fontSize = 9.sp
-                                    )
+                                    /*
+                                     * Status badge label: "REAL-TIME"
+                                     *
+                                     * Purpose: succinctly indicate that the dashboard data
+                                     * is updated live. The string is styled to remain
+                                     * compact and legible at small sizes.
+                                     *
+                                     * Visual details mirrored from the UI:
+                                     * - `style`: `MaterialTheme.typography.labelSmall`
+                                     * - `fontWeight`: `FontWeight.Bold` for emphasis
+                                     * - `color`: `MaterialTheme.colorScheme.primary` to match
+                                     *   the real-time state coloring
+                                     * - `fontSize`: `9.sp` to fit within the badge layout
+                                     *
+                                     * Accessibility note: keep the surrounding icon's
+                                     * `contentDescription` and ensure color is not the
+                                     * only cue by providing text content.
+                                     */
                                 }
                             }
                         }
@@ -1668,13 +1707,13 @@ fun EventDetailsScreen(eventId: Int, viewModel: EventViewModel) {
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     Text(
-                                        text = "Current Available Balance",
+                                        text = "Available Balance",
                                         style = MaterialTheme.typography.labelLarge,
                                         fontWeight = FontWeight.Bold,
                                         color = Color.White.copy(alpha = 0.8f)
                                     )
                                     Icon(
-                                        imageVector = if (balance >= 0) Icons.Default.TrendingUp else Icons.Default.TrendingDown,
+                                        imageVector = if (balance >= 0) Icons.AutoMirrored.Filled.TrendingUp else Icons.AutoMirrored.Filled.TrendingDown,
                                         contentDescription = "Trend",
                                         tint = if (balance >= 0) Color(0xFF34D399) else Color(0xFFF87171),
                                         modifier = Modifier.size(24.dp)
@@ -1733,12 +1772,7 @@ fun EventDetailsScreen(eventId: Int, viewModel: EventViewModel) {
                                         fontWeight = FontWeight.Black,
                                         color = MaterialTheme.colorScheme.onSurface
                                     )
-                                    Text(
-                                        text = "Verified Receipts",
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
-                                        fontSize = 9.sp
-                                    )
+                                    
                                 }
                             }
 
@@ -1775,12 +1809,6 @@ fun EventDetailsScreen(eventId: Int, viewModel: EventViewModel) {
                                         style = MaterialTheme.typography.titleMedium,
                                         fontWeight = FontWeight.Black,
                                         color = Color(0xFFEF4444)
-                                    )
-                                    Text(
-                                        text = "Ledger Outflow",
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
-                                        fontSize = 9.sp
                                     )
                                 }
                             }
@@ -1824,14 +1852,24 @@ fun EventDetailsScreen(eventId: Int, viewModel: EventViewModel) {
                                 )
                             }
                         } else {
-                            Text(
-                                text = "Start collecting contributions to populate real-time utilization index.",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
-                                fontStyle = FontStyle.Italic,
-                                modifier = Modifier.fillMaxWidth(),
-                                textAlign = TextAlign.Center
-                            )
+                            /*
+                             * Informational placeholder shown when there are no collected contributions.
+                             *
+                             * Purpose: In the ledger details card this message tells the user that the
+                             * collection utilization meter has no data yet and prompts them to start
+                             * adding contributions. It uses a small, subtle typography style and an
+                             * italicized, semi-transparent color to indicate secondary information.
+                             *
+                             * Visual details:
+                             * - `style`: `MaterialTheme.typography.labelSmall` (small label text)
+                             * - `color`: `onSurfaceVariant` with reduced alpha (muted/secondary)
+                             * - `fontStyle`: `FontStyle.Italic` to emphasize guidance
+                             * - `modifier`: `Modifier.fillMaxWidth()` so the text is centered across the card
+                             * - `textAlign`: `TextAlign.Center` to keep the line visually balanced
+                             *
+                             * When real contributions exist the UI renders the utilization meter and
+                             * this placeholder is not shown.
+                             */
                         }
 
                         // Displaying optional custom fields inside the Ledger summary card as requested in Screen 3!
@@ -1892,54 +1930,6 @@ fun EventDetailsScreen(eventId: Int, viewModel: EventViewModel) {
                 }
             }
 
-            // Section 2: Important Smart Guidelines (User's Exact Handwritten Wording from Screen 3)
-            item {
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(20.dp),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.15f)
-                    ),
-                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.25f))
-                ) {
-                    Column(
-                        modifier = Modifier.padding(20.dp)
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.DocumentScanner,
-                                contentDescription = "Scanner",
-                                tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(20.dp)
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                text = "💡 Image Data Extraction Guide",
-                                style = MaterialTheme.typography.titleSmall,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
-                        }
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            text = "This upload screenshot is the most powerful feature for extracting payment data from Google Pay, PhonePe, Paytm, or Amazon Pay images or transaction URLs.",
-                            style = MaterialTheme.typography.bodySmall,
-                            fontWeight = FontWeight.Medium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        Spacer(modifier = Modifier.height(6.dp))
-                        Text(
-                            text = "Note: People must upload a clean, high-resolution payment screenshot. Otherwise, the app cannot accept or parse it accurately.",
-                            style = MaterialTheme.typography.bodySmall,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-                    }
-                }
-            }
-
             // Section 3: Invited Members list
             item {
                 Column(
@@ -1977,7 +1967,7 @@ fun EventDetailsScreen(eventId: Int, viewModel: EventViewModel) {
 
                     if (invitedList.isEmpty()) {
                         Text(
-                            text = "No one invited yet. Click 'Invite' to register community members (Organizer, Treasurer, Donor, Debtor/Creditor). Only invited members or public entries show in ledger.",
+                            text = "Click 'Invite' to register community members",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.padding(horizontal = 4.dp, vertical = 8.dp)
@@ -2074,7 +2064,7 @@ fun EventDetailsScreen(eventId: Int, viewModel: EventViewModel) {
                                         ) {
                                             Row(verticalAlignment = Alignment.CenterVertically) {
                                                 Icon(
-                                                    imageVector = Icons.Default.TrendingUp,
+                                                    imageVector = Icons.AutoMirrored.Filled.TrendingUp,
                                                     contentDescription = "Credit count",
                                                     tint = Color(0xFF10B981),
                                                     modifier = Modifier.size(14.dp)
@@ -2090,7 +2080,7 @@ fun EventDetailsScreen(eventId: Int, viewModel: EventViewModel) {
 
                                             Row(verticalAlignment = Alignment.CenterVertically) {
                                                 Icon(
-                                                    imageVector = Icons.Default.TrendingDown,
+                                                    imageVector = Icons.AutoMirrored.Filled.TrendingDown,
                                                     contentDescription = "Debit count",
                                                     tint = Color(0xFFEF4444),
                                                     modifier = Modifier.size(14.dp)
@@ -2147,7 +2137,7 @@ fun EventDetailsScreen(eventId: Int, viewModel: EventViewModel) {
                             verticalArrangement = Arrangement.Center
                         ) {
                             Icon(
-                                imageVector = Icons.Default.ReceiptLong,
+                                imageVector = Icons.AutoMirrored.Filled.ReceiptLong,
                                 contentDescription = "Empty Ledger",
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
                                 modifier = Modifier.size(48.dp)
@@ -2215,7 +2205,7 @@ fun EventDetailsScreen(eventId: Int, viewModel: EventViewModel) {
             creatorEmail = creatorEmail
         )
         // Secure Web URL to pass over WhatsApp
-        val generatedLink = "https://communityledger.com/join?eventId=${android.net.Uri.encode(encryptedEventId)}&expiry=$expiryVal&signature=$sig&title=${android.net.Uri.encode(currentEvent.title)}&creatorEmail=${android.net.Uri.encode(creatorEmail)}"
+        val generatedLink = "https://communityledger.com/join?eventId=${Uri.encode(encryptedEventId)}&expiry=$expiryVal&signature=$sig&title=${Uri.encode(currentEvent.title)}&creatorEmail=${Uri.encode(creatorEmail)}"
 
         val formattedExpiry = remember(expiryVal) {
             SimpleDateFormat("dd MMM hh:mm a", Locale.getDefault()).format(Date(expiryVal))
@@ -2231,21 +2221,20 @@ fun EventDetailsScreen(eventId: Int, viewModel: EventViewModel) {
             generatedLink
         ) {
             buildString {
-                append("🌟 *Community Ledger Invitation* 🌟\n\n")
+                append(" *Event Invitation* \n\n")
                 if (personalizedNote.isNotBlank()) {
                     append("“${personalizedNote.trim()}”\n\n")
                 }
                 append("You have been invited to join the ledger event:\n")
-                append("👉 *${currentEvent.title}*\n\n")
+                append("*Event Name:* *${currentEvent.title}*\n\n")
                 
-                append("👤 *Organizer:* ${creatorEmail.ifBlank { "Community Member" }}\n")
-                append("⏳ *Link Expires:* $formattedExpiry ($linkDurationHours)\n")
-                append("🔒 *Security:* Cryptographically Signed\n\n")
+                append("*Organizer:* ${creatorEmail.ifBlank { "Community Member" }}\n")
+                append("*Link Expires:* $formattedExpiry ($linkDurationHours)\n")
                 
-                append("Click the link below to instantly join the ledger and track payments:\n")
+                append("Click the link below to instantly join the event:\n")
                 append("🔗 $generatedLink\n\n")
                 
-                append("_Please ensure you have the Community Ledger app installed to access the event instantly._")
+    
             }
         }
 
@@ -2263,7 +2252,7 @@ fun EventDetailsScreen(eventId: Int, viewModel: EventViewModel) {
                         modifier = Modifier.size(24.dp)
                     )
                     Text(
-                        text = "Invite Participants",
+                        text = "Invite Members",
                         fontWeight = FontWeight.Bold,
                         style = MaterialTheme.typography.titleMedium
                     )
@@ -2287,7 +2276,7 @@ fun EventDetailsScreen(eventId: Int, viewModel: EventViewModel) {
                     OutlinedTextField(
                         value = personalizedNote,
                         onValueChange = { personalizedNote = it },
-                        placeholder = { Text("Add personalized message... (Optional)") },
+                        placeholder = { Text("Add message... (Optional)") },
                         singleLine = true,
                         modifier = Modifier
                             .fillMaxWidth()
@@ -2304,7 +2293,7 @@ fun EventDetailsScreen(eventId: Int, viewModel: EventViewModel) {
 
                     // 2. Link Duration Choice
                     Text(
-                        text = "⏳ Link Expiration Time",
+                        text = "⏳ Link Time Limit",
                         style = MaterialTheme.typography.labelSmall,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.primary
@@ -2313,7 +2302,7 @@ fun EventDetailsScreen(eventId: Int, viewModel: EventViewModel) {
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
-                        listOf("10 Minutes", "1 Hour", "2 Hours", "1 Day").forEach { hours ->
+                        listOf("10Min", "1H", "2H", "1D").forEach { hours ->
                             FilterChip(
                                 selected = linkDurationHours == hours,
                                 onClick = { linkDurationHours = hours },
@@ -2328,40 +2317,6 @@ fun EventDetailsScreen(eventId: Int, viewModel: EventViewModel) {
                         color = Color(0xFF2E7D32)
                     )
 
-                    // 3. Live Click Tracker Card
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.25f)
-                        )
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(12.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Group,
-                                contentDescription = "Clicks count",
-                                tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(24.dp)
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Column {
-                                Text(
-                                    text = "Active Link Usage Tracking",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.onPrimaryContainer
-                                )
-                                Text(
-                                    text = "Total clicked & joined: $currentClicks people",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.85f)
-                                )
-                            }
-                        }
-                    }
-
                     Spacer(modifier = Modifier.height(4.dp))
 
                     // Sharing Actions Row
@@ -2372,32 +2327,32 @@ fun EventDetailsScreen(eventId: Int, viewModel: EventViewModel) {
                         // Copy Link Button
                         OutlinedButton(
                             onClick = {
-                                val clipboardManager = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
-                                val clipData = android.content.ClipData.newPlainText("Ledger Link", shareMessage)
+                                val clipboardManager = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                                val clipData = ClipData.newPlainText("Ledger Link", shareMessage)
                                 clipboardManager.setPrimaryClip(clipData)
-                                android.widget.Toast.makeText(context, "Pre-filled invite message copied!", android.widget.Toast.LENGTH_SHORT).show()
+                                Toast.makeText(context, "Invite Link copied!", Toast.LENGTH_SHORT).show()
                             },
                             modifier = Modifier.weight(1f).testTag("copy_secure_link_button")
                         ) {
                             Icon(Icons.Default.ContentCopy, contentDescription = "Copy", modifier = Modifier.size(16.dp))
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text("Copy Msg", fontSize = 11.sp, maxLines = 1)
+                            Spacer(modifier = Modifier.width(4.dp)) 
+                            Text("Copy Link", fontSize = 11.sp, maxLines = 1)
                         }
 
                         // Share on WhatsApp Button
                         Button(
                             onClick = {
-                                val shareIntent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
+                                val shareIntent = Intent(Intent.ACTION_SEND).apply {
                                     type = "text/plain"
-                                    putExtra(android.content.Intent.EXTRA_TEXT, shareMessage)
+                                    putExtra(Intent.EXTRA_TEXT, shareMessage)
                                 }
                                 try {
-                                    val whatsappIntent = android.content.Intent(shareIntent).apply {
+                                    val whatsappIntent = Intent(shareIntent).apply {
                                         setPackage("com.whatsapp")
                                     }
                                     context.startActivity(whatsappIntent)
                                 } catch (e: Exception) {
-                                    context.startActivity(android.content.Intent.createChooser(shareIntent, "Share Ledger Link"))
+                                    context.startActivity(Intent.createChooser(shareIntent, "Share Ledger Link"))
                                 }
                             },
                             modifier = Modifier.weight(1.2f).testTag("send_secure_link_button"),
@@ -2526,7 +2481,7 @@ fun EventDetailsScreen(eventId: Int, viewModel: EventViewModel) {
                                 horizontalAlignment = Alignment.CenterHorizontally
                             ) {
                                 Icon(
-                                    imageVector = Icons.Default.TrendingUp, 
+                                    imageVector = Icons.AutoMirrored.Filled.TrendingUp, 
                                     contentDescription = "Credits", 
                                     tint = MaterialTheme.colorScheme.primary,
                                     modifier = Modifier.size(24.dp)
@@ -2558,7 +2513,7 @@ fun EventDetailsScreen(eventId: Int, viewModel: EventViewModel) {
                                 horizontalAlignment = Alignment.CenterHorizontally
                             ) {
                                 Icon(
-                                    imageVector = Icons.Default.TrendingDown, 
+                                    imageVector = Icons.AutoMirrored.Filled.TrendingDown, 
                                     contentDescription = "Debits", 
                                     tint = MaterialTheme.colorScheme.error,
                                     modifier = Modifier.size(24.dp)
@@ -2645,165 +2600,6 @@ fun EventDetailsScreen(eventId: Int, viewModel: EventViewModel) {
         )
     }
 
-    // 3. Simulated Receipt OCR Picker Dialog (Includes Templates for Google Pay, PhonePe, Paytm, Amazon Pay)
-    if (isReceiptScannerDialogOpen) {
-        val context = LocalContext.current
-        val imagePickerLauncher = rememberLauncherForActivityResult(
-            contract = ActivityResultContracts.GetContent()
-        ) { uri: Uri? ->
-            if (uri != null) {
-                isReceiptScannerDialogOpen = false
-                selectedImageUriForPipeline = uri
-                isProcessingPipelineActive = true
-            }
-        }
-
-        val simulatedReceipts = listOf(
-            Triple(
-                "Google Pay (GPay) Receipt",
-                "GPay successful donation. User Banoth Gopi is registered member.",
-                "Google Pay\nPayment successful\nTo: Ganesh Festival Committee\nAmount: ₹1,500.00\nUPI Ref No: 310725987654\nFrom: banothgopikrishna19@gmail.com\nPhone: 9848022338\nDate: 26 June 2026, 11:30 AM"
-            ),
-            Triple(
-                "PhonePe Receipt",
-                "PhonePe template, extracts phone and date automatically.",
-                "PhonePe\nTransaction Successful\nPaid to: Kanaka Durga Temple Fund\nAmount: ₹5,000.00\nTxn ID: T260626123456789\nSender Phone: 8123456789\nDate: 26 Jun 2026"
-            ),
-            Triple(
-                "Paytm Receipt",
-                "Paytm template, demonstrates instant offline regex extraction.",
-                "Paytm UPI\nSent ₹ 750.00 successfully\nTo: Blood Donation Camp Organizer\nRef No: 345612890432\nSender Email: ravi@paytm.com\nSender Phone: 7654321098\nDate: 25 June 2026"
-            ),
-            Triple(
-                "Amazon Pay Receipt",
-                "Amazon Pay template showing debit/expense purchase receipt.",
-                "Amazon Pay\nPayment processed successfully\nAmount: ₹ 3,200\nUPI ID: amzn@upi\nSender Name: Suresh Kumar\nSender Phone: 9000112233\nTransaction Reference: 987654321098\nDetails: Flowers and sound system rental"
-            )
-        )
-
-        AlertDialog(
-            onDismissRequest = { isReceiptScannerDialogOpen = false },
-            title = {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Default.DocumentScanner, "Scanner", tint = MaterialTheme.colorScheme.primary)
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("Select Screenshot / Upload Receipt")
-                }
-            },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text(
-                        text = "Because OCR runs directly on payment apps screenshots, you can simulate a receipt upload below to see our deterministic regex OCR engine automatically extract details instantly!",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-
-                    Spacer(modifier = Modifier.height(4.dp))
-
-                    Text(
-                        text = "📷 Select Real Payment Screenshot from Device:",
-                        style = MaterialTheme.typography.labelSmall,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-
-                    OutlinedButton(
-                        onClick = { imagePickerLauncher.launch("image/*") },
-                        modifier = Modifier.fillMaxWidth().testTag("upload_real_screenshot_button"),
-                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary)
-                    ) {
-                        Icon(Icons.Default.CloudUpload, contentDescription = "Upload")
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text("Select Screenshot from Device")
-                    }
-
-                    Spacer(modifier = Modifier.height(6.dp))
-
-                    Text(
-                        text = "Or choose high-quality template screenshots:",
-                        style = MaterialTheme.typography.labelSmall,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-
-                    LazyColumn(
-                        verticalArrangement = Arrangement.spacedBy(8.dp),
-                        modifier = Modifier.heightIn(max = 280.dp)
-                    ) {
-                        items(simulatedReceipts) { (title, desc, rawText) ->
-                            Card(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clickable {
-                                        // Run parsing engine
-                                        val parsed = viewModel.parseReceiptText(rawText)
-                                        val uploader = currentUserEmail
-                                        val uploaderName = uploader.substringBefore("@")
-                                            .replaceFirstChar { if (it.isLowerCase()) it.titlecase(Locale.getDefault()) else it.toString() }
-                                        
-                                        // Post directly to ledger database, associating with active profile, skipping manual forms
-                                        viewModel.addTransaction(
-                                            eventId = eventId,
-                                            personName = uploaderName,
-                                            personPhone = parsed.phone.ifBlank { "9848022338" },
-                                            personEmail = uploader,
-                                            amount = parsed.amount,
-                                            type = if (parsed.paymentApp == "Amazon Pay") "Expense" else "Donated",
-                                            notes = "Auto-extracted via ${parsed.paymentApp} OCR on ${parsed.date}",
-                                            transactionId = parsed.transactionId,
-                                            uploaderEmail = uploader
-                                        )
-
-                                        extractedReceiptToVerify = parsed
-                                        isReceiptScannerDialogOpen = false
-                                        isVerifyReceiptDialogOpen = true
-                                    },
-                                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
-                            ) {
-                                Row(
-                                    modifier = Modifier.padding(12.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Icon(
-                                        imageVector = when {
-                                            title.contains("Google") -> Icons.Default.AddCard
-                                            title.contains("Phone") -> Icons.Default.SendToMobile
-                                            title.contains("Paytm") -> Icons.Default.Payments
-                                            else -> Icons.Default.ShoppingCart
-                                        },
-                                        contentDescription = "App Icon",
-                                        tint = MaterialTheme.colorScheme.primary,
-                                        modifier = Modifier.size(32.dp)
-                                    )
-                                    Spacer(modifier = Modifier.width(12.dp))
-                                    Column {
-                                        Text(title, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodyMedium)
-                                        Text(desc, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                    }
-                                }
-                            }
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = "⚠️ Bank SMS screenshots are not accepted because of fraud prevention.",
-                        style = MaterialTheme.typography.bodySmall,
-                        fontWeight = FontWeight.SemiBold,
-                        color = MaterialTheme.colorScheme.error
-                    )
-                }
-            },
-            confirmButton = {},
-            dismissButton = {
-                TextButton(onClick = { isReceiptScannerDialogOpen = false }) {
-                    Text("Close")
-                }
-            }
-        )
-    }
-
     // Real-time Image Processing Pipeline Terminal
     if (isProcessingPipelineActive && selectedImageUriForPipeline != null) {
         val selectedUri = selectedImageUriForPipeline!!
@@ -2813,30 +2609,30 @@ fun EventDetailsScreen(eventId: Int, viewModel: EventViewModel) {
 
         LaunchedEffect(selectedUri) {
             logs.add("⏳ [INIT] Initializing secure offline privacy sandbox...")
-            kotlinx.coroutines.delay(800)
+            delay(800)
             currentStep = 1
             logs.add("🔒 [PRIVACY] Stripping sensitive EXIF metadata, GPS details, and camera tags...")
             // Call the real EXIF stripper
             val cleanBitmap = viewModel.stripImageMetadataAndProcess(context, selectedUri)
-            kotlinx.coroutines.delay(1000)
+            delay(1000)
             currentStep = 2
             if (cleanBitmap != null) {
                 logs.add("✨ [PRIVACY] EXIF data completely scrubbed!")
             } else {
                 logs.add("⚠️ [PRIVACY] Metadata scrubbed directly from raw image stream.")
             }
-            kotlinx.coroutines.delay(600)
+            delay(600)
             currentStep = 3
             logs.add("🎨 [PREPROCESS] Applying grayscale filter and 1.5x color matrix contrast...")
-            kotlinx.coroutines.delay(800)
+            delay(800)
             currentStep = 4
-            logs.add("🔍 [AI/OCR] Running deep multi-modal OCR extraction pipeline...")
+            logs.add("🔍 [OCR] Running deep multi-modal OCR extraction pipeline...")
             val parsedResult = viewModel.extractReceiptFromUri(context, selectedUri)
-            kotlinx.coroutines.delay(1000)
+            delay(1000)
             currentStep = 5
             logs.add("⚡ [METHOD] Extraction Method used: ${parsedResult.extractionMethod}")
-            logs.add("🎯 [EXTRACT] Found: App: ${parsedResult.paymentApp}, Amount: ₹${parsedResult.amount}, ID: ${parsedResult.transactionId}")
-            kotlinx.coroutines.delay(800)
+            logs.add("🎯 [EXTRACT] Amount: ₹${parsedResult.amount}, ID: ${parsedResult.transactionId}")
+            delay(800)
             currentStep = 6
             logs.add("👤 [PROFILE] Mapping transaction to profile: $currentUserEmail...")
             
@@ -2850,12 +2646,12 @@ fun EventDetailsScreen(eventId: Int, viewModel: EventViewModel) {
                 personPhone = parsedResult.phone.ifBlank { "9848022338" },
                 personEmail = currentUserEmail,
                 amount = parsedResult.amount,
-                type = if (parsedResult.paymentApp == "Amazon Pay") "Expense" else "Donated",
-                notes = "Offline extracted via ${parsedResult.paymentApp} OCR on ${parsedResult.date}",
+                type = "Donated",
+                notes = "OCR extracted on ${parsedResult.date}",
                 transactionId = parsedResult.transactionId,
                 uploaderEmail = currentUserEmail
             )
-            kotlinx.coroutines.delay(800)
+            delay(800)
             extractedReceiptToVerify = parsedResult
             isProcessingPipelineActive = false
             isVerifyReceiptDialogOpen = true
@@ -2949,28 +2745,6 @@ fun EventDetailsScreen(eventId: Int, viewModel: EventViewModel) {
             }
         }
 
-        val simulatedReceipts = listOf(
-            Triple(
-                "Google Pay (GPay) Receipt - Corrected Amount",
-                "Updated GPay screenshot with correct ₹1,500.00 contribution.",
-                "Google Pay\nPayment successful\nTo: Ganesh Festival Committee\nAmount: ₹1,500.00\nUPI Ref No: 310725987654\nFrom: banothgopikrishna19@gmail.com\nPhone: 9848022338\nDate: 26 June 2026, 11:30 AM"
-            ),
-            Triple(
-                "PhonePe Receipt - Corrected Amount",
-                "Updated PhonePe screenshot with correct ₹5,000.00 entry.",
-                "PhonePe\nTransaction Successful\nPaid to: Kanaka Durga Temple Fund\nAmount: ₹5,000.00\nTxn ID: T260626123456789\nSender Phone: 8123456789\nDate: 26 Jun 2026"
-            ),
-            Triple(
-                "Paytm Receipt - Corrected Amount",
-                "Updated Paytm screenshot showing ₹750.00.",
-                "Paytm UPI\nSent ₹ 750.00 successfully\nTo: Blood Donation Camp Organizer\nRef No: 345612890432\nSender Email: ravi@paytm.com\nSender Phone: 7654321098\nDate: 25 June 2026"
-            ),
-            Triple(
-                "Amazon Pay Receipt - Corrected Amount",
-                "Corrected Amazon Pay debit/expense invoice for ₹3,200.",
-                "Amazon Pay\nPayment processed successfully\nAmount: ₹ 3,200\nUPI ID: amzn@upi\nSender Name: Suresh Kumar\nSender Phone: 9000112233\nTransaction Reference: 987654321098\nDetails: Flowers and sound system rental"
-            )
-        )
 
         AlertDialog(
             onDismissRequest = { replacingTransaction = null },
@@ -2978,13 +2752,13 @@ fun EventDetailsScreen(eventId: Int, viewModel: EventViewModel) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(Icons.Default.ChangeCircle, "Replace", tint = MaterialTheme.colorScheme.primary)
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("Replace Transaction Screenshot")
+                    Text("Re-upload Screenshot")
                 }
             },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(
-                        text = "Replace previous screenshot for entry ID: ${txToReplace.id} (Current: ₹${txToReplace.amount} from ${txToReplace.personName}). The ledger balance and utilization index will update automatically in real-time.",
+                        text = "re-upload a corrected screenshot in place of the existing one for transaction ID: ${txToReplace.id}.",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -2992,7 +2766,7 @@ fun EventDetailsScreen(eventId: Int, viewModel: EventViewModel) {
                     Spacer(modifier = Modifier.height(4.dp))
 
                     Text(
-                        text = "📷 Select Real Updated Screenshot:",
+                        text = "Updated Screenshot:",
                         style = MaterialTheme.typography.labelSmall,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.primary
@@ -3012,13 +2786,7 @@ fun EventDetailsScreen(eventId: Int, viewModel: EventViewModel) {
 
                     Spacer(modifier = Modifier.height(6.dp))
 
-                    Text(
-                        text = "Or choose high-quality template screenshots:",
-                        style = MaterialTheme.typography.labelSmall,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-
+                    /*
                     LazyColumn(
                         verticalArrangement = Arrangement.spacedBy(8.dp),
                         modifier = Modifier.heightIn(max = 200.dp)
@@ -3040,8 +2808,8 @@ fun EventDetailsScreen(eventId: Int, viewModel: EventViewModel) {
                                             personPhone = parsed.phone.ifBlank { txToReplace.personPhone },
                                             personEmail = txToReplace.personEmail,
                                             amount = parsed.amount,
-                                            type = if (parsed.paymentApp == "Amazon Pay") "Expense" else "Donated",
-                                            notes = "Corrected via ${parsed.paymentApp} OCR on ${parsed.date}",
+                                            type = "Donated",
+                                            notes = "OCR corrected on ${parsed.date}",
                                             transactionId = parsed.transactionId,
                                             uploaderEmail = uploader
                                         )
@@ -3072,6 +2840,7 @@ fun EventDetailsScreen(eventId: Int, viewModel: EventViewModel) {
                             }
                         }
                     }
+                    */
                 }
             },
             confirmButton = {},
@@ -3093,29 +2862,29 @@ fun EventDetailsScreen(eventId: Int, viewModel: EventViewModel) {
 
         LaunchedEffect(selectedUri) {
             logs.add("⏳ [INIT] Initializing secure offline privacy sandbox...")
-            kotlinx.coroutines.delay(600)
+            delay(600)
             currentStep = 1
             logs.add("🔒 [PRIVACY] Stripping sensitive EXIF metadata, GPS details, and camera tags...")
             val cleanBitmap = viewModel.stripImageMetadataAndProcess(context, selectedUri)
-            kotlinx.coroutines.delay(800)
+            delay(800)
             currentStep = 2
             if (cleanBitmap != null) {
                 logs.add("✨ [PRIVACY] EXIF data completely scrubbed!")
             } else {
                 logs.add("⚠️ [PRIVACY] Metadata scrubbed directly from raw image stream.")
             }
-            kotlinx.coroutines.delay(500)
+            delay(500)
             currentStep = 3
             logs.add("🎨 [PREPROCESS] Boosting contrast and threshold levels for OCR readability...")
-            kotlinx.coroutines.delay(600)
+            delay(600)
             currentStep = 4
             logs.add("🔍 [AI/OCR] Running deep multi-modal OCR extraction pipeline...")
             val parsedResult = viewModel.extractReceiptFromUri(context, selectedUri)
-            kotlinx.coroutines.delay(800)
+            delay(800)
             currentStep = 5
             logs.add("⚡ [METHOD] Extraction Method used: ${parsedResult.extractionMethod}")
             logs.add("🎯 [EXTRACT] Extraction completed: Amount: ₹${parsedResult.amount}, ID: ${parsedResult.transactionId}")
-            kotlinx.coroutines.delay(600)
+            delay(600)
             currentStep = 6
             logs.add("👤 [PROFILE] Overwriting transaction ID ${txToReplace.id} mapped to ${currentUserEmail}...")
             
@@ -3127,12 +2896,12 @@ fun EventDetailsScreen(eventId: Int, viewModel: EventViewModel) {
                 personPhone = parsedResult.phone.ifBlank { txToReplace.personPhone },
                 personEmail = txToReplace.personEmail,
                 amount = parsedResult.amount,
-                type = if (parsedResult.paymentApp == "Amazon Pay") "Expense" else "Donated",
-                notes = "Corrected via ${parsedResult.paymentApp} OCR on ${parsedResult.date}",
+                type = "Donated",
+                notes = "OCR corrected on ${parsedResult.date}",
                 transactionId = parsedResult.transactionId,
                 uploaderEmail = currentUserEmail
             )
-            kotlinx.coroutines.delay(600)
+            delay(600)
             extractedReceiptToVerify = parsedResult
             isReplacementPipelineActive = false
             replacingTransaction = null
@@ -3202,8 +2971,6 @@ fun EventDetailsScreen(eventId: Int, viewModel: EventViewModel) {
     // 4. Verification Dialog (Now a purely automatic extraction success dialogue)
     if (isVerifyReceiptDialogOpen && extractedReceiptToVerify != null) {
         val parsed = extractedReceiptToVerify!!
-        val isDebit = parsed.paymentApp == "Amazon Pay"
-        val entryType = if (isDebit) "Expense / Debit" else "Contribution / Donation"
 
         AlertDialog(
             onDismissRequest = { isVerifyReceiptDialogOpen = false },
@@ -3219,7 +2986,7 @@ fun EventDetailsScreen(eventId: Int, viewModel: EventViewModel) {
                         modifier = Modifier.size(28.dp)
                     )
                     Text(
-                        text = "Instant OCR Sync Success!",
+                        text = "Sync Success!",
                         fontWeight = FontWeight.Bold,
                         style = MaterialTheme.typography.titleMedium
                     )
@@ -3242,13 +3009,13 @@ fun EventDetailsScreen(eventId: Int, viewModel: EventViewModel) {
                             verticalArrangement = Arrangement.spacedBy(6.dp)
                         ) {
                             Text(
-                                text = "⚡ REAL-TIME LIVE SYNC COMPLETED",
+                                text = "Receipt processed",
                                 style = MaterialTheme.typography.labelMedium,
                                 fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.colorScheme.primary
                             )
                             Text(
-                                text = "The offline OCR engine automatically parsed your receipt screenshot, recalculated the shared ledger balance, and updated your view instantly.",
+                                text = "The selected receipt image was extracted and posted to this ledger.",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -3259,12 +3026,12 @@ fun EventDetailsScreen(eventId: Int, viewModel: EventViewModel) {
                     Card(
                         modifier = Modifier.fillMaxWidth(),
                         colors = CardDefaults.cardColors(
-                            containerColor = if (isDebit) MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.15f) else MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.15f)
+                            containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.15f)
                         ),
                         shape = RoundedCornerShape(16.dp),
                         border = BorderStroke(
                             1.dp,
-                            if (isDebit) MaterialTheme.colorScheme.error.copy(alpha = 0.3f) else MaterialTheme.colorScheme.primary.copy(alpha = 0.3f)
+                            MaterialTheme.colorScheme.primary.copy(alpha = 0.3f)
                         )
                     ) {
                         Column(
@@ -3274,7 +3041,7 @@ fun EventDetailsScreen(eventId: Int, viewModel: EventViewModel) {
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
                             Text(
-                                text = if (isDebit) "Extracted Debit" else "Extracted Credit",
+                                text = "Extracted Donation",
                                 style = MaterialTheme.typography.labelMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -3283,7 +3050,7 @@ fun EventDetailsScreen(eventId: Int, viewModel: EventViewModel) {
                                 text = "₹${String.format(Locale.getDefault(), "%,.2f", parsed.amount)}",
                                 style = MaterialTheme.typography.headlineLarge,
                                 fontWeight = FontWeight.ExtraBold,
-                                color = if (isDebit) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
+                                color = MaterialTheme.colorScheme.primary
                             )
                         }
                     }
@@ -3297,22 +3064,15 @@ fun EventDetailsScreen(eventId: Int, viewModel: EventViewModel) {
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
-                            Text("Payment App:", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            Text(parsed.paymentApp, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
-                        }
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Text("Transaction Date:", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text("Extraction Date:", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             Text(parsed.date, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
                         }
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
-                            Text("Reference ID / UPI:", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            Text(parsed.transactionId.ifBlank { "N/A" }, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace)
+                            Text("Reference ID:", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text(parsed.transactionId.ifBlank { "N/A" }, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace)
                         }
                         Row(
                             modifier = Modifier.fillMaxWidth(),
@@ -3321,22 +3081,9 @@ fun EventDetailsScreen(eventId: Int, viewModel: EventViewModel) {
                             Text("Linked Profile:", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             Text(currentUserEmail, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
                         }
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Text("Entry Type:", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            Text(entryType, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
-                        }
                     }
 
                     Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = "💡 Tap the Red Close Icon '✕' next to the transaction in the ledger list below at any time if you uploaded a wrong screenshot and need to re-upload it.",
-                        style = MaterialTheme.typography.labelSmall,
-                        fontStyle = FontStyle.Italic,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
-                    )
                 }
             },
             confirmButton = {
@@ -3346,7 +3093,7 @@ fun EventDetailsScreen(eventId: Int, viewModel: EventViewModel) {
                         .fillMaxWidth()
                         .testTag("verify_receipt_confirm_button")
                 ) {
-                    Text("Awesome, Check Ledger!")
+                    Text("Done ✅", fontWeight = FontWeight.Bold)
                 }
             }
         )
@@ -3407,7 +3154,7 @@ fun TransactionItem(
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
-                        imageVector = if (isCredit) Icons.Default.TrendingUp else Icons.Default.TrendingDown,
+                        imageVector = if (isCredit) Icons.AutoMirrored.Filled.TrendingUp else Icons.AutoMirrored.Filled.TrendingDown,
                         contentDescription = "Tx Type",
                         tint = if (isCredit) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
                         modifier = Modifier.size(18.dp)
@@ -3549,84 +3296,3 @@ fun TransactionItem(
     }
 }
 
-// Simple composable state holder for dialog scrollability
-@Composable
-fun rememberScrollState() = androidx.compose.foundation.rememberScrollState()
-
-val FluentuiSystemIconsSettings: ImageVector
-    get() {
-        if (_FluentuiSystemIconsSettings != null) return _FluentuiSystemIconsSettings!!
-        
-        _FluentuiSystemIconsSettings = ImageVector.Builder(
-            name = "settings",
-            defaultWidth = 24.dp,
-            defaultHeight = 24.dp,
-            viewportWidth = 24f,
-            viewportHeight = 24f
-        ).apply {
-            path(
-                fill = Brush.linearGradient(
-                    colors = listOf(Color(0xFF70777D), Color(0xFFB9C0C7)),
-                    start = Offset(16.6816f, 20.9953f),
-                    end = Offset(5.7845f, 3.99641f),
-                    tileMode = TileMode.Clamp
-                )
-            ) {
-                moveTo(12.0122f, 2.25f)
-                curveTo(12.7462f, 2.25846f, 13.4773f, 2.34326f, 14.1937f, 2.50304f)
-                curveTo(14.5064f, 2.57279f, 14.7403f, 2.83351f, 14.7758f, 3.15196f)
-                lineTo(14.946f, 4.67881f)
-                curveTo(15.0231f, 5.37986f, 15.615f, 5.91084f, 16.3206f, 5.91158f)
-                curveTo(16.5103f, 5.91188f, 16.6979f, 5.87238f, 16.8732f, 5.79483f)
-                lineTo(18.2738f, 5.17956f)
-                curveTo(18.5651f, 5.05159f, 18.9055f, 5.12136f, 19.1229f, 5.35362f)
-                curveTo(20.1351f, 6.43464f, 20.8889f, 7.73115f, 21.3277f, 9.14558f)
-                curveTo(21.4223f, 9.45058f, 21.3134f, 9.78203f, 21.0564f, 9.9715f)
-                lineTo(19.8149f, 10.8866f)
-                curveTo(19.4607f, 11.1468f, 19.2516f, 11.56f, 19.2516f, 11.9995f)
-                curveTo(19.2516f, 12.4389f, 19.4607f, 12.8521f, 19.8157f, 13.1129f)
-                lineTo(21.0582f, 14.0283f)
-                curveTo(21.3153f, 14.2177f, 21.4243f, 14.5492f, 21.3297f, 14.8543f)
-                curveTo(20.8911f, 16.2685f, 20.1377f, 17.5649f, 19.1261f, 18.6461f)
-                curveTo(18.9089f, 18.8783f, 18.5688f, 18.9483f, 18.2775f, 18.8206f)
-                lineTo(16.8712f, 18.2045f)
-                curveTo(16.4688f, 18.0284f, 16.0068f, 18.0542f, 15.6265f, 18.274f)
-                curveTo(15.2463f, 18.4937f, 14.9933f, 18.8812f, 14.945f, 19.3177f)
-                lineTo(14.7759f, 20.8444f)
-                curveTo(14.741f, 21.1592f, 14.5122f, 21.4182f, 14.204f, 21.4915f)
-                curveTo(12.7556f, 21.8361f, 11.2465f, 21.8361f, 9.79803f, 21.4915f)
-                curveTo(9.48991f, 21.4182f, 9.26105f, 21.1592f, 9.22618f, 20.8444f)
-                lineTo(9.05736f, 19.32f)
-                curveTo(9.00777f, 18.8843f, 8.75434f, 18.498f, 8.37442f, 18.279f)
-                curveTo(7.99451f, 18.06f, 7.5332f, 18.0343f, 7.1322f, 18.2094f)
-                lineTo(5.72557f, 18.8256f)
-                curveTo(5.43422f, 18.9533f, 5.09403f, 18.8833f, 4.87678f, 18.6509f)
-                curveTo(3.86462f, 17.5685f, 3.11119f, 16.2705f, 2.6732f, 14.8548f)
-                curveTo(2.57886f, 14.5499f, 2.68786f, 14.2186f, 2.94485f, 14.0293f)
-                lineTo(4.18818f, 13.1133f)
-                curveTo(4.54232f, 12.8531f, 4.75147f, 12.4399f, 4.75147f, 12.0005f)
-                curveTo(4.75147f, 11.561f, 4.54232f, 11.1478f, 4.18771f, 10.8873f)
-                lineTo(2.94516f, 9.97285f)
-                curveTo(2.6878f, 9.78345f, 2.5787f, 9.45178f, 2.67337f, 9.14658f)
-                curveTo(3.11212f, 7.73215f, 3.86594f, 6.43564f, 4.87813f, 5.35462f)
-                curveTo(5.09559f, 5.12236f, 5.43594f, 5.05259f, 5.72724f, 5.18056f)
-                lineTo(7.12762f, 5.79572f)
-                curveTo(7.53056f, 5.97256f, 7.9938f, 5.94585f, 8.37577f, 5.72269f)
-                curveTo(8.75609f, 5.50209f, 9.00929f, 5.11422f, 9.05817f, 4.67764f)
-                lineTo(9.22824f, 3.15196f)
-                curveTo(9.26376f, 2.83335f, 9.49786f, 2.57254f, 9.8108f, 2.50294f)
-                curveTo(10.5281f, 2.34342f, 11.26f, 2.25865f, 12.0122f, 2.25f)
-                close()
-                moveTo(11.9997f, 8.99995f)
-                curveTo(10.3428f, 8.99995f, 8.9997f, 10.3431f, 8.9997f, 12f)
-                curveTo(8.9997f, 13.6568f, 10.3428f, 15f, 11.9997f, 15f)
-                curveTo(13.6565f, 15f, 14.9997f, 13.6568f, 14.9997f, 12f)
-                curveTo(14.9997f, 10.3431f, 13.6565f, 8.99995f, 11.9997f, 8.99995f)
-                close()
-            }
-        }.build()
-        
-        return _FluentuiSystemIconsSettings!!
-    }
-
-private var _FluentuiSystemIconsSettings: ImageVector? = null
