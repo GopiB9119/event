@@ -8,6 +8,9 @@
 /.idea/workspace.xml
 /.idea/navEditor.xml
 /.idea/assetWizardSettings.xml
+/.idea/deviceManager.xml
+/.idea/deploymentTargetSelector.xml
+/.idea/inspectionProfiles/Project_Default.xml
 .DS_Store
 /build
 /captures
@@ -16,3 +19,9 @@
 local.properties
 .env
 debug.keystore
+
+# Private local OCR fixtures and reports. Real receipts can contain PII and must not be committed.
+/testimages/
+/app/src/androidTest/assets/receipt-images-private/*
+!/app/src/androidTest/assets/receipt-images-private/.gitkeep
+/app/build/receipt-ocr-output/

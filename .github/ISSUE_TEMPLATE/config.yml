@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Private security report
+    url: https://github.com/GopiB9119/event/security/policy
+    about: Report suspected vulnerabilities privately. Do not open a public issue.
+  - name: Support and privacy guidance
+    url: https://github.com/GopiB9119/event/blob/main/SUPPORT.md
+    about: Choose private email or public issue support without exposing sensitive data.

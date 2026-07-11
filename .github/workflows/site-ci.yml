@@ -1,0 +1,39 @@
+name: Site CI
+
+on:
+  push:
+    paths:
+      - "site/**"
+      - "scripts/validate-site.mjs"
+      - ".github/workflows/site-ci.yml"
+  pull_request:
+    paths:
+      - "site/**"
+      - "scripts/validate-site.mjs"
+      - ".github/workflows/site-ci.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: site-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    name: Validate static website
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Validate JavaScript syntax
+        run: |
+          node --check site/app.js
+          node --check site/join/join.js
+
+      - name: Validate pages, assets, and release manifest
+        run: node scripts/validate-site.mjs site

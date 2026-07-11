@@ -45,7 +45,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.data.EventEntity
+import com.example.data.MemberEntity
 import com.example.data.TransactionEntity
+import com.example.data.normalizeLocalIdentity
+import com.example.receipt.ParsedReceipt
 import android.net.Uri
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -67,16 +70,77 @@ import java.util.regex.Pattern
 fun AppContent(viewModel: EventViewModel) {
     val themeMode by viewModel.themeMode.collectAsStateWithLifecycle()
     val navigationStack = viewModel.navigationStack
+    val pendingSharedReceipt by viewModel.pendingSharedReceipt.collectAsStateWithLifecycle()
+    val receiptReviewInterrupted by viewModel.receiptReviewInterrupted.collectAsStateWithLifecycle()
+    var isSharedReceiptHintDismissed by remember(pendingSharedReceipt) { mutableStateOf(false) }
+    val currentScreen = navigationStack.lastOrNull() ?: Screen.Dashboard
     
-    // Listen to deep link messages and error alerts from our Advanced Privacy Guard
+    // Listen to invite-link messages and errors.
     val deepLinkMessage by viewModel.deepLinkMessage.collectAsStateWithLifecycle()
     val deepLinkError by viewModel.deepLinkError.collectAsStateWithLifecycle()
+
+    if (receiptReviewInterrupted) {
+        AlertDialog(
+            onDismissRequest = { viewModel.clearReceiptReviewInProgress() },
+            icon = {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.ReceiptLong,
+                    contentDescription = "Receipt review interrupted",
+                    tint = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.size(32.dp)
+                )
+            },
+            title = { Text("Receipt Review Interrupted", fontWeight = FontWeight.Bold) },
+            text = {
+                Text(
+                    text = "The app closed before receipt review finished. No transaction was saved. Open the correct event and scan or share the receipt again.",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+            },
+            confirmButton = {
+                Button(onClick = { viewModel.clearReceiptReviewInProgress() }) {
+                    Text("Got It")
+                }
+            }
+        )
+    }
+
+    if (pendingSharedReceipt != null && currentScreen is Screen.Dashboard && !isSharedReceiptHintDismissed && !receiptReviewInterrupted) {
+        AlertDialog(
+            onDismissRequest = { isSharedReceiptHintDismissed = true },
+            icon = {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.ReceiptLong,
+                    contentDescription = "Shared receipt waiting",
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(32.dp)
+                )
+            },
+            title = { Text("Receipt Ready to Import", fontWeight = FontWeight.Bold) },
+            text = {
+                Text(
+                    text = "Open the event where this payment belongs. The shared receipt will be scanned and added to that event's review screen.",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+            },
+            confirmButton = {
+                Button(onClick = { isSharedReceiptHintDismissed = true }) {
+                    Text("Open an Event")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { viewModel.clearPendingSharedReceipt() }) {
+                    Text("Cancel Import")
+                }
+            }
+        )
+    }
 
     if (deepLinkMessage != null) {
         AlertDialog(
             onDismissRequest = { viewModel.dismissDeepLinkMessage() },
             icon = { Icon(Icons.Default.VerifiedUser, contentDescription = "Verified", tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(36.dp)) },
-            title = { Text("Secure Access Verified", fontWeight = FontWeight.Bold, textAlign = TextAlign.Center) },
+            title = { Text("Event Copy Added", fontWeight = FontWeight.Bold, textAlign = TextAlign.Center) },
             text = { Text(deepLinkMessage ?: "", style = MaterialTheme.typography.bodyMedium, textAlign = TextAlign.Center) },
             confirmButton = {
                 Button(onClick = { viewModel.dismissDeepLinkMessage() }) {
@@ -90,7 +154,7 @@ fun AppContent(viewModel: EventViewModel) {
         AlertDialog(
             onDismissRequest = { viewModel.dismissDeepLinkError() },
             icon = { Icon(Icons.Default.Security, contentDescription = "Security Alert", tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(36.dp)) },
-            title = { Text("Advanced Privacy Block", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.error, textAlign = TextAlign.Center) },
+            title = { Text("Event Link Problem", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.error, textAlign = TextAlign.Center) },
             text = { Text(deepLinkError ?: "", style = MaterialTheme.typography.bodyMedium, textAlign = TextAlign.Center) },
             confirmButton = {
                 Button(
@@ -109,12 +173,15 @@ fun AppContent(viewModel: EventViewModel) {
                 .fillMaxSize()
                 .padding(innerPadding)
         ) {
-            when (val currentScreen = navigationStack.lastOrNull() ?: Screen.Dashboard) {
+            when (currentScreen) {
                 is Screen.Dashboard -> {
                     DashboardScreen(viewModel)
                 }
                 is Screen.CreateEvent -> {
                     CreateEventScreen(viewModel)
+                }
+                is Screen.TrustCenter -> {
+                    TrustCenterScreen(viewModel)
                 }
                 is Screen.EventDetails -> {
                     EventDetailsScreen(eventId = currentScreen.eventId, viewModel = viewModel)
@@ -133,6 +200,90 @@ private fun getEventCreator(customFieldsJson: String): String {
     }
 }
 
+private enum class EventVisibilityFilter {
+    All,
+    Public,
+    Private
+}
+
+private enum class IdentityRequiredAction {
+    CreateEvent,
+    InviteMembers,
+    ScanReceipt,
+    ProcessSharedReceipt,
+    ReplaceReceipt
+}
+
+@Composable
+private fun LocalIdentityDialog(
+    currentUserEmail: String,
+    onDismiss: () -> Unit,
+    onSave: (String) -> Boolean
+) {
+    var emailInput by remember(currentUserEmail) { mutableStateOf(currentUserEmail) }
+    var hasError by remember { mutableStateOf(false) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        modifier = Modifier.testTag("local_identity_dialog"),
+        title = {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    imageVector = Icons.Default.AccountCircle,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.padding(end = 8.dp)
+                )
+                Text("Local Identity", fontWeight = FontWeight.Bold)
+            }
+        },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text(
+                    text = "Set a valid email label for event ownership and receipt uploads on this device. This is not sign-in or authentication.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                OutlinedTextField(
+                    value = emailInput,
+                    onValueChange = {
+                        emailInput = it
+                        hasError = false
+                    },
+                    label = { Text("Your Email Address") },
+                    isError = hasError,
+                    supportingText = {
+                        if (hasError) {
+                            Text("Enter a valid email address.")
+                        }
+                    },
+                    singleLine = true,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("local_identity_input")
+                )
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    if (!onSave(emailInput)) {
+                        hasError = true
+                    }
+                },
+                modifier = Modifier.testTag("local_identity_save")
+            ) {
+                Text("Save Identity")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel")
+            }
+        }
+    )
+}
+
 // ----------------------------------------------------
 // A. DASHBOARD SCREEN
 // ----------------------------------------------------
@@ -142,8 +293,20 @@ fun DashboardScreen(viewModel: EventViewModel) {
     val events by viewModel.events.collectAsStateWithLifecycle()
     val themeMode by viewModel.themeMode.collectAsStateWithLifecycle()
     val currentUserEmail by viewModel.userEmail.collectAsStateWithLifecycle()
+    val localBetaAcknowledged by viewModel.localBetaAcknowledged.collectAsStateWithLifecycle()
     var isThemeMenuExpanded by remember { mutableStateOf(false) }
     var isIdentityDialogOpen by remember { mutableStateOf(false) }
+    var pendingIdentityAction by remember { mutableStateOf<IdentityRequiredAction?>(null) }
+    var visibilityFilter by remember { mutableStateOf(EventVisibilityFilter.All) }
+    val publicEventCount = events.count { !it.isPrivate }
+    val privateEventCount = events.count { it.isPrivate }
+    val visibleEvents = remember(events, visibilityFilter) {
+        when (visibilityFilter) {
+            EventVisibilityFilter.All -> events
+            EventVisibilityFilter.Public -> events.filter { !it.isPrivate }
+            EventVisibilityFilter.Private -> events.filter { it.isPrivate }
+        }
+    }
 
     // Multi-step deletion state
     var eventToDelete by remember { mutableStateOf<EventEntity?>(null) }
@@ -185,7 +348,20 @@ fun DashboardScreen(viewModel: EventViewModel) {
             actions = {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     IconButton(
-                        onClick = { isIdentityDialogOpen = true },
+                        onClick = { viewModel.navigateTo(Screen.TrustCenter) },
+                        modifier = Modifier.testTag("trust_center_button")
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Info,
+                            contentDescription = "About, privacy, and terms",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    IconButton(
+                        onClick = {
+                            pendingIdentityAction = null
+                            isIdentityDialogOpen = true
+                        },
                         modifier = Modifier.testTag("identity_button")
                     ) {
                         Icon(
@@ -269,7 +445,7 @@ fun DashboardScreen(viewModel: EventViewModel) {
                     }
 
                     Text(
-                        text = "Welcome to the Event Ledger",
+                        text = "Your Local Event Ledger",
                         style = MaterialTheme.typography.titleMedium.copy(
                             fontWeight = FontWeight.ExtraBold,
                             letterSpacing = (-0.5).sp
@@ -279,7 +455,7 @@ fun DashboardScreen(viewModel: EventViewModel) {
                     )
 
                     Text(
-                        text = "Track festival or event activities with ease. Create, manage, and decommission events securely.",
+                        text = "Data stays on this device. Invite links copy event details but do not sync balances, transactions, or receipts.",
                         style = MaterialTheme.typography.bodySmall,
                         color = Color.White.copy(alpha = 0.85f),
                         lineHeight = 16.sp
@@ -331,27 +507,84 @@ fun DashboardScreen(viewModel: EventViewModel) {
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
                     item {
-                        Text(
-                            text = "Active Events",
-                            style = MaterialTheme.typography.titleSmall,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurface,
-                            modifier = Modifier.padding(bottom = 4.dp, start = 4.dp)
-                        )
+                        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                            Text(
+                                text = "Active Events",
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurface,
+                                modifier = Modifier.padding(start = 4.dp)
+                            )
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                FilterChip(
+                                    selected = visibilityFilter == EventVisibilityFilter.All,
+                                    onClick = { visibilityFilter = EventVisibilityFilter.All },
+                                    label = { Text("All ${events.size}", maxLines = 1) },
+                                    modifier = Modifier.weight(1f).testTag("event_filter_all")
+                                )
+                                FilterChip(
+                                    selected = visibilityFilter == EventVisibilityFilter.Public,
+                                    onClick = { visibilityFilter = EventVisibilityFilter.Public },
+                                    label = { Text("Public $publicEventCount", maxLines = 1) },
+                                    modifier = Modifier.weight(1f).testTag("event_filter_public")
+                                )
+                                FilterChip(
+                                    selected = visibilityFilter == EventVisibilityFilter.Private,
+                                    onClick = { visibilityFilter = EventVisibilityFilter.Private },
+                                    label = { Text("Private $privateEventCount", maxLines = 1) },
+                                    modifier = Modifier.weight(1f).testTag("event_filter_private")
+                                )
+                            }
+                        }
                     }
-                    items(events) { event ->
-                        EventCardItem(
-                            event = event,
-                            onClick = { viewModel.selectEvent(event.id) },
-                            onDelete = { eventToDelete = event }
-                        )
+                    if (visibleEvents.isEmpty()) {
+                        item {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 36.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Icon(
+                                    imageVector = if (visibilityFilter == EventVisibilityFilter.Private) Icons.Default.Lock else Icons.Default.Public,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                                    modifier = Modifier.size(42.dp)
+                                )
+                                Text(
+                                    text = "No ${visibilityFilter.name.lowercase(Locale.getDefault())} events yet",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                    } else {
+                        items(visibleEvents, key = { it.id }) { event ->
+                            EventCardItem(
+                                event = event,
+                                onClick = { viewModel.selectEvent(event.id) },
+                                onDelete = { eventToDelete = event }
+                            )
+                        }
                     }
                 }
             }
 
             // Extended Floating Action Button to Create Event
             ExtendedFloatingActionButton(
-                onClick = { viewModel.navigateTo(Screen.CreateEvent) },
+                onClick = {
+                    if (normalizeLocalIdentity(currentUserEmail) == null) {
+                        pendingIdentityAction = IdentityRequiredAction.CreateEvent
+                        isIdentityDialogOpen = true
+                    } else {
+                        viewModel.navigateTo(Screen.CreateEvent)
+                    }
+                },
                 icon = {
                     Icon(
                         imageVector = Icons.Default.Add,
@@ -381,54 +614,87 @@ fun DashboardScreen(viewModel: EventViewModel) {
         }
     }
 
-    // A1: Local Identity Dialog
-    if (isIdentityDialogOpen) {
-        var emailInput by remember { mutableStateOf(currentUserEmail) }
+    if (!localBetaAcknowledged) {
+        var hasAcceptedLimits by remember { mutableStateOf(false) }
         AlertDialog(
-            onDismissRequest = { isIdentityDialogOpen = false },
+            onDismissRequest = {},
+            modifier = Modifier.testTag("local_beta_disclosure_dialog"),
+            icon = {
+                Icon(
+                    imageVector = Icons.Default.PhoneAndroid,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary
+                )
+            },
             title = {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        imageVector = Icons.Default.AccountCircle,
-                        contentDescription = "Profile",
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.padding(end = 8.dp)
-                    )
-                    Text("Google Sign-In", fontWeight = FontWeight.Bold)
-                }
+                Text("Before You Start", fontWeight = FontWeight.Bold)
             },
             text = {
-                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     Text(
-                        text = "plaing to implement auth google firebase",
+                        text = "Community Ledger is currently a local-device beta.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    Text(
+                        text = "• Events, balances, members, and receipts do not sync between devices.\n" +
+                            "• Public/private is a local label, not access control.\n" +
+                            "• There is no account recovery, export, or restore yet.\n" +
+                            "• Uninstalling the app or losing this device deletes the ledger.",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
-                    OutlinedTextField(
-                        value = emailInput,
-                        onValueChange = { emailInput = it },
-                        label = { Text("Your Email Address") },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth()
-                    )
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { hasAcceptedLimits = !hasAcceptedLimits }
+                            .testTag("local_beta_acknowledgement_row"),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Checkbox(
+                            checked = hasAcceptedLimits,
+                            onCheckedChange = { hasAcceptedLimits = it },
+                            modifier = Modifier.testTag("local_beta_acknowledgement_checkbox")
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "I understand that this beta stores unrecoverable data only on this device.",
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                    }
                 }
             },
             confirmButton = {
                 Button(
-                    onClick = {
-                        if (emailInput.isNotBlank()) {
-                            viewModel.setMyUserEmail(emailInput)
-                            isIdentityDialogOpen = false
-                        }
-                    }
+                    enabled = hasAcceptedLimits,
+                    onClick = viewModel::acknowledgeLocalBeta,
+                    modifier = Modifier.testTag("local_beta_acknowledgement_confirm")
                 ) {
-                    Text("Save")
+                    Text("I Understand")
                 }
+            }
+        )
+    }
+
+    // A1: Local Identity Dialog
+    if (isIdentityDialogOpen) {
+        LocalIdentityDialog(
+            currentUserEmail = currentUserEmail,
+            onDismiss = {
+                pendingIdentityAction = null
+                isIdentityDialogOpen = false
             },
-            dismissButton = {
-                TextButton(onClick = { isIdentityDialogOpen = false }) {
-                    Text("Cancel")
+            onSave = { email ->
+                val saved = viewModel.setMyUserEmail(email)
+                if (saved) {
+                    val action = pendingIdentityAction
+                    pendingIdentityAction = null
+                    isIdentityDialogOpen = false
+                    if (action == IdentityRequiredAction.CreateEvent) {
+                        viewModel.navigateTo(Screen.CreateEvent)
+                    }
                 }
+                saved
             }
         )
     }
@@ -460,7 +726,7 @@ fun DashboardScreen(viewModel: EventViewModel) {
                         modifier = Modifier.padding(end = 8.dp)
                     )
                     Text(
-                        text = if (!isLeader) "Access Blocked" else "Secure: Step $deleteStep of 3",
+                        text = if (!isLeader) "Access Blocked" else "Delete Event: Step $deleteStep of 3",
                         fontWeight = FontWeight.Bold,
                         style = MaterialTheme.typography.titleMedium
                     )
@@ -1183,7 +1449,7 @@ fun CreateEventScreen(viewModel: EventViewModel) {
                             Spacer(modifier = Modifier.width(12.dp))
                             Column {
                                 Text(
-                                    text = if (isPrivate) "🔒 Private (Invite-Only)" else "Public Event",
+                                    text = if (isPrivate) "Private Event" else "Public Event",
                                     style = MaterialTheme.typography.titleMedium.copy(
                                         fontWeight = FontWeight.ExtraBold,
                                         color = MaterialTheme.colorScheme.onSurface
@@ -1191,7 +1457,7 @@ fun CreateEventScreen(viewModel: EventViewModel) {
                                 )
                                 Spacer(modifier = Modifier.height(4.dp))
                                 Text(
-                                    text = if (isPrivate) "Only invited members can contribute or view transactions." else "Anyone with the link can view and contribute to this event.",
+                                    text = if (isPrivate) "Marked private in this app and in invite links. Share only with trusted people; this is not server authorization." else "Marked public in this app. Anyone who receives the link can add this ledger to their device.",
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
@@ -1462,31 +1728,84 @@ fun CreateEventScreen(viewModel: EventViewModel) {
 fun EventDetailsScreen(eventId: Int, viewModel: EventViewModel) {
     val event by viewModel.selectedEvent.collectAsStateWithLifecycle()
     val transactions by viewModel.selectedEventTransactions.collectAsStateWithLifecycle()
-    val invitedMap by viewModel.invitedMembers.collectAsStateWithLifecycle()
-    val invitedList = invitedMap[eventId] ?: emptyList()
+    val invitedList by viewModel.selectedEventMembers.collectAsStateWithLifecycle()
     val currentUserEmail by viewModel.userEmail.collectAsStateWithLifecycle()
+    val pendingSharedReceipt by viewModel.pendingSharedReceipt.collectAsStateWithLifecycle()
 
     // Dialog state controllers
     var isInviteDialogOpen by remember { mutableStateOf(false) }
-    var selectedMemberForProfile by remember { mutableStateOf<EventViewModel.Member?>(null) }
+    var isIdentityDialogOpen by remember { mutableStateOf(false) }
+    var pendingIdentityAction by remember { mutableStateOf<IdentityRequiredAction?>(null) }
+    var replacementPendingIdentity by remember { mutableStateOf<TransactionEntity?>(null) }
+    var selectedMemberForProfile by remember { mutableStateOf<MemberEntity?>(null) }
 
     // OCR result verifier modal
-    var extractedReceiptToVerify by remember { mutableStateOf<EventViewModel.ParsedReceipt?>(null) }
+    var extractedReceiptToVerify by remember { mutableStateOf<ParsedReceipt?>(null) }
     var isVerifyReceiptDialogOpen by remember { mutableStateOf(false) }
+    var transactionPendingReceiptReview by remember { mutableStateOf<TransactionEntity?>(null) }
 
     var selectedImageUriForPipeline by remember { mutableStateOf<Uri?>(null) }
     var isProcessingPipelineActive by remember { mutableStateOf(false) }
+    var receiptProcessingToken by remember { mutableStateOf(0) }
+    var clearPendingSharedReceiptAfterProcessing by remember { mutableStateOf(false) }
 
     var replacingTransaction by remember { mutableStateOf<TransactionEntity?>(null) }
     var selectedImageUriForReplacementPipeline by remember { mutableStateOf<Uri?>(null) }
     var isReplacementPipelineActive by remember { mutableStateOf(false) }
+    var replacementProcessingToken by remember { mutableStateOf(0) }
 
     val receiptImagePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
         if (uri != null) {
+            viewModel.markReceiptReviewInProgress()
+            isVerifyReceiptDialogOpen = false
+            extractedReceiptToVerify = null
+            transactionPendingReceiptReview = null
             selectedImageUriForPipeline = uri
+            clearPendingSharedReceiptAfterProcessing = false
+            receiptProcessingToken++
             isProcessingPipelineActive = true
+        }
+    }
+
+    LaunchedEffect(pendingSharedReceipt, eventId, currentUserEmail) {
+        val sharedReceipt = pendingSharedReceipt ?: return@LaunchedEffect
+        if (normalizeLocalIdentity(currentUserEmail) == null) {
+            pendingIdentityAction = IdentityRequiredAction.ProcessSharedReceipt
+            isIdentityDialogOpen = true
+            return@LaunchedEffect
+        }
+        if (sharedReceipt.imageUri != null) {
+            viewModel.markReceiptReviewInProgress()
+            isVerifyReceiptDialogOpen = false
+            extractedReceiptToVerify = null
+            transactionPendingReceiptReview = null
+            selectedImageUriForPipeline = sharedReceipt.imageUri
+            clearPendingSharedReceiptAfterProcessing = true
+            receiptProcessingToken++
+            isProcessingPipelineActive = true
+            return@LaunchedEffect
+        }
+
+        if (sharedReceipt.text.isNotBlank()) {
+            viewModel.markReceiptReviewInProgress()
+            isVerifyReceiptDialogOpen = false
+            extractedReceiptToVerify = null
+            transactionPendingReceiptReview = null
+            clearPendingSharedReceiptAfterProcessing = false
+            val parsed = viewModel.parseReceiptText(sharedReceipt.text).copy(
+                extractionMethod = "Shared receipt text",
+                rawTextPreview = sharedReceipt.text.lineSequence()
+                    .map { it.trim() }
+                    .filter { it.isNotBlank() }
+                    .take(40)
+                    .joinToString("\n")
+            )
+            extractedReceiptToVerify = parsed
+            transactionPendingReceiptReview = null
+            isVerifyReceiptDialogOpen = true
+            viewModel.clearPendingSharedReceipt()
         }
     }
 
@@ -1547,10 +1866,17 @@ fun EventDetailsScreen(eventId: Int, viewModel: EventViewModel) {
                     }
                 },
                 actions = {
-                    IconButton(onClick = { isInviteDialogOpen = true }) {
+                    IconButton(onClick = {
+                        if (normalizeLocalIdentity(currentUserEmail) == null) {
+                            pendingIdentityAction = IdentityRequiredAction.InviteMembers
+                            isIdentityDialogOpen = true
+                        } else {
+                            isInviteDialogOpen = true
+                        }
+                    }) {
                         Icon(
                             imageVector = Icons.Default.PersonAdd,
-                            contentDescription = "Invite people",
+                            contentDescription = "Share event copy",
                             tint = MaterialTheme.colorScheme.primary
                         )
                     }
@@ -1563,7 +1889,14 @@ fun EventDetailsScreen(eventId: Int, viewModel: EventViewModel) {
         floatingActionButton = {
             // Big Upload Screenshot Floating Button (as shown in Sketch 3 at the bottom center)
             ExtendedFloatingActionButton(
-                onClick = { receiptImagePickerLauncher.launch("image/*") },
+                onClick = {
+                    if (normalizeLocalIdentity(currentUserEmail) == null) {
+                        pendingIdentityAction = IdentityRequiredAction.ScanReceipt
+                        isIdentityDialogOpen = true
+                    } else {
+                        receiptImagePickerLauncher.launch("image/*")
+                    }
+                },
                 containerColor = MaterialTheme.colorScheme.primary,
                 contentColor = MaterialTheme.colorScheme.onPrimary,
                 elevation = FloatingActionButtonDefaults.elevation(6.dp),
@@ -1930,7 +2263,7 @@ fun EventDetailsScreen(eventId: Int, viewModel: EventViewModel) {
                 }
             }
 
-            // Section 3: Invited Members list
+            // Section 3: Member list
             item {
                 Column(
                     modifier = Modifier
@@ -1948,7 +2281,7 @@ fun EventDetailsScreen(eventId: Int, viewModel: EventViewModel) {
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = "👥 Invited Members (${invitedList.size})",
+                            text = "👥 Members (${invitedList.size})",
                             style = MaterialTheme.typography.bodyMedium.copy(
                                 fontWeight = FontWeight.ExtraBold,
                                 color = MaterialTheme.colorScheme.onSurface
@@ -1956,18 +2289,25 @@ fun EventDetailsScreen(eventId: Int, viewModel: EventViewModel) {
                             modifier = Modifier.padding(start = 4.dp)
                         )
                         TextButton(
-                            onClick = { isInviteDialogOpen = true },
+                            onClick = {
+                                if (normalizeLocalIdentity(currentUserEmail) == null) {
+                                    pendingIdentityAction = IdentityRequiredAction.InviteMembers
+                                    isIdentityDialogOpen = true
+                                } else {
+                                    isInviteDialogOpen = true
+                                }
+                            },
                             colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.primary)
                         ) {
-                            Icon(Icons.Default.Add, contentDescription = "Invite", modifier = Modifier.size(16.dp))
+                            Icon(Icons.Default.Add, contentDescription = "Share event copy", modifier = Modifier.size(16.dp))
                             Spacer(modifier = Modifier.width(4.dp))
-                            Text("Invite", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                            Text("Share Copy", fontSize = 12.sp, fontWeight = FontWeight.Bold)
                         }
                     }
 
                     if (invitedList.isEmpty()) {
                         Text(
-                            text = "Click 'Invite' to register community members",
+                            text = "Add members to link their contributions and expenses",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.padding(horizontal = 4.dp, vertical = 8.dp)
@@ -1978,9 +2318,12 @@ fun EventDetailsScreen(eventId: Int, viewModel: EventViewModel) {
                             invitedList.forEach { member ->
                                 // Transaction calculations for this person
                                 val memberTx = transactions.filter { tx ->
-                                    tx.personName.equals(member.name, ignoreCase = true) || 
-                                    (member.phone.isNotBlank() && tx.personPhone == member.phone) ||
-                                    (member.email.isNotBlank() && tx.personEmail == member.email)
+                                    tx.memberId == member.id ||
+                                        (tx.memberId == null && (
+                                            tx.personName.equals(member.name, ignoreCase = true) ||
+                                                (member.phone.isNotBlank() && tx.personPhone == member.phone) ||
+                                                (member.email.isNotBlank() && tx.personEmail == member.email)
+                                        ))
                                 }
                                 val credits = memberTx.filter { it.type == "Donated" || it.type == "Credit" }
                                 val debits = memberTx.filter { it.type == "Debit" || it.type == "Expense" }
@@ -1989,6 +2332,9 @@ fun EventDetailsScreen(eventId: Int, viewModel: EventViewModel) {
                                 val debitTimes = debits.size
                                 val totalCredit = credits.sumOf { it.amount }
                                 val totalDebit = debits.sumOf { it.amount }
+                                val receiptUploadCount = memberTx.count { tx ->
+                                    tx.notes?.trim()?.startsWith("{") == true
+                                }
 
                                 Card(
                                     onClick = { selectedMemberForProfile = member },
@@ -2040,6 +2386,12 @@ fun EventDetailsScreen(eventId: Int, viewModel: EventViewModel) {
                                                         text = "📞 ${member.phone.ifBlank { "No phone" }}  |  Role: ${member.role}",
                                                         style = MaterialTheme.typography.labelSmall,
                                                         color = MaterialTheme.colorScheme.onSurfaceVariant
+                                                    )
+                                                    Text(
+                                                        text = "Receipt uploads: $receiptUploadCount",
+                                                        style = MaterialTheme.typography.labelSmall,
+                                                        fontWeight = FontWeight.Bold,
+                                                        color = MaterialTheme.colorScheme.primary
                                                     )
                                                 }
                                             }
@@ -2167,7 +2519,15 @@ fun EventDetailsScreen(eventId: Int, viewModel: EventViewModel) {
                         currentUserEmail = currentUserEmail,
                         eventCreatorEmail = eventCreatorEmail,
                         onDelete = { viewModel.deleteTransaction(tx.id) },
-                        onReplaceScreenshot = { replacingTransaction = tx }
+                        onReplaceScreenshot = {
+                            if (normalizeLocalIdentity(currentUserEmail) == null) {
+                                replacementPendingIdentity = tx
+                                pendingIdentityAction = IdentityRequiredAction.ReplaceReceipt
+                                isIdentityDialogOpen = true
+                            } else {
+                                replacingTransaction = tx
+                            }
+                        }
                     )
                 }
             }
@@ -2176,13 +2536,52 @@ fun EventDetailsScreen(eventId: Int, viewModel: EventViewModel) {
 
     // DIALOGS & SHEET MODALS
 
-    // 1. Invite Members Dialog (Includes Secure WhatsApp Link Generator & local registering)
+    if (isIdentityDialogOpen) {
+        LocalIdentityDialog(
+            currentUserEmail = currentUserEmail,
+            onDismiss = {
+                if (pendingIdentityAction == IdentityRequiredAction.ProcessSharedReceipt) {
+                    viewModel.clearPendingSharedReceipt()
+                }
+                pendingIdentityAction = null
+                replacementPendingIdentity = null
+                isIdentityDialogOpen = false
+            },
+            onSave = { email ->
+                val saved = viewModel.setMyUserEmail(email)
+                if (saved) {
+                    val action = pendingIdentityAction
+                    val replacement = replacementPendingIdentity
+                    pendingIdentityAction = null
+                    replacementPendingIdentity = null
+                    isIdentityDialogOpen = false
+                    when (action) {
+                        IdentityRequiredAction.InviteMembers -> isInviteDialogOpen = true
+                        IdentityRequiredAction.ScanReceipt -> receiptImagePickerLauncher.launch("image/*")
+                        IdentityRequiredAction.ReplaceReceipt -> replacingTransaction = replacement
+                        IdentityRequiredAction.ProcessSharedReceipt,
+                        IdentityRequiredAction.CreateEvent,
+                        null -> Unit
+                    }
+                }
+                saved
+            }
+        )
+    }
+
+    // 1. Share Event Copy Dialog (Includes link generation and local member registration)
     if (isInviteDialogOpen) {
         val context = LocalContext.current
 
-        // Secure Link generation states
+        // Invite link generation states
         var linkDurationHours by remember { mutableStateOf("2 Hours") } // 10 Minutes, 1 Hour, 2 Hours, 1 Day
         var personalizedNote by remember { mutableStateOf("") }
+        val linkDurationOptions = listOf(
+            "10 Minutes" to "10Min",
+            "1 Hour" to "1H",
+            "2 Hours" to "2H",
+            "1 Day" to "1D"
+        )
 
         val clicksMap by viewModel.linkClicks.collectAsStateWithLifecycle()
         val currentClicks = clicksMap[currentEvent.id] ?: viewModel.getLinkClicks(currentEvent.id)
@@ -2198,14 +2597,14 @@ fun EventDetailsScreen(eventId: Int, viewModel: EventViewModel) {
         val expiryVal = System.currentTimeMillis() + durationMs
 
         val creatorEmail = viewModel.getMyUserEmail()
-        val encryptedEventId = viewModel.encryptEventId(currentEvent.id)
-        val sig = viewModel.generateSignature(
+        val encodedEventId = viewModel.encodeEventId(currentEvent.id)
+        val checksum = viewModel.generateInviteChecksum(
             eventId = currentEvent.id,
             expiry = expiryVal,
-            creatorEmail = creatorEmail
+            creatorEmail = creatorEmail,
+            isPrivate = currentEvent.isPrivate
         )
-        // Secure Web URL to pass over WhatsApp
-        val generatedLink = "https://communityledger.com/join?eventId=${Uri.encode(encryptedEventId)}&expiry=$expiryVal&signature=$sig&title=${Uri.encode(currentEvent.title)}&creatorEmail=${Uri.encode(creatorEmail)}"
+        val generatedLink = "https://gopib9119.github.io/event/join/?eventId=${Uri.encode(encodedEventId)}&expiry=$expiryVal&checksum=$checksum&title=${Uri.encode(currentEvent.title)}&creatorEmail=${Uri.encode(creatorEmail)}&private=${currentEvent.isPrivate}"
 
         val formattedExpiry = remember(expiryVal) {
             SimpleDateFormat("dd MMM hh:mm a", Locale.getDefault()).format(Date(expiryVal))
@@ -2216,22 +2615,25 @@ fun EventDetailsScreen(eventId: Int, viewModel: EventViewModel) {
             currentEvent.title,
             personalizedNote,
             creatorEmail,
+            currentEvent.isPrivate,
             formattedExpiry,
             linkDurationHours,
             generatedLink
         ) {
             buildString {
-                append(" *Event Invitation* \n\n")
+                append(" *Event Copy Link* \n\n")
                 if (personalizedNote.isNotBlank()) {
                     append("“${personalizedNote.trim()}”\n\n")
                 }
-                append("You have been invited to join the ledger event:\n")
+                append("An organizer shared this event ledger shell:\n")
                 append("*Event Name:* *${currentEvent.title}*\n\n")
                 
                 append("*Organizer:* ${creatorEmail.ifBlank { "Community Member" }}\n")
+                append("*Visibility:* ${if (currentEvent.isPrivate) "Private marker" else "Public marker"}\n")
                 append("*Link Expires:* $formattedExpiry ($linkDurationHours)\n")
+                append("*Local only:* This link adds event details. Ledger entries and balances do not sync between devices.\n")
                 
-                append("Click the link below to instantly join the event:\n")
+                append("Open the link below to add an independent local copy:\n")
                 append("🔗 $generatedLink\n\n")
                 
     
@@ -2252,7 +2654,7 @@ fun EventDetailsScreen(eventId: Int, viewModel: EventViewModel) {
                         modifier = Modifier.size(24.dp)
                     )
                     Text(
-                        text = "Invite Members",
+                        text = "Share Event Copy",
                         fontWeight = FontWeight.Bold,
                         style = MaterialTheme.typography.titleMedium
                     )
@@ -2267,7 +2669,7 @@ fun EventDetailsScreen(eventId: Int, viewModel: EventViewModel) {
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     Text(
-                        text = "Customize your invitation message and generate a secure, tamper-proof invitation link.",
+                        text = "This link adds an event shell on another device; it does not sync ledger entries or balances. It preserves the public/private marker and includes a checksum for accidental changes, not security.",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -2302,17 +2704,17 @@ fun EventDetailsScreen(eventId: Int, viewModel: EventViewModel) {
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
-                        listOf("10Min", "1H", "2H", "1D").forEach { hours ->
+                        linkDurationOptions.forEach { (duration, label) ->
                             FilterChip(
-                                selected = linkDurationHours == hours,
-                                onClick = { linkDurationHours = hours },
-                                label = { Text(hours, fontSize = 11.sp) }
+                                selected = linkDurationHours == duration,
+                                onClick = { linkDurationHours = duration },
+                                label = { Text(label, fontSize = 11.sp) }
                             )
                         }
                     }
 
                     Text(
-                        text = "🔒 Expiry scheduled at: $formattedExpiry.",
+                        text = "Expires at: $formattedExpiry.",
                         style = MaterialTheme.typography.labelSmall,
                         color = Color(0xFF2E7D32)
                     )
@@ -2330,9 +2732,9 @@ fun EventDetailsScreen(eventId: Int, viewModel: EventViewModel) {
                                 val clipboardManager = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
                                 val clipData = ClipData.newPlainText("Ledger Link", shareMessage)
                                 clipboardManager.setPrimaryClip(clipData)
-                                Toast.makeText(context, "Invite Link copied!", Toast.LENGTH_SHORT).show()
+                                Toast.makeText(context, "Event copy link copied", Toast.LENGTH_SHORT).show()
                             },
-                            modifier = Modifier.weight(1f).testTag("copy_secure_link_button")
+                            modifier = Modifier.weight(1f).testTag("copy_invite_link_button")
                         ) {
                             Icon(Icons.Default.ContentCopy, contentDescription = "Copy", modifier = Modifier.size(16.dp))
                             Spacer(modifier = Modifier.width(4.dp)) 
@@ -2355,7 +2757,7 @@ fun EventDetailsScreen(eventId: Int, viewModel: EventViewModel) {
                                     context.startActivity(Intent.createChooser(shareIntent, "Share Ledger Link"))
                                 }
                             },
-                            modifier = Modifier.weight(1.2f).testTag("send_secure_link_button"),
+                            modifier = Modifier.weight(1.2f).testTag("send_invite_link_button"),
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = Color(0xFF25D366),
                                 contentColor = Color.White
@@ -2381,9 +2783,12 @@ fun EventDetailsScreen(eventId: Int, viewModel: EventViewModel) {
         val member = selectedMemberForProfile!!
         // Filter transactions associated with this member's details
         val memberTx = transactions.filter { tx ->
-            tx.personName.equals(member.name, ignoreCase = true) || 
-            (member.phone.isNotBlank() && tx.personPhone == member.phone) ||
-            (member.email.isNotBlank() && tx.personEmail == member.email)
+            tx.memberId == member.id ||
+                (tx.memberId == null && (
+                    tx.personName.equals(member.name, ignoreCase = true) ||
+                        (member.phone.isNotBlank() && tx.personPhone == member.phone) ||
+                        (member.email.isNotBlank() && tx.personEmail == member.email)
+                ))
         }
         val credits = memberTx.filter { it.type == "Donated" || it.type == "Credit" }
         val debits = memberTx.filter { it.type == "Debit" || it.type == "Expense" }
@@ -2607,8 +3012,11 @@ fun EventDetailsScreen(eventId: Int, viewModel: EventViewModel) {
         var currentStep by remember { mutableStateOf(0) }
         val logs = remember { mutableStateListOf<String>() }
 
-        LaunchedEffect(selectedUri) {
-            logs.add("⏳ [INIT] Initializing secure offline privacy sandbox...")
+        LaunchedEffect(selectedUri, receiptProcessingToken) {
+            logs.clear()
+            extractedReceiptToVerify = null
+            isVerifyReceiptDialogOpen = false
+            logs.add("⏳ [INIT] Preparing local OCR cleanup pipeline...")
             delay(800)
             currentStep = 1
             logs.add("🔒 [PRIVACY] Stripping sensitive EXIF metadata, GPS details, and camera tags...")
@@ -2617,16 +3025,16 @@ fun EventDetailsScreen(eventId: Int, viewModel: EventViewModel) {
             delay(1000)
             currentStep = 2
             if (cleanBitmap != null) {
-                logs.add("✨ [PRIVACY] EXIF data completely scrubbed!")
+                logs.add("✨ [PRIVACY] OCR bitmap prepared without image metadata.")
             } else {
-                logs.add("⚠️ [PRIVACY] Metadata scrubbed directly from raw image stream.")
+                logs.add("⚠️ [PRIVACY] Using processed image stream for OCR.")
             }
             delay(600)
             currentStep = 3
             logs.add("🎨 [PREPROCESS] Applying grayscale filter and 1.5x color matrix contrast...")
             delay(800)
             currentStep = 4
-            logs.add("🔍 [OCR] Running deep multi-modal OCR extraction pipeline...")
+            logs.add("🔍 [OCR] Reading text directly from the selected image...")
             val parsedResult = viewModel.extractReceiptFromUri(context, selectedUri)
             delay(1000)
             currentStep = 5
@@ -2634,31 +3042,28 @@ fun EventDetailsScreen(eventId: Int, viewModel: EventViewModel) {
             logs.add("🎯 [EXTRACT] Amount: ₹${parsedResult.amount}, ID: ${parsedResult.transactionId}")
             delay(800)
             currentStep = 6
-            logs.add("👤 [PROFILE] Mapping transaction to profile: $currentUserEmail...")
-            
-            val uploaderName = currentUserEmail.substringBefore("@")
-                .replaceFirstChar { if (it.isLowerCase()) it.titlecase(Locale.getDefault()) else it.toString() }
-            
-            // Auto post to ledger database, mapping to the authenticated profile, skipping manual entry forms
-            viewModel.addTransaction(
-                eventId = eventId,
-                personName = uploaderName,
-                personPhone = parsedResult.phone.ifBlank { "9848022338" },
-                personEmail = currentUserEmail,
-                amount = parsedResult.amount,
-                type = "Donated",
-                notes = "OCR extracted on ${parsedResult.date}",
-                transactionId = parsedResult.transactionId,
-                uploaderEmail = currentUserEmail
-            )
+            logs.add("🧾 [REVIEW] Extraction ready. Please verify before saving to ledger...")
             delay(800)
             extractedReceiptToVerify = parsedResult
+            transactionPendingReceiptReview = null
+            if (clearPendingSharedReceiptAfterProcessing) {
+                viewModel.clearPendingSharedReceipt()
+                clearPendingSharedReceiptAfterProcessing = false
+            }
             isProcessingPipelineActive = false
             isVerifyReceiptDialogOpen = true
         }
 
         AlertDialog(
-            onDismissRequest = { isProcessingPipelineActive = false },
+            onDismissRequest = {
+                isProcessingPipelineActive = false
+                selectedImageUriForPipeline = null
+                if (clearPendingSharedReceiptAfterProcessing) {
+                    viewModel.clearPendingSharedReceipt()
+                    clearPendingSharedReceiptAfterProcessing = false
+                }
+                viewModel.clearReceiptReviewInProgress()
+            },
             title = {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(
@@ -2668,7 +3073,7 @@ fun EventDetailsScreen(eventId: Int, viewModel: EventViewModel) {
                         modifier = Modifier.size(28.dp)
                     )
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("Secure Image Processing Pipeline", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                    Text("Image Processing", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                 }
             },
             text = {
@@ -2677,7 +3082,7 @@ fun EventDetailsScreen(eventId: Int, viewModel: EventViewModel) {
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Text(
-                        text = "Executing offline security scans and regex pattern extraction to isolate your payment screenshot contents securely:",
+                        text = "Reading text from the selected payment screenshot. Nothing is saved until you confirm the extracted values.",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -2740,7 +3145,11 @@ fun EventDetailsScreen(eventId: Int, viewModel: EventViewModel) {
             contract = ActivityResultContracts.GetContent()
         ) { uri: Uri? ->
             if (uri != null) {
+                viewModel.markReceiptReviewInProgress()
+                isVerifyReceiptDialogOpen = false
+                extractedReceiptToVerify = null
                 selectedImageUriForReplacementPipeline = uri
+                replacementProcessingToken++
                 isReplacementPipelineActive = true
             }
         }
@@ -2783,64 +3192,6 @@ fun EventDetailsScreen(eventId: Int, viewModel: EventViewModel) {
                         Spacer(modifier = Modifier.width(8.dp))
                         Text("Select Corrected Image from Device")
                     }
-
-                    Spacer(modifier = Modifier.height(6.dp))
-
-                    /*
-                    LazyColumn(
-                        verticalArrangement = Arrangement.spacedBy(8.dp),
-                        modifier = Modifier.heightIn(max = 200.dp)
-                    ) {
-                        items(simulatedReceipts) { (title, desc, rawText) ->
-                            Card(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clickable {
-                                        // Run parsing engine
-                                        val parsed = viewModel.parseReceiptText(rawText)
-                                        val uploader = currentUserEmail
-                                        
-                                        // Trigger viewModel replaceTransaction directly, maintaining same ID
-                                        viewModel.replaceTransaction(
-                                            txId = txToReplace.id,
-                                            eventId = txToReplace.eventId,
-                                            personName = txToReplace.personName,
-                                            personPhone = parsed.phone.ifBlank { txToReplace.personPhone },
-                                            personEmail = txToReplace.personEmail,
-                                            amount = parsed.amount,
-                                            type = "Donated",
-                                            notes = "OCR corrected on ${parsed.date}",
-                                            transactionId = parsed.transactionId,
-                                            uploaderEmail = uploader
-                                        )
-
-                                        extractedReceiptToVerify = parsed
-                                        replacingTransaction = null
-                                        isVerifyReceiptDialogOpen = true
-                                    },
-                                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
-                            ) {
-                                Row(
-                                    modifier = Modifier.padding(12.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.PublishedWithChanges,
-                                        contentDescription = "Correct",
-                                        tint = MaterialTheme.colorScheme.primary,
-                                        modifier = Modifier.size(24.dp)
-                                    )
-                                    Spacer(modifier = Modifier.width(12.dp))
-                                    Column {
-                                        Text(title, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodyMedium)
-                                        Text(desc, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    */
                 }
             },
             confirmButton = {},
@@ -2860,8 +3211,11 @@ fun EventDetailsScreen(eventId: Int, viewModel: EventViewModel) {
         var currentStep by remember { mutableStateOf(0) }
         val logs = remember { mutableStateListOf<String>() }
 
-        LaunchedEffect(selectedUri) {
-            logs.add("⏳ [INIT] Initializing secure offline privacy sandbox...")
+        LaunchedEffect(selectedUri, replacementProcessingToken) {
+            logs.clear()
+            extractedReceiptToVerify = null
+            isVerifyReceiptDialogOpen = false
+            logs.add("⏳ [INIT] Preparing local OCR cleanup pipeline...")
             delay(600)
             currentStep = 1
             logs.add("🔒 [PRIVACY] Stripping sensitive EXIF metadata, GPS details, and camera tags...")
@@ -2869,16 +3223,16 @@ fun EventDetailsScreen(eventId: Int, viewModel: EventViewModel) {
             delay(800)
             currentStep = 2
             if (cleanBitmap != null) {
-                logs.add("✨ [PRIVACY] EXIF data completely scrubbed!")
+                logs.add("✨ [PRIVACY] OCR bitmap prepared without image metadata.")
             } else {
-                logs.add("⚠️ [PRIVACY] Metadata scrubbed directly from raw image stream.")
+                logs.add("⚠️ [PRIVACY] Using processed image stream for OCR.")
             }
             delay(500)
             currentStep = 3
             logs.add("🎨 [PREPROCESS] Boosting contrast and threshold levels for OCR readability...")
             delay(600)
             currentStep = 4
-            logs.add("🔍 [AI/OCR] Running deep multi-modal OCR extraction pipeline...")
+            logs.add("🔍 [OCR] Reading text directly from the replacement image...")
             val parsedResult = viewModel.extractReceiptFromUri(context, selectedUri)
             delay(800)
             currentStep = 5
@@ -2886,30 +3240,21 @@ fun EventDetailsScreen(eventId: Int, viewModel: EventViewModel) {
             logs.add("🎯 [EXTRACT] Extraction completed: Amount: ₹${parsedResult.amount}, ID: ${parsedResult.transactionId}")
             delay(600)
             currentStep = 6
-            logs.add("👤 [PROFILE] Overwriting transaction ID ${txToReplace.id} mapped to ${currentUserEmail}...")
-            
-            // Call replaceTransaction!
-            viewModel.replaceTransaction(
-                txId = txToReplace.id,
-                eventId = txToReplace.eventId,
-                personName = txToReplace.personName,
-                personPhone = parsedResult.phone.ifBlank { txToReplace.personPhone },
-                personEmail = txToReplace.personEmail,
-                amount = parsedResult.amount,
-                type = "Donated",
-                notes = "OCR corrected on ${parsedResult.date}",
-                transactionId = parsedResult.transactionId,
-                uploaderEmail = currentUserEmail
-            )
+            logs.add("🧾 [REVIEW] Replacement extraction ready. Please verify before saving...")
             delay(600)
             extractedReceiptToVerify = parsedResult
+            transactionPendingReceiptReview = txToReplace
             isReplacementPipelineActive = false
             replacingTransaction = null
             isVerifyReceiptDialogOpen = true
         }
 
         AlertDialog(
-            onDismissRequest = { isReplacementPipelineActive = false },
+            onDismissRequest = {
+                isReplacementPipelineActive = false
+                selectedImageUriForReplacementPipeline = null
+                viewModel.clearReceiptReviewInProgress()
+            },
             title = {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(
@@ -2928,7 +3273,7 @@ fun EventDetailsScreen(eventId: Int, viewModel: EventViewModel) {
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Text(
-                        text = "Running secure privacy sandbox to replace screenshot on entry ID: ${txToReplace.id}...",
+                        text = "Running local OCR cleanup to replace screenshot on entry ID: ${txToReplace.id}...",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -2968,25 +3313,128 @@ fun EventDetailsScreen(eventId: Int, viewModel: EventViewModel) {
         )
     }
 
-    // 4. Verification Dialog (Now a purely automatic extraction success dialogue)
+    // 4. Review Dialog
     if (isVerifyReceiptDialogOpen && extractedReceiptToVerify != null) {
         val parsed = extractedReceiptToVerify!!
+        val replacementTarget = transactionPendingReceiptReview
+        val receiptType = replacementTarget?.type ?: "Donated"
+        val extractedPhone = parsed.phone.ifBlank { replacementTarget?.personPhone ?: "" }
+        val extractedDate = parsed.date
+        fun cleanJsonString(json: JSONObject?, key: String): String {
+            if (json == null || json.isNull(key)) return ""
+            return json.optString(key).takeIf { it.isNotBlank() && it != "null" } ?: ""
+        }
+
+        fun transactionReceiptJson(tx: TransactionEntity): JSONObject? {
+            return try {
+                val noteText = tx.notes?.trim().orEmpty()
+                if (noteText.startsWith("{")) JSONObject(noteText) else null
+            } catch (e: Exception) {
+                null
+            }
+        }
+
+        val duplicateReceipt = remember(transactions, parsed, extractedPhone, extractedDate, replacementTarget) {
+            val newReference = parsed.transactionId.trim()
+            val newPaidTo = parsed.payeeName.trim()
+            val newUpiId = parsed.upiId.trim()
+            val newPaymentApp = parsed.paymentApp.takeIf { it != "Unknown UPI" }.orEmpty()
+
+            transactions.firstOrNull { tx ->
+                if (replacementTarget?.id == tx.id) return@firstOrNull false
+
+                val existingJson = transactionReceiptJson(tx)
+                val existingReference = cleanJsonString(existingJson, "upiReferenceOrTransactionId")
+                    .ifBlank { tx.transactionId.trim() }
+
+                if (newReference.isNotBlank() && existingReference.equals(newReference, ignoreCase = true)) {
+                    return@firstOrNull true
+                }
+
+                if (parsed.amount <= 0.0) return@firstOrNull false
+                val existingAmount = if (existingJson != null && !existingJson.isNull("amount")) {
+                    existingJson.optDouble("amount", tx.amount)
+                } else {
+                    tx.amount
+                }
+                val amountMatches = kotlin.math.abs(existingAmount - parsed.amount) < 0.01
+                if (!amountMatches) return@firstOrNull false
+
+                val existingDate = cleanJsonString(existingJson, "date")
+                val existingPaymentApp = cleanJsonString(existingJson, "paymentApp")
+                val existingPaidTo = cleanJsonString(existingJson, "paidTo")
+                val existingUpiId = cleanJsonString(existingJson, "upiId")
+                val dateMatches = extractedDate.isNotBlank() && existingDate.equals(extractedDate, ignoreCase = true)
+                val appMatches = newPaymentApp.isNotBlank() && existingPaymentApp.equals(newPaymentApp, ignoreCase = true)
+                val receiverMatches =
+                    (newUpiId.isNotBlank() && existingUpiId.equals(newUpiId, ignoreCase = true)) ||
+                        (newPaidTo.isNotBlank() && existingPaidTo.equals(newPaidTo, ignoreCase = true))
+
+                listOf(dateMatches, appMatches, receiverMatches).count { it } >= 2
+            }
+        }
+        val duplicateReason = duplicateReceipt?.let { tx ->
+            val existingJson = transactionReceiptJson(tx)
+            val existingReference = cleanJsonString(existingJson, "upiReferenceOrTransactionId")
+                .ifBlank { tx.transactionId.trim() }
+            if (parsed.transactionId.isNotBlank() && existingReference.equals(parsed.transactionId, ignoreCase = true)) {
+                "Same UPI reference / transaction ID already exists."
+            } else {
+                "Same amount with matching receipt details already exists."
+            }
+        }
+        val canSaveReceipt = parsed.amount > 0.0 && parsed.confidence >= 60 && duplicateReceipt == null
+        val extractionLooksEmpty = parsed.amount <= 0.0 && parsed.transactionId.isBlank() && parsed.phone.isBlank() && parsed.email.isBlank()
+        val hasOcrText = parsed.rawTextPreview.isNotBlank()
+        val calculationBucket = if (receiptType == "Donated" || receiptType == "Credit") "Total Collected" else "Total Spent"
+        val calculationOperation = if (receiptType == "Donated" || receiptType == "Credit") "add" else "subtract"
+        val receiptJsonText = remember(parsed, replacementTarget, currentUserEmail) {
+            JSONObject().apply {
+                put("amount", if (parsed.amount > 0.0) parsed.amount else JSONObject.NULL)
+                put("currency", "INR")
+                put("calculationAmount", if (parsed.amount > 0.0) parsed.amount else JSONObject.NULL)
+                put("calculationBucket", calculationBucket)
+                put("calculationOperation", calculationOperation)
+                put("paidTo", parsed.payeeName.ifBlank { JSONObject.NULL })
+                put("upiId", parsed.upiId.ifBlank { JSONObject.NULL })
+                put("upiReferenceOrTransactionId", parsed.transactionId.ifBlank { JSONObject.NULL })
+                put("paymentApp", parsed.paymentApp.takeIf { it != "Unknown UPI" } ?: JSONObject.NULL)
+                put("date", extractedDate.ifBlank { JSONObject.NULL })
+                put("phone", extractedPhone.ifBlank { JSONObject.NULL })
+                put("email", parsed.email.ifBlank { JSONObject.NULL })
+                put("ledgerType", receiptType)
+                put("uploaderEmail", currentUserEmail)
+                put("extractionMethod", parsed.extractionMethod)
+                put("confidence", parsed.confidence)
+                put("warnings", org.json.JSONArray(parsed.validationWarnings))
+                put("duplicateCheck", JSONObject().apply {
+                    put("status", if (duplicateReceipt == null) "clear" else "possible_duplicate")
+                    put("matchedTransactionRowId", duplicateReceipt?.id ?: JSONObject.NULL)
+                    put("reason", duplicateReason ?: JSONObject.NULL)
+                })
+            }.toString(2)
+        }
 
         AlertDialog(
-            onDismissRequest = { isVerifyReceiptDialogOpen = false },
+            onDismissRequest = {
+                isVerifyReceiptDialogOpen = false
+                extractedReceiptToVerify = null
+                transactionPendingReceiptReview = null
+                viewModel.clearReceiptReviewInProgress()
+            },
             title = {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Icon(
-                        imageVector = Icons.Default.CheckCircle,
-                        contentDescription = "Success",
-                        tint = MaterialTheme.colorScheme.primary,
+                        imageVector = Icons.AutoMirrored.Filled.ReceiptLong,
+                        contentDescription = "Extracted receipt",
+                        tint = if (extractionLooksEmpty || duplicateReceipt != null) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
                         modifier = Modifier.size(28.dp)
                     )
                     Text(
-                        text = "Sync Success!",
+                        text = "Extracted Receipt",
                         fontWeight = FontWeight.Bold,
                         style = MaterialTheme.typography.titleMedium
                     )
@@ -3000,7 +3448,7 @@ fun EventDetailsScreen(eventId: Int, viewModel: EventViewModel) {
                         .verticalScroll(rememberScrollState())
                 ) {
                     Surface(
-                        color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f),
+                        color = if (extractionLooksEmpty) MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.35f) else MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f),
                         shape = RoundedCornerShape(12.dp),
                         modifier = Modifier.fillMaxWidth()
                     ) {
@@ -3009,77 +3457,95 @@ fun EventDetailsScreen(eventId: Int, viewModel: EventViewModel) {
                             verticalArrangement = Arrangement.spacedBy(6.dp)
                         ) {
                             Text(
-                                text = "Receipt processed",
+                                text = when {
+                                    duplicateReceipt != null -> "Possible duplicate receipt"
+                                    extractionLooksEmpty && hasOcrText -> "OCR text found"
+                                    extractionLooksEmpty -> "No receipt data found"
+                                    else -> "Check extracted values"
+                                },
                                 style = MaterialTheme.typography.labelMedium,
                                 fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.primary
+                                color = if (extractionLooksEmpty || duplicateReceipt != null) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
                             )
                             Text(
-                                text = "The selected receipt image was extracted and posted to this ledger.",
+                                text = when {
+                                    duplicateReceipt != null -> "This receipt looks already saved in this event. Saving is blocked to protect ledger totals."
+                                    extractionLooksEmpty && hasOcrText -> "Text was read from the image, but amount/reference was not confidently parsed. Use the OCR preview below to correct it."
+                                    extractionLooksEmpty -> "OCR could not read text from this image. It will not affect ledger calculations until an amount is detected."
+                                    !canSaveReceipt -> "OCR detected an amount, but confidence is too low for ledger calculation. Re-upload a clearer receipt."
+                                    else -> "Amount will be used for $calculationBucket calculations. Verify before saving."
+                                },
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                modifier = Modifier
+                                    .background(
+                                        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.55f),
+                                        shape = RoundedCornerShape(8.dp)
+                                    )
+                                    .padding(horizontal = 8.dp, vertical = 5.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.DocumentScanner,
+                                    contentDescription = "OCR method",
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.size(14.dp)
+                                )
+                                Text(
+                                    text = parsed.extractionMethod,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
+                            Text(
+                                text = "Confidence: ${parsed.confidence}%",
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = if (canSaveReceipt) Color(0xFF10B981) else MaterialTheme.colorScheme.error
+                            )
+                            if (parsed.validationWarnings.isNotEmpty()) {
+                                Text(
+                                    text = parsed.validationWarnings.joinToString("\n") { "• $it" },
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.error
+                                )
+                            }
+                            if (duplicateReason != null) {
+                                Text(
+                                    text = "• $duplicateReason",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.error
+                                )
+                            }
                         }
                     }
 
-                    // Large Amount Display Card
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.15f)
-                        ),
-                        shape = RoundedCornerShape(16.dp),
-                        border = BorderStroke(
-                            1.dp,
-                            MaterialTheme.colorScheme.primary.copy(alpha = 0.3f)
-                        )
+                    Surface(
+                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.fillMaxWidth()
                     ) {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(16.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally
-                        ) {
+                        Column(modifier = Modifier.padding(12.dp)) {
                             Text(
-                                text = "Extracted Donation",
-                                style = MaterialTheme.typography.labelMedium,
+                                text = "Extracted JSON",
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
-                            Spacer(modifier = Modifier.height(4.dp))
+                            Spacer(modifier = Modifier.height(6.dp))
                             Text(
-                                text = "₹${String.format(Locale.getDefault(), "%,.2f", parsed.amount)}",
-                                style = MaterialTheme.typography.headlineLarge,
-                                fontWeight = FontWeight.ExtraBold,
-                                color = MaterialTheme.colorScheme.primary
+                                text = receiptJsonText,
+                                style = MaterialTheme.typography.labelSmall,
+                                fontFamily = FontFamily.Monospace,
+                                color = MaterialTheme.colorScheme.onSurface,
+                                maxLines = 40,
+                                overflow = TextOverflow.Ellipsis
                             )
-                        }
-                    }
-
-                    // Detailed Summary Metadata
-                    Column(
-                        verticalArrangement = Arrangement.spacedBy(8.dp),
-                        modifier = Modifier.padding(horizontal = 4.dp)
-                    ) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Text("Extraction Date:", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            Text(parsed.date, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
-                        }
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Text("Reference ID:", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            Text(parsed.transactionId.ifBlank { "N/A" }, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace)
-                        }
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Text("Linked Profile:", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            Text(currentUserEmail, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
                         }
                     }
 
@@ -3088,12 +3554,57 @@ fun EventDetailsScreen(eventId: Int, viewModel: EventViewModel) {
             },
             confirmButton = {
                 Button(
-                    onClick = { isVerifyReceiptDialogOpen = false },
+                    enabled = canSaveReceipt,
+                    onClick = {
+                        val cleanAmount = parsed.amount.takeIf { it > 0.0 } ?: return@Button
+                        val uploaderName = currentUserEmail.substringBefore("@")
+                            .replaceFirstChar { if (it.isLowerCase()) it.titlecase(Locale.getDefault()) else it.toString() }
+                        val receiptOwnerName = parsed.payeeName.ifBlank { uploaderName }
+                        val storedReceiptPath = viewModel.saveReceiptJsonFile(
+                            eventId = replacementTarget?.eventId ?: eventId,
+                            personName = receiptOwnerName,
+                            uploaderEmail = currentUserEmail,
+                            receiptJsonText = receiptJsonText
+                        )
+
+                        if (replacementTarget == null) {
+                            viewModel.addReceiptTransaction(
+                                eventId = eventId,
+                                personName = receiptOwnerName,
+                                personPhone = extractedPhone,
+                                personEmail = currentUserEmail,
+                                amount = cleanAmount,
+                                type = receiptType,
+                                notes = if (storedReceiptPath.isNullOrBlank()) receiptJsonText else JSONObject(receiptJsonText).apply { put("receiptFilePath", storedReceiptPath) }.toString(2),
+                                transactionId = parsed.transactionId,
+                                uploaderEmail = currentUserEmail
+                            )
+                        } else {
+                            viewModel.replaceReceiptTransaction(
+                                txId = replacementTarget.id,
+                                eventId = replacementTarget.eventId,
+                                personName = replacementTarget.personName,
+                                personPhone = extractedPhone,
+                                personEmail = replacementTarget.personEmail,
+                                amount = cleanAmount,
+                                type = receiptType,
+                                notes = if (storedReceiptPath.isNullOrBlank()) receiptJsonText else JSONObject(receiptJsonText).apply { put("receiptFilePath", storedReceiptPath) }.toString(2),
+                                transactionId = parsed.transactionId,
+                                uploaderEmail = currentUserEmail,
+                                existingMemberId = replacementTarget.memberId
+                            )
+                        }
+
+                        isVerifyReceiptDialogOpen = false
+                        extractedReceiptToVerify = null
+                        transactionPendingReceiptReview = null
+                        viewModel.clearReceiptReviewInProgress()
+                    },
                     modifier = Modifier
                         .fillMaxWidth()
                         .testTag("verify_receipt_confirm_button")
                 ) {
-                    Text("Done ✅", fontWeight = FontWeight.Bold)
+                    Text(if (replacementTarget == null) "Save to Ledger" else "Update Transaction", fontWeight = FontWeight.Bold)
                 }
             }
         )
@@ -3116,6 +3627,14 @@ fun TransactionItem(
     val isCredit = tx.type == "Donated" || tx.type == "Credit"
     val isMyPost = currentUserEmail.equals(tx.uploaderEmail, ignoreCase = true)
     val canDelete = isMyPost || currentUserEmail.equals(eventCreatorEmail, ignoreCase = true)
+    val receiptJson = remember(tx.notes) {
+        try {
+            val noteText = tx.notes?.trim().orEmpty()
+            if (noteText.startsWith("{")) JSONObject(noteText) else null
+        } catch (e: Exception) {
+            null
+        }
+    }
 
     Card(
         modifier = Modifier
@@ -3183,7 +3702,69 @@ fun TransactionItem(
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
                     )
-                    if (!tx.notes.isNullOrBlank()) {
+                    if (receiptJson != null) {
+                        Surface(
+                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
+                            shape = RoundedCornerShape(10.dp),
+                            modifier = Modifier
+                                .padding(top = 6.dp)
+                                .fillMaxWidth()
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
+                                verticalArrangement = Arrangement.spacedBy(3.dp)
+                            ) {
+                                Text(
+                                    text = "Receipt JSON",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                                Text(
+                                    text = "app: ${receiptJson.optString("paymentApp", "Unknown")}",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                Text(
+                                    text = "calc: ${if (isCredit) "+" else "-"}₹${String.format(Locale.getDefault(), "%,.2f", receiptJson.optDouble("calculationAmount", tx.amount))} → ${receiptJson.optString("calculationBucket", if (isCredit) "Total Collected" else "Total Spent")}",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (isCredit) Color(0xFF10B981) else Color(0xFFEF4444),
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                                val paidTo = receiptJson.optString("paidTo")
+                                if (paidTo.isNotBlank() && paidTo != "null") {
+                                    Text(
+                                        text = "paid to: $paidTo",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                }
+                                val upiId = receiptJson.optString("upiId")
+                                if (upiId.isNotBlank() && upiId != "null") {
+                                    Text(
+                                        text = "upi: $upiId",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        fontFamily = FontFamily.Monospace,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                }
+                                Text(
+                                    text = "ref: ${receiptJson.optString("upiReferenceOrTransactionId", "N/A")}",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontFamily = FontFamily.Monospace,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
+                        }
+                    } else if (!tx.notes.isNullOrBlank()) {
                         Text(
                             text = tx.notes,
                             style = MaterialTheme.typography.bodySmall,

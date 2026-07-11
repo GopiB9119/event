@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Community Ledger is a local-first Android ledger for community event donations, expenses, and reviewed receipt evidence.">
+  <meta name="theme-color" content="#10283f">
+  <meta property="og:title" content="Community Ledger">
+  <meta property="og:description" content="Local event money records backed by reviewed receipt evidence.">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://gopib9119.github.io/event/">
+  <title>Community Ledger | Local event money records</title>
+  <link rel="icon" href="assets/community-ledger-icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="styles.css">
+  <script src="app.js" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <a class="brand" href="./" aria-label="Community Ledger home">
+      <img src="assets/community-ledger-icon.svg" width="40" height="40" alt="">
+      <span>Community Ledger</span>
+    </a>
+    <nav aria-label="Primary navigation">
+      <a href="#how-it-works">How it works</a>
+      <a href="#trust">Data and trust</a>
+      <a href="#screens">Screens</a>
+      <a href="privacy/">Privacy</a>
+    </nav>
+  </header>
+
+  <main id="main">
+    <section class="hero" aria-labelledby="hero-title">
+      <div class="hero-shade" aria-hidden="true"></div>
+      <div class="hero-content page-width">
+        <p class="eyebrow">Android beta · Local-first</p>
+        <h1 id="hero-title">Community Ledger</h1>
+        <p class="hero-lede">Record event donations and expenses with receipt evidence that a person reviews before it changes the totals.</p>
+        <div class="hero-actions">
+          <a id="download-apk" class="button button-primary" href="https://github.com/GopiB9119/event/releases">↓ Download APK</a>
+          <a class="button button-secondary" href="#trust">See how your data works</a>
+        </div>
+        <p id="release-status" class="release-status" aria-live="polite">Checking public release status…</p>
+      </div>
+    </section>
+
+    <section id="trust" class="truth-band" aria-labelledby="truth-title">
+      <div class="page-width">
+        <p class="eyebrow dark">Product truth</p>
+        <h2 id="truth-title">A ledger, not a money service</h2>
+        <div class="truth-grid">
+          <article>
+            <h3>Money stays outside</h3>
+            <p>The app does not collect donations, move funds, hold money, or offer investments. It records information an organizer reviews.</p>
+          </article>
+          <article>
+            <h3>OCR stays on device</h3>
+            <p>Google ML Kit reads selected receipt images locally. OCR can be wrong, so weak or duplicate evidence is blocked from totals.</p>
+          </article>
+          <article>
+            <h3>No hidden tracking</h3>
+            <p>No ads, analytics SDK, account service, or synchronized transaction server. Update checks run only when requested.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section id="how-it-works" class="workflow-band" aria-labelledby="workflow-title">
+      <div class="page-width workflow-layout">
+        <div>
+          <p class="eyebrow dark">The working loop</p>
+          <h2 id="workflow-title">Every number should have a reason</h2>
+          <p class="section-intro">Community Ledger is designed for organizers who need a simple local record of money in, money out, and the evidence behind each entry.</p>
+        </div>
+        <ol class="workflow-list">
+          <li><strong>Create a local event.</strong><span>Name the event and choose a local visibility marker.</span></li>
+          <li><strong>Record people and entries.</strong><span>Link contributions and expenses to members or vendors.</span></li>
+          <li><strong>Review receipt evidence.</strong><span>Check the amount, reference, receiver, confidence, and warnings.</span></li>
+          <li><strong>Save only what is supported.</strong><span>Positive amounts and duplicate checks protect the ledger totals.</span></li>
+        </ol>
+      </div>
+    </section>
+
+    <section class="invite-band" aria-labelledby="invite-title">
+      <div class="page-width invite-layout">
+        <div>
+          <p class="eyebrow light">Important limitation</p>
+          <h2 id="invite-title">Event links copy. They do not sync.</h2>
+        </div>
+        <p>An event-copy link adds an independent event shell on another phone. It does not create a shared account, verify the organizer, enforce private access, or synchronize members, receipts, transactions, and balances.</p>
+      </div>
+    </section>
+
+    <section id="screens" class="screens-band" aria-labelledby="screens-title">
+      <div class="page-width">
+        <p class="eyebrow dark">Inside the app</p>
+        <h2 id="screens-title">Built for repeated organizer work</h2>
+        <p class="section-intro">These screens are captured from the beta with privacy-safe local test content. No real receipt or member data is shown.</p>
+        <div class="screen-grid">
+          <figure>
+            <img src="assets/screenshots/dashboard.png" alt="Community Ledger dashboard showing one local event" loading="lazy">
+            <figcaption><strong>Local dashboard</strong><span>See active event copies and start a new ledger.</span></figcaption>
+          </figure>
+          <figure>
+            <img src="assets/screenshots/create-event.png" alt="Create Event form in Community Ledger" loading="lazy">
+            <figcaption><strong>Explicit event setup</strong><span>Visibility copy states what is and is not enforced.</span></figcaption>
+          </figure>
+          <figure>
+            <img src="assets/screenshots/trust-center.png" alt="Privacy tab in the Community Ledger Trust Center" loading="lazy">
+            <figcaption><strong>Trust Center</strong><span>Privacy, beta terms, support, and version remain available after onboarding.</span></figcaption>
+          </figure>
+        </div>
+      </div>
+    </section>
+
+    <section class="download-band" aria-labelledby="download-title">
+      <div class="page-width download-layout">
+        <div>
+          <p class="eyebrow dark">Direct Android beta</p>
+          <h2 id="download-title">Install only from the project release page</h2>
+          <p id="release-detail">The permanent release-signed APK is still being prepared. Do not install copies reposted by unknown third parties.</p>
+        </div>
+        <div class="download-actions">
+          <a id="download-apk-secondary" class="button button-dark" href="https://github.com/GopiB9119/event/releases">↓ Download APK</a>
+          <a class="text-link" href="https://github.com/GopiB9119/event/releases">Release notes and checksums ↗</a>
+        </div>
+      </div>
+    </section>
+
+    <section class="before-install" aria-labelledby="before-title">
+      <div class="page-width before-layout">
+        <h2 id="before-title">Before you install</h2>
+        <ul>
+          <li>Android 7.0 or later is required.</li>
+          <li>This beta has no cloud recovery, export, or restore.</li>
+          <li>Keep an independent record for important event money.</li>
+          <li>Never send money only because an event link looks legitimate.</li>
+        </ul>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="page-width footer-layout">
+      <div>
+        <strong>Community Ledger</strong>
+        <p>Independent local-first Android beta · Published by Gopi Banoth.</p>
+      </div>
+      <nav aria-label="Legal and support">
+        <a href="privacy/">Privacy</a>
+        <a href="terms/">Terms</a>
+        <a href="contact/">Contact</a>
+        <a href="https://github.com/GopiB9119/event">Source project ↗</a>
+      </nav>
+    </div>
+  </footer>
+</body>
+</html>

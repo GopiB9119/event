@@ -17,6 +17,19 @@ import org.robolectric.annotation.Config
 @Config(sdk = [34])
 class ExampleRobolectricTest {
 
+    private fun awaitDeepLinkResult(viewModel: EventViewModel, timeoutMillis: Long = 30_000L) {
+        val deadline = System.nanoTime() + timeoutMillis * 1_000_000L
+        while (
+            viewModel.deepLinkMessage.value == null &&
+            viewModel.deepLinkError.value == null &&
+            System.nanoTime() < deadline
+        ) {
+            shadowOf(Looper.getMainLooper()).idle()
+            Thread.sleep(25)
+        }
+        shadowOf(Looper.getMainLooper()).idle()
+    }
+
     @Test
     fun `read string from context`() {
         val context = ApplicationProvider.getApplicationContext<Context>()
@@ -25,21 +38,61 @@ class ExampleRobolectricTest {
     }
 
     @Test
-    fun `verify AES event ID encryption and decryption`() {
+    fun `local beta acknowledgement persists across view models`() {
+        val app = ApplicationProvider.getApplicationContext<Application>()
+        val preferences = app.getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
+        preferences.edit().remove("local_beta_acknowledged").commit()
+
+        try {
+            val firstViewModel = EventViewModel(app)
+            assertFalse(firstViewModel.localBetaAcknowledged.value)
+
+            firstViewModel.acknowledgeLocalBeta()
+            assertTrue(firstViewModel.localBetaAcknowledged.value)
+
+            val recreatedViewModel = EventViewModel(app)
+            assertTrue(recreatedViewModel.localBetaAcknowledged.value)
+        } finally {
+            preferences.edit().remove("local_beta_acknowledged").commit()
+        }
+    }
+
+    @Test
+    fun `receipt review interruption survives recreation until acknowledged`() {
+        val app = ApplicationProvider.getApplicationContext<Application>()
+        val preferences = app.getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
+        preferences.edit().remove("receipt_review_in_progress").commit()
+
+        try {
+            EventViewModel(app).markReceiptReviewInProgress()
+
+            val recreatedViewModel = EventViewModel(app)
+            assertTrue(recreatedViewModel.receiptReviewInterrupted.value)
+
+            recreatedViewModel.clearReceiptReviewInProgress()
+            assertFalse(recreatedViewModel.receiptReviewInterrupted.value)
+            assertFalse(EventViewModel(app).receiptReviewInterrupted.value)
+        } finally {
+            preferences.edit().remove("receipt_review_in_progress").commit()
+        }
+    }
+
+    @Test
+    fun `verify event ID encoding and decoding`() {
         val app = ApplicationProvider.getApplicationContext<Application>()
         val viewModel = EventViewModel(app)
 
         val originalId = 42
-        val encrypted = viewModel.encryptEventId(originalId)
-        assertNotEquals(originalId.toString(), encrypted)
-        assertTrue(encrypted.isNotEmpty())
+        val encoded = viewModel.encodeEventId(originalId)
+        assertNotEquals(originalId.toString(), encoded)
+        assertTrue(encoded.isNotEmpty())
 
-        val decrypted = viewModel.decryptEventId(encrypted)
-        assertEquals(originalId, decrypted)
+        val decoded = viewModel.decodeEventId(encoded)
+        assertEquals(originalId, decoded)
     }
 
     @Test
-    fun `verify deep link signature generation and matching`() {
+    fun `verify deep link checksum generation and matching`() {
         val app = ApplicationProvider.getApplicationContext<Application>()
         val viewModel = EventViewModel(app)
 
@@ -47,16 +100,16 @@ class ExampleRobolectricTest {
         val expiry = System.currentTimeMillis() + 7200000L // 2 Hours
         val creator = "creator@gmail.com"
 
-        val sig1 = viewModel.generateSignature(eventId, expiry, creator)
-        val sig2 = viewModel.generateSignature(eventId, expiry, creator)
-        val sigDifferent = viewModel.generateSignature(eventId, expiry, "another_creator@gmail.com")
+        val sig1 = viewModel.generateInviteChecksum(eventId, expiry, creator)
+        val sig2 = viewModel.generateInviteChecksum(eventId, expiry, creator)
+        val sigDifferent = viewModel.generateInviteChecksum(eventId, expiry, "another_creator@gmail.com")
 
         assertEquals(sig1, sig2)
         assertNotEquals(sig1, sigDifferent)
     }
 
     @Test
-    fun `verify anyone can join with a valid deep link`() {
+    fun `verify valid link adds an event copy`() {
         val app = ApplicationProvider.getApplicationContext<Application>()
         val viewModel = EventViewModel(app)
 
@@ -66,20 +119,15 @@ class ExampleRobolectricTest {
         val expiry = System.currentTimeMillis() + 3600000L // 1 Hour
         val creator = "creator@gmail.com"
 
-        val sig = viewModel.generateSignature(eventId, expiry, creator)
-        val encEventId = viewModel.encryptEventId(eventId)
-        val deepLinkUri = Uri.parse("https://communityledger.com/join?eventId=$encEventId&expiry=$expiry&signature=$sig&creatorEmail=$creator&title=TestEvent")
+        val sig = viewModel.generateInviteChecksum(eventId, expiry, creator)
+        val encEventId = viewModel.encodeEventId(eventId)
+        val deepLinkUri = Uri.parse("https://gopib9119.github.io/event/join?eventId=$encEventId&expiry=$expiry&checksum=$sig&creatorEmail=$creator&title=TestEvent")
 
         viewModel.handleDeepLink(deepLinkUri)
-        var attempts = 0
-        while (viewModel.deepLinkMessage.value == null && viewModel.deepLinkError.value == null && attempts < 50) {
-            shadowOf(Looper.getMainLooper()).idle()
-            Thread.sleep(20)
-            attempts++
-        }
+        awaitDeepLinkResult(viewModel)
 
         assertNull(viewModel.deepLinkError.value)
-        assertEquals("Access Granted: Securely joined shared ledger event 'TestEvent' via secure invitation link!", viewModel.deepLinkMessage.value)
+        assertEquals("Added 'TestEvent' to this device. Ledger entries do not sync between devices.", viewModel.deepLinkMessage.value)
     }
 
     @Test
@@ -93,14 +141,14 @@ class ExampleRobolectricTest {
         val expiryExpired = System.currentTimeMillis() - 1000L // Already expired
         val creator = "creator@gmail.com"
 
-        val sigExpired = viewModel.generateSignature(eventId, expiryExpired, creator)
-        val encEventId = viewModel.encryptEventId(eventId)
-        val deepLinkUriExpired = Uri.parse("https://communityledger.com/join?eventId=$encEventId&expiry=$expiryExpired&signature=$sigExpired&creatorEmail=$creator")
+        val sigExpired = viewModel.generateInviteChecksum(eventId, expiryExpired, creator)
+        val encEventId = viewModel.encodeEventId(eventId)
+        val deepLinkUriExpired = Uri.parse("https://gopib9119.github.io/event/join?eventId=$encEventId&expiry=$expiryExpired&checksum=$sigExpired&creatorEmail=$creator")
 
         viewModel.handleDeepLink(deepLinkUriExpired)
-        shadowOf(Looper.getMainLooper()).idle()
+        awaitDeepLinkResult(viewModel)
 
-        assertTrue(viewModel.deepLinkError.value?.contains("Expired Link") == true)
+        assertTrue(viewModel.deepLinkError.value?.contains("Expired event-copy link") == true)
     }
 
     @Test
@@ -114,46 +162,17 @@ class ExampleRobolectricTest {
         val expiry = System.currentTimeMillis() + 3600000L // 1 Hour
         val creator = "creator@gmail.com"
 
-        val encEventId = viewModel.encryptEventId(eventId)
-        val deepLinkUriTampered = Uri.parse("https://communityledger.com/join?eventId=$encEventId&expiry=$expiry&signature=tampered_signature&creatorEmail=$creator")
+        val encEventId = viewModel.encodeEventId(eventId)
+        val deepLinkUriTampered = Uri.parse("https://gopib9119.github.io/event/join?eventId=$encEventId&expiry=$expiry&checksum=tampered_signature&creatorEmail=$creator")
 
         viewModel.handleDeepLink(deepLinkUriTampered)
-        shadowOf(Looper.getMainLooper()).idle()
+        awaitDeepLinkResult(viewModel)
 
-        assertTrue(viewModel.deepLinkError.value?.contains("Security Block") == true)
+        assertTrue(viewModel.deepLinkError.value?.contains("Invalid event-copy link") == true)
     }
 
     @Test
-    fun `verify smart heuristic amount and txn extraction from filename`() {
-        val app = ApplicationProvider.getApplicationContext<Application>()
-        val viewModel = EventViewModel(app)
-
-        // 1. Google Pay Test
-        val gpayUri = Uri.parse("content://test/gpay_1500_310725987654.png")
-        val parsedGpay = viewModel.extractHeuristicsFromUri(app, gpayUri)
-        assertNotNull(parsedGpay)
-        assertEquals("Google Pay", parsedGpay.paymentApp)
-        assertEquals(1500.0, parsedGpay.amount, 0.01)
-        assertEquals("310725987654", parsedGpay.transactionId)
-
-        // 2. PhonePe with Exact Date Test
-        val phonepeUri = Uri.parse("content://test/Screenshot_20260625-101530_PhonePe.png")
-        val parsedPhonepe = viewModel.extractHeuristicsFromUri(app, phonepeUri)
-        assertNotNull(parsedPhonepe)
-        assertEquals("PhonePe", parsedPhonepe.paymentApp)
-        assertEquals("25 Jun 2026", parsedPhonepe.date)
-
-        // 3. Paytm with Date and Amount Test
-        val paytmUri = Uri.parse("content://test/paytm_amount_250_date_2026-06-24.png")
-        val parsedPaytm = viewModel.extractHeuristicsFromUri(app, paytmUri)
-        assertNotNull(parsedPaytm)
-        assertEquals("Paytm", parsedPaytm.paymentApp)
-        assertEquals(250.0, parsedPaytm.amount, 0.01)
-        assertEquals("24 Jun 2026", parsedPaytm.date)
-    }
-
-    @Test
-    fun `verify secure link with one day expiration allows entry`() {
+    fun `verify one day event-copy link allows entry`() {
         val app = ApplicationProvider.getApplicationContext<Application>()
         val viewModel = EventViewModel(app)
 
@@ -163,19 +182,14 @@ class ExampleRobolectricTest {
         val expiryOneDay = System.currentTimeMillis() + 24 * 3600000L // 1 Day
         val creator = "creator@gmail.com"
 
-        val sig = viewModel.generateSignature(eventId, expiryOneDay, creator)
-        val encEventId = viewModel.encryptEventId(eventId)
-        val deepLinkUri = Uri.parse("https://communityledger.com/join?eventId=$encEventId&expiry=$expiryOneDay&signature=$sig&creatorEmail=$creator&title=OneDayEvent")
+        val sig = viewModel.generateInviteChecksum(eventId, expiryOneDay, creator)
+        val encEventId = viewModel.encodeEventId(eventId)
+        val deepLinkUri = Uri.parse("https://gopib9119.github.io/event/join?eventId=$encEventId&expiry=$expiryOneDay&checksum=$sig&creatorEmail=$creator&title=OneDayEvent")
 
         viewModel.handleDeepLink(deepLinkUri)
-        var attempts = 0
-        while (viewModel.deepLinkMessage.value == null && viewModel.deepLinkError.value == null && attempts < 50) {
-            shadowOf(Looper.getMainLooper()).idle()
-            Thread.sleep(20)
-            attempts++
-        }
+        awaitDeepLinkResult(viewModel)
 
         assertNull(viewModel.deepLinkError.value)
-        assertEquals("Access Granted: Securely joined shared ledger event 'OneDayEvent' via secure invitation link!", viewModel.deepLinkMessage.value)
+        assertEquals("Added 'OneDayEvent' to this device. Ledger entries do not sync between devices.", viewModel.deepLinkMessage.value)
     }
 }

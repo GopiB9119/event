@@ -1,0 +1,9 @@
+# Gopi Banoth is the current sole maintainer and release owner.
+* @GopiB9119
+
+# Explicit sensitive/release ownership for review routing.
+/.github/ @GopiB9119
+/app/ @GopiB9119
+/docs/Legal/ @GopiB9119
+/docs/Release/ @GopiB9119
+/site/ @GopiB9119

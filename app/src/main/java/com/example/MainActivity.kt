@@ -1,5 +1,6 @@
 package com.example
 
+import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -15,14 +16,18 @@ import com.example.ui.theme.MyApplicationTheme
 class MainActivity : ComponentActivity() {
   private val viewModel: EventViewModel by viewModels()
 
+  private fun handleLaunchIntent(intent: Intent?) {
+    viewModel.handleSharedReceiptIntent(intent)
+    intent?.data?.let { uri ->
+      viewModel.handleDeepLink(uri)
+    }
+  }
+
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
     enableEdgeToEdge()
 
-    // Handle deep link when app starts
-    intent?.data?.let { uri ->
-      viewModel.handleDeepLink(uri)
-    }
+    handleLaunchIntent(intent)
 
     setContent {
       MyApplicationTheme(darkTheme = false) {
@@ -33,8 +38,7 @@ class MainActivity : ComponentActivity() {
 
   override fun onNewIntent(intent: android.content.Intent) {
     super.onNewIntent(intent)
-    intent?.data?.let { uri ->
-      viewModel.handleDeepLink(uri)
-    }
+    setIntent(intent)
+    handleLaunchIntent(intent)
   }
 }

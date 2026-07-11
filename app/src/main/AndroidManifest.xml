@@ -2,6 +2,8 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
+    <uses-permission android:name="android.permission.INTERNET" />
+
     <application
         android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
@@ -10,6 +12,7 @@
         android:label="@string/app_name"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
+        android:usesCleartextTraffic="false"
         android:theme="@style/Theme.MyApplication">
         <activity
             android:name=".MainActivity"
@@ -23,21 +26,40 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
 
-            <!-- Custom URI Scheme for WhatsApp offline links: communityledger://join -->
-            <intent-filter android:label="Join Ledger Event">
+            <!-- Receive shared payment receipt screenshots/images from payment apps. -->
+            <intent-filter android:label="Import Receipt to Community Ledger">
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="image/*" />
+            </intent-filter>
+
+            <intent-filter android:label="Import Receipt to Community Ledger">
+                <action android:name="android.intent.action.SEND_MULTIPLE" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="image/*" />
+            </intent-filter>
+
+            <!-- Some payment apps share receipt details as text instead of an image. -->
+            <intent-filter android:label="Import Receipt Text to Community Ledger">
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="text/plain" />
+            </intent-filter>
+
+            <!-- Custom URI scheme for adding an event copy on this device. -->
+            <intent-filter android:label="Add Community Ledger Event Copy">
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="communityledger" android:host="join" />
             </intent-filter>
 
-            <!-- HTTPS Fallback URI: https://communityledger.com/join -->
-            <intent-filter android:autoVerify="true" android:label="Join Ledger Event URL">
+            <!-- GitHub Pages fallback. This is intentionally not claimed as a verified App Link. -->
+            <intent-filter android:label="Add Community Ledger Event Copy">
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
-                <data android:scheme="http" android:host="communityledger.com" android:pathPrefix="/join" />
-                <data android:scheme="https" android:host="communityledger.com" android:pathPrefix="/join" />
+                <data android:scheme="https" android:host="gopib9119.github.io" android:pathPrefix="/event/join" />
             </intent-filter>
         </activity>
     </application>

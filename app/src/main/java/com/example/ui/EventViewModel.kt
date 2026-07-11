@@ -2,6 +2,7 @@ package com.example.ui
 
 import android.app.Application
 import android.content.Context
+import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Canvas
@@ -9,35 +10,61 @@ import android.graphics.ColorMatrix
 import android.graphics.ColorMatrixColorFilter
 import android.graphics.Paint
 import android.net.Uri
+import android.os.Build
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.room.Room
+import com.example.BuildConfig
 import com.example.data.AppDatabase
 import com.example.data.EventEntity
+import com.example.data.MemberEntity
 import com.example.data.EventRepository
 import com.example.data.TransactionEntity
+import com.example.data.isValidLedgerTransaction
+import com.example.data.normalizeLocalIdentity
+import com.example.receipt.ParsedReceipt
+import com.example.receipt.ReceiptParser
+import com.example.update.UpdateCheckResult
+import com.example.update.UpdateChecker
+import com.google.mlkit.vision.common.InputImage
+import com.google.mlkit.vision.text.TextRecognition
+import com.google.mlkit.vision.text.devanagari.DevanagariTextRecognizerOptions
+import com.google.mlkit.vision.text.latin.TextRecognizerOptions
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.suspendCancellableCoroutine
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
-import java.util.regex.Pattern
+import org.json.JSONObject
+import kotlin.coroutines.resume
 
 sealed class Screen {
     object Dashboard : Screen()
     object CreateEvent : Screen()
+    object TrustCenter : Screen()
     data class EventDetails(val eventId: Int) : Screen()
 }
 
+private const val PREF_RECEIPT_REVIEW_IN_PROGRESS = "receipt_review_in_progress"
+
 class EventViewModel(application: Application) : AndroidViewModel(application) {
+
+    private enum class OcrScript {
+        LATIN,
+        DEVANAGARI
+    }
+
 
     // Database Setup
     private val database: AppDatabase by lazy {
@@ -63,7 +90,7 @@ class EventViewModel(application: Application) : AndroidViewModel(application) {
                 application.applicationContext,
                 AppDatabase::class.java,
                 "community_ledger_db"
-            ).fallbackToDestructiveMigration()
+            ).addMigrations(AppDatabase.MIGRATION_2_3, AppDatabase.MIGRATION_3_4)
         }
         builder.build()
     }
@@ -82,18 +109,59 @@ class EventViewModel(application: Application) : AndroidViewModel(application) {
         sharedPrefs.edit().putString("theme_mode", mode).apply()
     }
 
+    private val _localBetaAcknowledged = MutableStateFlow(
+        sharedPrefs.getBoolean("local_beta_acknowledged", false)
+    )
+    val localBetaAcknowledged: StateFlow<Boolean> = _localBetaAcknowledged.asStateFlow()
+
+    fun acknowledgeLocalBeta() {
+        _localBetaAcknowledged.value = true
+        sharedPrefs.edit().putBoolean("local_beta_acknowledged", true).apply()
+    }
+
+    private val _updateCheckResult = MutableStateFlow<UpdateCheckResult>(UpdateCheckResult.Idle)
+    val updateCheckResult: StateFlow<UpdateCheckResult> = _updateCheckResult.asStateFlow()
+
+    fun checkForUpdates() {
+        if (_updateCheckResult.value == UpdateCheckResult.Checking) return
+        _updateCheckResult.value = UpdateCheckResult.Checking
+        viewModelScope.launch {
+            _updateCheckResult.value = UpdateChecker.check(
+                currentVersionCode = BuildConfig.VERSION_CODE,
+                currentVersionName = BuildConfig.VERSION_NAME
+            )
+        }
+    }
+
+    private val _receiptReviewInterrupted = MutableStateFlow(
+        sharedPrefs.getBoolean(PREF_RECEIPT_REVIEW_IN_PROGRESS, false)
+    )
+    val receiptReviewInterrupted: StateFlow<Boolean> = _receiptReviewInterrupted.asStateFlow()
+
+    fun markReceiptReviewInProgress() {
+        sharedPrefs.edit().putBoolean(PREF_RECEIPT_REVIEW_IN_PROGRESS, true).commit()
+    }
+
+    fun clearReceiptReviewInProgress() {
+        sharedPrefs.edit().putBoolean(PREF_RECEIPT_REVIEW_IN_PROGRESS, false).commit()
+        _receiptReviewInterrupted.value = false
+    }
+
     // User Identity Configuration
-    private val _userEmail = MutableStateFlow(sharedPrefs.getString("user_email", "banothgopikrishna19@gmail.com") ?: "banothgopikrishna19@gmail.com")
+    private val _userEmail = MutableStateFlow(
+        normalizeLocalIdentity(sharedPrefs.getString("user_email", "").orEmpty()).orEmpty()
+    )
     val userEmail: StateFlow<String> = _userEmail.asStateFlow()
 
     fun getMyUserEmail(): String {
         return _userEmail.value
     }
 
-    fun setMyUserEmail(email: String) {
-        val cleanEmail = email.trim()
+    fun setMyUserEmail(email: String): Boolean {
+        val cleanEmail = normalizeLocalIdentity(email) ?: return false
         _userEmail.value = cleanEmail
         sharedPrefs.edit().putString("user_email", cleanEmail).apply()
+        return true
     }
 
     // Navigation Stack
@@ -117,28 +185,57 @@ class EventViewModel(application: Application) : AndroidViewModel(application) {
 
     // Selected Event Flow
     private val _selectedEventId = MutableStateFlow<Int?>(null)
+    
+    @OptIn(ExperimentalCoroutinesApi::class)
     val selectedEvent: StateFlow<EventEntity?> = _selectedEventId
         .flatMapLatest { id ->
             if (id != null) repository.getEventById(id) else flowOf(null)
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
+    @OptIn(ExperimentalCoroutinesApi::class)
     val selectedEventTransactions: StateFlow<List<TransactionEntity>> = _selectedEventId
         .flatMapLatest { id ->
             if (id != null) repository.getTransactionsForEvent(id) else flowOf(emptyList())
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val selectedEventMembers: StateFlow<List<MemberEntity>> = _selectedEventId
+        .flatMapLatest { id ->
+            if (id != null) repository.getMembersForEvent(id) else flowOf(emptyList())
+        }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
     fun selectEvent(eventId: Int) {
         _selectedEventId.value = eventId
+        repairMemberLinksForEvent(eventId)
         navigateTo(Screen.EventDetails(eventId))
+    }
+
+    private fun repairMemberLinksForEvent(eventId: Int) {
+        viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+            val unlinkedTransactions = repository.getUnlinkedTransactionsForEvent(eventId)
+            unlinkedTransactions.forEach { tx ->
+                val memberId = resolveOrCreateMemberId(
+                    eventId = eventId,
+                    name = tx.personName,
+                    phone = tx.personPhone,
+                    email = tx.personEmail,
+                    role = if (tx.type == "Expense" || tx.type == "Debit") "Vendor" else "Donor"
+                )
+                repository.updateTransactionMemberId(tx.id, memberId)
+            }
+        }
     }
 
     // Event Creation state
     fun createEvent(title: String, duration: String?, isPrivate: Boolean, customFields: Map<String, String>) {
+        val creatorEmail = normalizeLocalIdentity(getMyUserEmail()) ?: return
+        if (title.isBlank()) return
         viewModelScope.launch {
             val json = org.json.JSONObject()
-            json.put("creatorEmail", getMyUserEmail())
+            json.put("creatorEmail", creatorEmail)
             customFields.forEach { (k, v) ->
                 json.put(k, v)
             }
@@ -170,11 +267,15 @@ class EventViewModel(application: Application) : AndroidViewModel(application) {
         type: String,
         notes: String? = null,
         transactionId: String = "",
-        uploaderEmail: String = getMyUserEmail()
+        uploaderEmail: String = getMyUserEmail(),
+        memberId: Int? = null
     ) {
+        val cleanUploaderEmail = normalizeLocalIdentity(uploaderEmail) ?: return
+        if (!isValidLedgerTransaction(eventId, amount, type)) return
         viewModelScope.launch {
             val tx = TransactionEntity(
                 eventId = eventId,
+                memberId = memberId,
                 personName = personName.trim().ifBlank { "Anonymous" },
                 personPhone = personPhone.trim(),
                 personEmail = personEmail.trim(),
@@ -182,7 +283,7 @@ class EventViewModel(application: Application) : AndroidViewModel(application) {
                 type = type,
                 transactionId = transactionId.trim(),
                 notes = notes?.trim(),
-                uploaderEmail = uploaderEmail
+                uploaderEmail = cleanUploaderEmail
             )
             repository.insertTransaction(tx)
         }
@@ -204,12 +305,16 @@ class EventViewModel(application: Application) : AndroidViewModel(application) {
         type: String,
         notes: String? = null,
         transactionId: String = "",
-        uploaderEmail: String = getMyUserEmail()
+        uploaderEmail: String = getMyUserEmail(),
+        memberId: Int? = null
     ) {
+        val cleanUploaderEmail = normalizeLocalIdentity(uploaderEmail) ?: return
+        if (!isValidLedgerTransaction(eventId, amount, type)) return
         viewModelScope.launch {
             val tx = TransactionEntity(
                 id = txId,
                 eventId = eventId,
+                memberId = memberId,
                 personName = personName.trim().ifBlank { "Anonymous" },
                 personPhone = personPhone.trim(),
                 personEmail = personEmail.trim(),
@@ -217,134 +322,239 @@ class EventViewModel(application: Application) : AndroidViewModel(application) {
                 type = type,
                 transactionId = transactionId.trim(),
                 notes = notes?.trim(),
-                uploaderEmail = uploaderEmail
+                uploaderEmail = cleanUploaderEmail
             )
             repository.insertTransaction(tx)
         }
     }
 
-    // Invitations Simulation (List of Invited People)
-    private val _invitedMembers = MutableStateFlow<Map<Int, List<Member>>>(emptyMap())
-    val invitedMembers = _invitedMembers.asStateFlow()
+    fun addReceiptTransaction(
+        eventId: Int,
+        personName: String,
+        personPhone: String,
+        personEmail: String,
+        amount: Double,
+        type: String,
+        notes: String? = null,
+        transactionId: String = "",
+        uploaderEmail: String = getMyUserEmail()
+    ) {
+        val cleanUploaderEmail = normalizeLocalIdentity(uploaderEmail) ?: return
+        if (!isValidLedgerTransaction(eventId, amount, type)) return
+        viewModelScope.launch {
+            val cleanName = personName.trim().ifBlank { cleanUploaderEmail.substringBefore("@").ifBlank { "Anonymous" } }
+            val cleanPhone = personPhone.trim()
+            val cleanEmail = personEmail.trim()
+            val memberId = resolveOrCreateMemberId(
+                eventId = eventId,
+                name = cleanName,
+                phone = cleanPhone,
+                email = cleanEmail,
+                role = if (type == "Expense" || type == "Debit") "Vendor" else "Donor"
+            )
+            repository.insertTransaction(
+                TransactionEntity(
+                    eventId = eventId,
+                    memberId = memberId,
+                    personName = cleanName,
+                    personPhone = cleanPhone,
+                    personEmail = cleanEmail,
+                    amount = amount,
+                    type = type,
+                    transactionId = transactionId.trim(),
+                    notes = notes?.trim(),
+                    uploaderEmail = cleanUploaderEmail
+                )
+            )
+        }
+    }
 
-    data class Member(val name: String, val phone: String, val email: String, val role: String = "Donor")
+    fun replaceReceiptTransaction(
+        txId: Int,
+        eventId: Int,
+        personName: String,
+        personPhone: String,
+        personEmail: String,
+        amount: Double,
+        type: String,
+        notes: String? = null,
+        transactionId: String = "",
+        uploaderEmail: String = getMyUserEmail(),
+        existingMemberId: Int? = null
+    ) {
+        val cleanUploaderEmail = normalizeLocalIdentity(uploaderEmail) ?: return
+        if (!isValidLedgerTransaction(eventId, amount, type)) return
+        viewModelScope.launch {
+            val cleanName = personName.trim().ifBlank { cleanUploaderEmail.substringBefore("@").ifBlank { "Anonymous" } }
+            val cleanPhone = personPhone.trim()
+            val cleanEmail = personEmail.trim()
+            val memberId = existingMemberId ?: resolveOrCreateMemberId(
+                eventId = eventId,
+                name = cleanName,
+                phone = cleanPhone,
+                email = cleanEmail,
+                role = if (type == "Expense" || type == "Debit") "Vendor" else "Donor"
+            )
+            repository.insertTransaction(
+                TransactionEntity(
+                    id = txId,
+                    eventId = eventId,
+                    memberId = memberId,
+                    personName = cleanName,
+                    personPhone = cleanPhone,
+                    personEmail = cleanEmail,
+                    amount = amount,
+                    type = type,
+                    transactionId = transactionId.trim(),
+                    notes = notes?.trim(),
+                    uploaderEmail = cleanUploaderEmail
+                )
+            )
+        }
+    }
+
+    fun saveReceiptJsonFile(
+        eventId: Int,
+        personName: String,
+        uploaderEmail: String,
+        receiptJsonText: String
+    ): String? {
+        val cleanUploaderEmail = normalizeLocalIdentity(uploaderEmail) ?: return null
+        if (eventId <= 0) return null
+        return try {
+            val safePerson = safeFileSegment(personName.ifBlank { cleanUploaderEmail.substringBefore("@").ifBlank { "unknown" } })
+            val safeUploader = safeFileSegment(cleanUploaderEmail)
+            val receiptJson = JSONObject(receiptJsonText)
+            receiptJson.put("eventId", eventId)
+            receiptJson.put("storedAt", System.currentTimeMillis())
+
+            val directory = java.io.File(
+                getApplication<Application>().filesDir,
+                "receipts/event_$eventId/person_$safePerson/uploader_$safeUploader"
+            )
+            if (!directory.exists()) {
+                directory.mkdirs()
+            }
+
+            val txPart = receiptJson.optString("upiReferenceOrTransactionId").takeIf { it.isNotBlank() && it != "null" }
+                ?: System.currentTimeMillis().toString()
+            val file = java.io.File(directory, "receipt_${safeFileSegment(txPart)}.json")
+            file.writeText(receiptJson.toString(2))
+            file.absolutePath
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
+        }
+    }
+
+    private fun safeFileSegment(value: String): String {
+        return value.trim()
+            .lowercase(Locale.US)
+            .replace(Regex("[^a-z0-9._-]+"), "_")
+            .trim('_')
+            .ifBlank { "unknown" }
+            .take(80)
+    }
 
     fun invitePerson(eventId: Int, name: String, phone: String, email: String, role: String) {
-        val currentList = _invitedMembers.value[eventId] ?: emptyList()
-        val updatedList = currentList + Member(name, phone, email, role)
-        _invitedMembers.value = _invitedMembers.value + (eventId to updatedList)
-
-        // Automatically add a small welcome credit/donation transaction if they donate immediately
-        if (role == "Donor") {
-            // Optionally add transaction later
+        viewModelScope.launch {
+            resolveOrCreateMemberId(
+                eventId = eventId,
+                name = name.trim().ifBlank { "Unnamed Member" },
+                phone = phone.trim(),
+                email = email.trim(),
+                role = role.ifBlank { "Donor" }
+            )
         }
     }
 
-    // Receipt Text OCR / Parsing Logic (Universal UPI Payment Regex Parser)
-    data class ParsedReceipt(
-        val amount: Double = 0.0,
-        val transactionId: String = "",
-        val phone: String = "",
-        val email: String = "",
-        val date: String = "",
-        val paymentApp: String = "Unknown UPI",
-        val extractionMethod: String = "Local Heuristic (Offline)"
+    private suspend fun resolveOrCreateMemberId(
+        eventId: Int,
+        name: String,
+        phone: String,
+        email: String,
+        role: String
+    ): Int {
+        val normalizedName = normalizeMemberName(name)
+        val existing = repository.findMatchingMember(eventId, normalizedName, phone, email)
+        if (existing != null) return existing.id
+
+        return repository.insertMember(
+            MemberEntity(
+                eventId = eventId,
+                name = name.trim().ifBlank { "Unnamed Member" },
+                normalizedName = normalizedName,
+                phone = phone.trim(),
+                email = email.trim(),
+                role = role.ifBlank { "Donor" }
+            )
+        ).toInt()
+    }
+
+    private fun normalizeMemberName(name: String): String {
+        return name.trim()
+            .lowercase(Locale.US)
+            .replace(Regex("\\s+"), " ")
+    }
+
+    data class SharedReceipt(
+        val imageUri: Uri? = null,
+        val text: String = "",
+        val sourcePackage: String = ""
     )
 
-    fun parseReceiptText(text: String): ParsedReceipt {
-        var amount = 0.0
-        var transactionId = ""
-        var phone = ""
-        var email = ""
-        var dateStr = ""
-        var paymentApp = "UPI Payment"
+    private val _pendingSharedReceipt = MutableStateFlow<SharedReceipt?>(null)
+    val pendingSharedReceipt = _pendingSharedReceipt.asStateFlow()
 
-        // Determine App Name
-        val lowerText = text.lowercase()
-        if (lowerText.contains("google pay") || lowerText.contains("gpay")) {
-            paymentApp = "Google Pay"
-        } else if (lowerText.contains("phonepe")) {
-            paymentApp = "PhonePe"
-        } else if (lowerText.contains("paytm")) {
-            paymentApp = "Paytm"
-        } else if (lowerText.contains("amazon pay")) {
-            paymentApp = "Amazon Pay"
-        }
-
-        // 1. Parse Amount
-        // Look for matches of rupees: ₹ 500, ₹1,500.00, Rs. 500, INR 500
-        val amountPatterns = listOf(
-            Pattern.compile("(?:₹|Rs\\.?|INR)\\s*([\\d,]+(?:\\.\\d{1,2})?)", Pattern.CASE_INSENSITIVE),
-            Pattern.compile("(?:Paid|Sent|Amount|Transfer)\\s*(?:of\\s*)?(?:₹|Rs\\.?|INR)?\\s*([\\d,]+(?:\\.\\d{1,2})?)", Pattern.CASE_INSENSITIVE),
-            Pattern.compile("([\\d,]+(?:\\.\\d{1,2})?)\\s*(?:Rupees|INR|Rs)", Pattern.CASE_INSENSITIVE)
-        )
-
-        for (pattern in amountPatterns) {
-            val matcher = pattern.matcher(text)
-            if (matcher.find()) {
-                val match = matcher.group(1) ?: ""
-                val cleanVal = match.replace(",", "")
-                val parsed = cleanVal.toDoubleOrNull()
-                if (parsed != null && parsed > 0) {
-                    amount = parsed
-                    break
-                }
-            }
-        }
-
-        // 2. Parse Transaction ID / Reference No
-        val txPatterns = listOf(
-            Pattern.compile("(?:Transaction ID|Txn ID|UPI Ref No|Ref No|Reference ID|Reference No)[:\\s]+([A-Za-z0-9]+)", Pattern.CASE_INSENSITIVE),
-            Pattern.compile("(?:Ref|Txn|ID)[:\\s]+([A-Za-z0-9]{12,})", Pattern.CASE_INSENSITIVE),
-            Pattern.compile("([0-9]{12})") // Standard 12-digit UPI reference number
-        )
-
-        for (pattern in txPatterns) {
-            val matcher = pattern.matcher(text)
-            if (matcher.find()) {
-                val match = matcher.group(1) ?: ""
-                if (match.isNotBlank()) {
-                    transactionId = match
-                    break
-                }
-            }
-        }
-
-        // 3. Parse Phone number (10-digit starting with 6-9)
-        val phonePattern = Pattern.compile("(?:Phone|Mobile|Contact)?[:\\s]*([6-9]\\d{9})", Pattern.CASE_INSENSITIVE)
-        val phoneMatcher = phonePattern.matcher(text)
-        if (phoneMatcher.find()) {
-            phone = phoneMatcher.group(1) ?: ""
-        }
-
-        // 4. Parse Email address
-        val emailPattern = Pattern.compile("([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,})")
-        val emailMatcher = emailPattern.matcher(text)
-        if (emailMatcher.find()) {
-            email = emailMatcher.group(1) ?: ""
-        }
-
-        // 5. Parse Date or use current date
-        val datePattern = Pattern.compile("(\\d{1,2}\\s+[A-Za-z]{3,9}\\s+\\d{4})")
-        val dateMatcher = datePattern.matcher(text)
-        if (dateMatcher.find()) {
-            dateStr = dateMatcher.group(1) ?: ""
-        } else {
-            val sdf = SimpleDateFormat("dd MMM yyyy", Locale.getDefault())
-            dateStr = sdf.format(Date())
-        }
-
-        return ParsedReceipt(
-            amount = amount,
-            transactionId = transactionId,
-            phone = phone,
-            email = email,
-            date = dateStr,
-            paymentApp = paymentApp
-        )
+    fun clearPendingSharedReceipt() {
+        _pendingSharedReceipt.value = null
     }
 
-    // Secure Invitation Link & Advanced Privacy Guard Configuration
+    fun handleSharedReceiptIntent(intent: Intent?) {
+        if (intent == null) return
+        val action = intent.action ?: return
+        if (action != Intent.ACTION_SEND && action != Intent.ACTION_SEND_MULTIPLE) return
+
+        val imageUri = extractSharedImageUri(intent)
+        val sharedText = intent.getStringExtra(Intent.EXTRA_TEXT).orEmpty()
+            .ifBlank { intent.getCharSequenceExtra(Intent.EXTRA_TEXT)?.toString().orEmpty() }
+
+        if (imageUri != null || sharedText.isNotBlank()) {
+            _pendingSharedReceipt.value = SharedReceipt(
+                imageUri = imageUri,
+                text = sharedText,
+                sourcePackage = intent.`package`.orEmpty()
+            )
+        }
+    }
+
+    @Suppress("DEPRECATION")
+    private fun extractSharedImageUri(intent: Intent): Uri? {
+        val singleUri = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            intent.getParcelableExtra(Intent.EXTRA_STREAM, Uri::class.java)
+        } else {
+            intent.getParcelableExtra(Intent.EXTRA_STREAM) as? Uri
+        }
+        if (singleUri != null) return singleUri
+
+        val multipleUris = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            intent.getParcelableArrayListExtra(Intent.EXTRA_STREAM, Uri::class.java)
+        } else {
+            intent.getParcelableArrayListExtra(Intent.EXTRA_STREAM)
+        }
+        if (!multipleUris.isNullOrEmpty()) return multipleUris.firstOrNull()
+
+        val clipData = intent.clipData
+        for (index in 0 until (clipData?.itemCount ?: 0)) {
+            clipData?.getItemAt(index)?.uri?.let { return it }
+        }
+
+        return null
+    }
+
+    fun parseReceiptText(text: String): ParsedReceipt = ReceiptParser.parse(text)
+
+    // Invitation link state. Links use an integrity checksum only; they are not cryptographic security.
     private val _deepLinkMessage = MutableStateFlow<String?>(null)
     val deepLinkMessage = _deepLinkMessage.asStateFlow()
 
@@ -377,49 +587,55 @@ class EventViewModel(application: Application) : AndroidViewModel(application) {
         refreshLinkClicks(eventId)
     }
 
-    fun encryptEventId(eventId: Int): String {
+    fun encodeEventId(eventId: Int): String {
         return try {
-            val cipher = javax.crypto.Cipher.getInstance("AES/ECB/PKCS5Padding")
-            val secretKey = javax.crypto.spec.SecretKeySpec("SecLedgerKey2026".toByteArray(Charsets.UTF_8), "AES")
-            cipher.init(javax.crypto.Cipher.ENCRYPT_MODE, secretKey)
-            val encrypted = cipher.doFinal(eventId.toString().toByteArray(Charsets.UTF_8))
-            android.util.Base64.encodeToString(encrypted, android.util.Base64.URL_SAFE or android.util.Base64.NO_WRAP or android.util.Base64.NO_PADDING)
+            android.util.Base64.encodeToString(
+                "event:$eventId".toByteArray(Charsets.UTF_8),
+                android.util.Base64.URL_SAFE or android.util.Base64.NO_WRAP or android.util.Base64.NO_PADDING
+            )
         } catch (e: Exception) {
-            val xor = eventId xor 0x5E_C0_01_ED
-            "fallback_$xor"
+            eventId.toString()
         }
     }
 
-    fun decryptEventId(encryptedStr: String): Int? {
-        if (encryptedStr.startsWith("fallback_")) {
-            val raw = encryptedStr.removePrefix("fallback_").toIntOrNull() ?: return null
-            return raw xor 0x5E_C0_01_ED
-        }
+    fun decodeEventId(encodedStr: String): Int? {
         return try {
-            val cipher = javax.crypto.Cipher.getInstance("AES/ECB/PKCS5Padding")
-            val secretKey = javax.crypto.spec.SecretKeySpec("SecLedgerKey2026".toByteArray(Charsets.UTF_8), "AES")
-            cipher.init(javax.crypto.Cipher.DECRYPT_MODE, secretKey)
-            val decoded = android.util.Base64.decode(encryptedStr, android.util.Base64.URL_SAFE or android.util.Base64.NO_WRAP or android.util.Base64.NO_PADDING)
-            val decrypted = cipher.doFinal(decoded)
-            String(decrypted, Charsets.UTF_8).toIntOrNull()
+            val decoded = android.util.Base64.decode(
+                encodedStr,
+                android.util.Base64.URL_SAFE or android.util.Base64.NO_WRAP or android.util.Base64.NO_PADDING
+            )
+            String(decoded, Charsets.UTF_8).removePrefix("event:").toIntOrNull()
         } catch (e: Exception) {
-            null
+            encodedStr.toIntOrNull()
         }
     }
 
-    fun generateSignature(
+    fun generateInviteChecksum(
         eventId: Int,
         expiry: Long,
-        creatorEmail: String = "banothgopikrishna19@gmail.com"
+        creatorEmail: String = "",
+        isPrivate: Boolean = false
     ): String {
-        val raw = "eventId=$eventId&expiry=$expiry&creatorEmail=$creatorEmail&salt=SecureLedgerPrivacyGuardSalt2026"
+        val raw = "eventId=$eventId&expiry=$expiry&creatorEmail=${creatorEmail.trim()}&private=$isPrivate"
+        return checksumFor(raw)
+    }
+
+    private fun generateLegacyInviteChecksum(
+        eventId: Int,
+        expiry: Long,
+        creatorEmail: String = ""
+    ): String {
+        val raw = "eventId=$eventId&expiry=$expiry&creatorEmail=${creatorEmail.trim()}"
+        return checksumFor(raw)
+    }
+
+    private fun checksumFor(raw: String): String {
         return try {
             val digest = java.security.MessageDigest.getInstance("SHA-256")
             val hash = digest.digest(raw.toByteArray(Charsets.UTF_8))
             hash.joinToString("") { "%02x".format(it) }.take(16)
         } catch (e: Exception) {
-            val code = raw.hashCode() xor 0x5E_C0_01_ED
-            java.lang.Integer.toHexString(code)
+            raw.hashCode().toString()
         }
     }
 
@@ -430,62 +646,83 @@ class EventViewModel(application: Application) : AndroidViewModel(application) {
             try {
                 val eventIdStr = uri.getQueryParameter("eventId")
                 val expiryStr = uri.getQueryParameter("expiry")
-                val signature = uri.getQueryParameter("signature")
+                val checksum = uri.getQueryParameter("checksum") ?: uri.getQueryParameter("signature")
                 val title = uri.getQueryParameter("title") ?: "Shared Ledger Event"
-                val creatorEmail = uri.getQueryParameter("creatorEmail") ?: "banothgopikrishna19@gmail.com"
+                val creatorEmail = uri.getQueryParameter("creatorEmail") ?: ""
+                val hasPrivateMarker = uri.getQueryParameter("private") != null
+                val linkIsPrivate = uri.getQueryParameter("private")?.equals("true", ignoreCase = true) == true
 
-                if (eventIdStr == null || expiryStr == null || signature == null) {
-                    _deepLinkError.value = "Malformed Invitation Link: Secure verification components are missing."
+                if (eventIdStr == null || expiryStr == null || checksum == null) {
+                    _deepLinkError.value = "Malformed event-copy link: required link components are missing."
                     return@launch
                 }
 
-                // Decrypt the event ID
-                val eventId = decryptEventId(eventIdStr) ?: eventIdStr.toIntOrNull() ?: 0
+                val eventId = decodeEventId(eventIdStr) ?: eventIdStr.toIntOrNull() ?: 0
                 val expiry = expiryStr.toLongOrNull() ?: 0L
-
-                // 1. Signature check (verifies eventId, expiry, creatorEmail)
-                val expectedSig = generateSignature(eventId, expiry, creatorEmail)
-                if (signature != expectedSig) {
-                    _deepLinkError.value = "Security Block: Advanced Privacy Guard detected an invalid or modified signature. Access is denied to prevent unauthorized ledger entries."
+                if (eventId <= 0) {
+                    _deepLinkError.value = "Invalid event-copy link: event id is not valid."
                     return@launch
                 }
 
-                // 2. Expiry check
+                val expectedChecksum = generateInviteChecksum(eventId, expiry, creatorEmail, linkIsPrivate)
+                val legacyChecksum = generateLegacyInviteChecksum(eventId, expiry, creatorEmail)
+                if (checksum != expectedChecksum && (hasPrivateMarker || checksum != legacyChecksum)) {
+                    _deepLinkError.value = "Invalid event-copy link: link details do not match their checksum."
+                    return@launch
+                }
+
                 if (expiry != 0L && System.currentTimeMillis() > expiry) {
                     val formattedTime = SimpleDateFormat("dd MMM hh:mm a", Locale.getDefault()).format(Date(expiry))
-                    _deepLinkError.value = "Expired Link: This secure ledger link expired at $formattedTime (exceeded its custom validity timeframe)."
+                    _deepLinkError.value = "Expired event-copy link: this link expired at $formattedTime."
                     return@launch
                 }
 
-                // 3. Check database existence and auto-create if new member device
-                val exists = events.value.any { it.id == eventId }
-                if (!exists) {
+                // Read Room directly. The reactive events flow may still hold its empty initial
+                // value when a launch intent arrives before the dashboard starts collecting it.
+                val existingEvent = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                    repository.getEventByIdOnce(eventId)
+                }
+                if (existingEvent != null) {
+                    val existingCreatorEmail = try {
+                        JSONObject(existingEvent.customFieldsJson).optString("creatorEmail", "")
+                    } catch (e: Exception) {
+                        ""
+                    }
+                    val titleMatches = existingEvent.title == title
+                    val creatorMatches = creatorEmail.isBlank() ||
+                        existingCreatorEmail.isBlank() ||
+                        existingCreatorEmail.equals(creatorEmail, ignoreCase = true)
+                    if (!titleMatches || !creatorMatches) {
+                        _deepLinkError.value = "Cannot add this event copy: its link ID conflicts with a different ledger already stored on this device."
+                        return@launch
+                    }
+                } else {
                     val json = org.json.JSONObject()
                     json.put("creatorEmail", creatorEmail)
+                    json.put("visibility", if (linkIsPrivate) "private" else "public")
                     val newEvent = EventEntity(
                         id = eventId,
                         title = title,
                         createdDate = System.currentTimeMillis(),
-                        isPrivate = false,
+                        isPrivate = linkIsPrivate,
                         customFieldsJson = json.toString()
                     )
-                    // Non-blocking fire-and-forget insert to keep deep linking instant and prevent test thread suspension
-                    viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
-                        try {
-                            repository.insertEvent(newEvent)
-                        } catch (e: Exception) {
-                            e.printStackTrace()
-                        }
+                    val insertedId = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                        repository.insertEventIfAbsent(newEvent)
+                    }
+                    if (insertedId == -1L) {
+                        _deepLinkError.value = "Cannot add this event copy because its local ledger ID is already in use."
+                        return@launch
                     }
                 }
 
-                // 4. Success! Increment join clicks and select event
+                // Success: increment local link clicks and open the matching event.
                 incrementLinkClicks(eventId)
                 selectEvent(eventId)
 
-                _deepLinkMessage.value = "Access Granted: Securely joined shared ledger event '$title' via secure invitation link!"
+                _deepLinkMessage.value = "Added '$title' to this device. Ledger entries do not sync between devices."
             } catch (e: Exception) {
-                _deepLinkError.value = "Advanced Security verification failed: ${e.localizedMessage}"
+                _deepLinkError.value = "Event-copy link check failed: ${e.localizedMessage}"
             }
         }
     }
@@ -536,286 +773,191 @@ class EventViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    /**
-     * Extracts UPI payment details from an uploaded image URI via metadata file name and simulated OCR.
-     */
-    fun extractHeuristicsFromUri(context: Context, uri: Uri): ParsedReceipt {
-        val fileName = getFileNameFromUri(context, uri).lowercase()
-        val sdf = SimpleDateFormat("dd MMM yyyy", Locale.getDefault())
+    private fun decodeBitmapFromUri(context: Context, imageUri: Uri): Bitmap? {
+        return try {
+            context.contentResolver.openInputStream(imageUri)?.use { inputStream ->
+                BitmapFactory.decodeStream(inputStream)
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
+        }
+    }
 
-        // Default values
-        var amount = (100..4500).random().toDouble()
-        var transactionId = "3107" + (100000..999999).random().toString() + (10..99).random().toString()
-        val phone = "98480" + (10000..99999).random().toString()
-        val email = "banothgopikrishna19@gmail.com"
+    private fun Bitmap.scaledForOcr(): Bitmap {
+        val largestSide = maxOf(width, height)
+        val scale = when {
+            largestSide < 1600 -> 1600f / largestSide
+            largestSide > 3200 -> 3200f / largestSide
+            else -> 1f
+        }
+        if (scale == 1f) return this
 
-        // Smart Extraction Heuristics from filename (Pattern matching)
-        // 1. Amount Extraction (Robust Decimal & Number matching)
-        // Look for numbers representing transaction amounts (avoiding years like 2024-2027 and reference IDs)
-        val cleanName = fileName.replace(".png", "").replace(".jpg", "").replace(".jpeg", "")
-        val parts = cleanName.split(Pattern.compile("[_\\s.-]+"))
-        var amountMatched = false
-        for (part in parts) {
-            val d = part.toDoubleOrNull()
-            if (d != null && d >= 10.0 && d <= 150000.0) {
-                val isYear = d == 2024.0 || d == 2025.0 || d == 2026.0 || d == 2027.0
-                val isTxId = part.length >= 10
-                if (!isYear && !isTxId) {
-                    amount = d
-                    amountMatched = true
-                    break
+        val scaledWidth = (width * scale).toInt().coerceAtLeast(1)
+        val scaledHeight = (height * scale).toInt().coerceAtLeast(1)
+        return Bitmap.createScaledBitmap(this, scaledWidth, scaledHeight, true)
+    }
+
+    private fun ParsedReceipt.hasUsefulReceiptData(): Boolean {
+        return amount > 0.0 || transactionId.isNotBlank()
+    }
+
+    private fun looksLikePaymentReceiptText(text: String): Boolean {
+        val lowerText = text.lowercase()
+        val receiptKeywords = listOf(
+            "upi",
+            "utr",
+            "txn",
+            "transaction",
+            "reference",
+            "ref no",
+            "paid",
+            "sent",
+            "payment",
+            "success",
+            "successful",
+            "completed",
+            "received",
+            "debited",
+            "credited",
+            "bank",
+            "approved",
+            "approval code",
+            "authorization code",
+            "receipt",
+            "purchase",
+            "google pay",
+            "gpay",
+            "phonepe",
+            "paytm",
+            "amazon pay",
+            "samsung pay",
+            "samsung wallet",
+            "₹",
+            "rs.",
+            "inr"
+        )
+        return receiptKeywords.any { lowerText.contains(it) }
+    }
+
+    private suspend fun recognizeTextFromImage(inputImage: InputImage, script: OcrScript): String? {
+        return suspendCancellableCoroutine { continuation ->
+            val recognizer = when (script) {
+                OcrScript.LATIN -> TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
+                OcrScript.DEVANAGARI -> TextRecognition.getClient(
+                    DevanagariTextRecognizerOptions.Builder().build()
+                )
+            }
+            continuation.invokeOnCancellation { recognizer.close() }
+
+            recognizer.process(inputImage)
+                .addOnSuccessListener { result ->
+                    recognizer.close()
+                    if (continuation.isActive) {
+                        continuation.resume(result.text.takeIf { it.isNotBlank() })
+                    }
+                }
+                .addOnFailureListener { error ->
+                    recognizer.close()
+                    error.printStackTrace()
+                    if (continuation.isActive) {
+                        continuation.resume(null)
+                    }
+                }
+                .addOnCanceledListener {
+                    recognizer.close()
+                    if (continuation.isActive) {
+                        continuation.resume(null)
+                    }
+                }
+        }
+    }
+
+    private suspend fun recognizeReceiptText(context: Context, uri: Uri): String? {
+        val recognizedTexts = mutableListOf<String>()
+
+        suspend fun addRecognizedText(inputImage: InputImage) {
+            OcrScript.entries.forEach { script ->
+                val recognizedText = recognizeTextFromImage(inputImage, script)
+                if (!recognizedText.isNullOrBlank()) {
+                    recognizedTexts += recognizedText
                 }
             }
         }
-        if (!amountMatched) {
-            val prefixMatcher = Pattern.compile("(?:rs|inr|amt|amount|₹)[_.-]?(\\d+(?:\\.\\d{1,2})?)").matcher(fileName)
-            if (prefixMatcher.find()) {
-                val parsedAmt = prefixMatcher.group(1)?.toDoubleOrNull()
-                if (parsedAmt != null && parsedAmt >= 1.0) {
-                    amount = parsedAmt
+
+        try {
+            addRecognizedText(InputImage.fromFilePath(context, uri))
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+
+        val originalBitmap = decodeBitmapFromUri(context, uri)
+        if (originalBitmap != null) {
+            try {
+                addRecognizedText(InputImage.fromBitmap(originalBitmap, 0))
+
+                val scaledBitmap = originalBitmap.scaledForOcr()
+                if (scaledBitmap !== originalBitmap) {
+                    addRecognizedText(InputImage.fromBitmap(scaledBitmap, 0))
                 }
+            } catch (e: Exception) {
+                e.printStackTrace()
             }
         }
 
-        // 2. Transaction ID Extraction (typically 12-digit UPI reference)
-        val txMatcher = Pattern.compile("(\\d{12})").matcher(fileName)
-        if (txMatcher.find()) {
-            transactionId = txMatcher.group(1) ?: transactionId
-        }
+        val processedBitmap = stripImageMetadataAndProcess(context, uri)
+        if (processedBitmap != null) {
+            try {
+                addRecognizedText(InputImage.fromBitmap(processedBitmap, 0))
 
-        // 3. Date Extraction (Robust extraction of date/timestamps from filename)
-        var extractedDate: Date? = null
-        
-        // Pattern A: YYYY-MM-DD or YYYYMMDD (e.g., 2026-06-25, 20260625)
-        val ymdMatcher = Pattern.compile("(202\\d)[-_]?(0[1-9]|1[0-2])[-_]?(0[1-9]|[12]\\d|3[01])").matcher(fileName)
-        if (ymdMatcher.find()) {
-            val y = ymdMatcher.group(1)?.toIntOrNull()
-            val m = ymdMatcher.group(2)?.toIntOrNull()
-            val d = ymdMatcher.group(3)?.toIntOrNull()
-            if (y != null && m != null && d != null) {
-                val cal = java.util.Calendar.getInstance()
-                cal.set(y, m - 1, d)
-                extractedDate = cal.time
-            }
-        }
-        
-        // Pattern B: DD-MM-YYYY or DDMMYYYY (e.g., 25-06-2026, 25062026)
-        if (extractedDate == null) {
-            val dmyMatcher = Pattern.compile("(0[1-9]|[12]\\d|3[01])[-_]?(0[1-9]|1[0-2])[-_]?(202\\d)").matcher(fileName)
-            if (dmyMatcher.find()) {
-                val d = dmyMatcher.group(1)?.toIntOrNull()
-                val m = dmyMatcher.group(2)?.toIntOrNull()
-                val y = dmyMatcher.group(3)?.toIntOrNull()
-                if (y != null && m != null && d != null) {
-                    val cal = java.util.Calendar.getInstance()
-                    cal.set(y, m - 1, d)
-                    extractedDate = cal.time
+                val scaledProcessedBitmap = processedBitmap.scaledForOcr()
+                if (scaledProcessedBitmap !== processedBitmap) {
+                    addRecognizedText(InputImage.fromBitmap(scaledProcessedBitmap, 0))
                 }
+            } catch (e: Exception) {
+                e.printStackTrace()
             }
         }
 
-        // Pattern C: Epoch/Unix millisecond timestamps
-        if (extractedDate == null) {
-            val tsMatcher = Pattern.compile("(1\\d{12})").matcher(fileName)
-            if (tsMatcher.find()) {
-                val ms = tsMatcher.group(1)?.toLongOrNull()
-                if (ms != null) {
-                    extractedDate = Date(ms)
-                }
-            }
+        val mergedText = recognizedTexts
+            .asSequence()
+            .flatMap { it.lineSequence() }
+            .map { it.trim() }
+            .filter { it.isNotBlank() }
+            .distinctBy { it.lowercase() }
+            .joinToString("\n")
+
+        return mergedText.takeIf { it.isNotBlank() }
+    }
+
+    private suspend fun extractReceiptWithOnDeviceOcr(context: Context, uri: Uri): ParsedReceipt? {
+        val recognizedText = recognizeReceiptText(context, uri) ?: return null
+        val parsedReceipt = parseReceiptText(recognizedText)
+        val rawTextPreview = recognizedText.lineSequence()
+                .map { it.trim() }
+                .filter { it.isNotBlank() }
+            .take(40)
+                .joinToString("\n")
+
+        if (!parsedReceipt.hasUsefulReceiptData() || !looksLikePaymentReceiptText(recognizedText)) {
+            return parsedReceipt.copy(
+                extractionMethod = "OCR text found - review manually",
+                rawTextPreview = rawTextPreview
+            )
         }
 
-        val dateStr = if (extractedDate != null) {
-            sdf.format(extractedDate)
-        } else {
-            sdf.format(Date())
-        }
-
-        var appName = "Google Pay"
-        if (fileName.contains("phonepe") || fileName.contains("pe")) {
-            appName = "PhonePe"
-        } else if (fileName.contains("paytm") || fileName.contains("tm")) {
-            appName = "Paytm"
-        } else if (fileName.contains("amazon") || fileName.contains("amzn")) {
-            appName = "Amazon Pay"
-        }
-
-        return ParsedReceipt(
-            amount = amount,
-            transactionId = transactionId,
-            phone = phone,
-            email = email,
-            date = dateStr,
-            paymentApp = appName,
-            extractionMethod = "Local Heuristic (Offline)"
+        return parsedReceipt.copy(
+            extractionMethod = "On-device OCR (ML Kit Latin + Devanagari)",
+            rawTextPreview = rawTextPreview
         )
     }
 
-    private fun getFileNameFromUri(context: Context, uri: Uri): String {
-        var name = "screenshot.png"
-        try {
-            context.contentResolver.query(uri, null, null, null, null)?.use { cursor ->
-                val nameIndex = cursor.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME)
-                if (nameIndex != -1 && cursor.moveToFirst()) {
-                    name = cursor.getString(nameIndex)
-                }
-            }
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
-        if (name == "screenshot.png" || name.isBlank()) {
-            val lastSegment = uri.lastPathSegment
-            if (!lastSegment.isNullOrBlank()) {
-                name = lastSegment
-            }
-        }
-        return name
-    }
-
-    // Helper extension to convert Bitmap to Base64
-    private fun Bitmap.toBase64(): String {
-        val outputStream = java.io.ByteArrayOutputStream()
-        this.compress(Bitmap.CompressFormat.JPEG, 80, outputStream)
-        return android.util.Base64.encodeToString(outputStream.toByteArray(), android.util.Base64.NO_WRAP)
-    }
-
     /**
-     * Real-time Multi-modal pipeline to extract receipt data using Gemini 3.5 Flash, with seamless offline fallback.
+     * Extract receipt data from the uploaded image using on-device OCR only.
      */
     suspend fun extractReceiptFromUri(context: Context, uri: Uri): ParsedReceipt = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-        val apiKey = try {
-            com.example.BuildConfig.GEMINI_API_KEY
-        } catch (e: Exception) {
-            ""
-        }
-
-        // Only run Gemini if API key is not placeholder or empty
-        val isApiKeyValid = apiKey.isNotBlank() && apiKey != "MY_GEMINI_API_KEY"
-
-        if (!isApiKeyValid) {
-            return@withContext extractHeuristicsFromUri(context, uri)
-        }
-
-        try {
-            val processedBitmap = stripImageMetadataAndProcess(context, uri) ?: return@withContext extractHeuristicsFromUri(context, uri)
-            val base64Image = processedBitmap.toBase64()
-
-            val request = GeminiRequest(
-                contents = listOf(
-                    GeminiContent(
-                        parts = listOf(
-                            GeminiPart(text = "Extract the payment details from this screenshot. Return only a raw JSON matching the requested schema with amount, transactionId, phone, email, date, paymentApp."),
-                            GeminiPart(inlineData = GeminiInlineData(mimeType = "image/jpeg", data = base64Image))
-                        )
-                    )
-                ),
-                generationConfig = GeminiGenerationConfig(
-                    responseMimeType = "application/json",
-                    temperature = 0.1
-                )
-            )
-
-            val response = GeminiRetrofitClient.service.generateContent(apiKey, request)
-            val jsonText = response.candidates?.firstOrNull()?.content?.parts?.firstOrNull()?.text
-
-            if (!jsonText.isNullOrBlank()) {
-                val cleanJson = jsonText.trim().removeSurrounding("```json", "```").trim()
-                val jsonObject = org.json.JSONObject(cleanJson)
-                
-                val amount = jsonObject.optDouble("amount", 0.0)
-                val transactionId = jsonObject.optString("transactionId", "")
-                val phone = jsonObject.optString("phone", "")
-                val email = jsonObject.optString("email", "")
-                val date = jsonObject.optString("date", "")
-                val paymentApp = jsonObject.optString("paymentApp", "Unknown UPI")
-
-                return@withContext ParsedReceipt(
-                    amount = if (amount.isNaN()) 0.0 else amount,
-                    transactionId = transactionId,
-                    phone = phone,
-                    email = email,
-                    date = date.ifBlank {
-                        SimpleDateFormat("dd MMM yyyy", Locale.getDefault()).format(Date())
-                    },
-                    paymentApp = paymentApp,
-                    extractionMethod = "AI Extract (Gemini 3.5 Flash)"
-                )
-            }
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
-
-        val localResult = extractHeuristicsFromUri(context, uri)
-        return@withContext localResult.copy(extractionMethod = "Local Heuristic (Offline)")
-    }
-}
-
-// --- Moshi and Retrofit definitions for Direct REST Gemini API integration ---
-
-@com.squareup.moshi.JsonClass(generateAdapter = true)
-data class GeminiRequest(
-    val contents: List<GeminiContent>,
-    val generationConfig: GeminiGenerationConfig? = null
-)
-
-@com.squareup.moshi.JsonClass(generateAdapter = true)
-data class GeminiContent(
-    val parts: List<GeminiPart>
-)
-
-@com.squareup.moshi.JsonClass(generateAdapter = true)
-data class GeminiPart(
-    val text: String? = null,
-    val inlineData: GeminiInlineData? = null
-)
-
-@com.squareup.moshi.JsonClass(generateAdapter = true)
-data class GeminiInlineData(
-    val mimeType: String,
-    val data: String
-)
-
-@com.squareup.moshi.JsonClass(generateAdapter = true)
-data class GeminiGenerationConfig(
-    val responseMimeType: String? = null,
-    val temperature: Double? = null
-)
-
-@com.squareup.moshi.JsonClass(generateAdapter = true)
-data class GeminiResponse(
-    val candidates: List<GeminiCandidate>? = null
-)
-
-@com.squareup.moshi.JsonClass(generateAdapter = true)
-data class GeminiCandidate(
-    val content: GeminiContent? = null
-)
-
-interface GeminiApiService {
-    @retrofit2.http.POST("v1beta/models/gemini-3.5-flash:generateContent")
-    suspend fun generateContent(
-        @retrofit2.http.Query("key") apiKey: String,
-        @retrofit2.http.Body request: GeminiRequest
-    ): GeminiResponse
-}
-
-object GeminiRetrofitClient {
-    private val moshi = com.squareup.moshi.Moshi.Builder()
-        .addLast(com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory())
-        .build()
-
-    private val okHttpClient = okhttp3.OkHttpClient.Builder()
-        .connectTimeout(45, java.util.concurrent.TimeUnit.SECONDS)
-        .readTimeout(45, java.util.concurrent.TimeUnit.SECONDS)
-        .writeTimeout(45, java.util.concurrent.TimeUnit.SECONDS)
-        .build()
-
-    val service: GeminiApiService by lazy {
-        retrofit2.Retrofit.Builder()
-            .baseUrl("https://generativelanguage.googleapis.com/")
-            .client(okHttpClient)
-            .addConverterFactory(retrofit2.converter.moshi.MoshiConverterFactory.create(moshi))
-            .build()
-            .create(GeminiApiService::class.java)
+        extractReceiptWithOnDeviceOcr(context, uri) ?: ParsedReceipt(
+            extractionMethod = "No receipt data found"
+        )
     }
 }

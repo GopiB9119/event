@@ -1,0 +1,70 @@
+name: Product idea or feature request
+description: Describe an observed user problem before proposing implementation.
+title: "[Idea]: "
+labels:
+  - enhancement
+body:
+  - type: markdown
+    attributes:
+      value: |
+        A request is a hypothesis, not automatic approval to build. Community Ledger uses evidence-based `STOP / DEFER / TEST / BUILD` decisions. Do not include personal, receipt, payment, credential, or security-sensitive data.
+
+  - type: textarea
+    id: user-problem
+    attributes:
+      label: User and observed problem
+      description: Who experienced what problem, in what real context? Separate observation from assumption.
+    validations:
+      required: true
+
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Evidence
+      description: Recent behavior, failure, support request, or reproducible workflow. Write UNKNOWN when evidence is absent.
+    validations:
+      required: true
+
+  - type: textarea
+    id: workaround
+    attributes:
+      label: Current workaround and consequence of doing nothing
+    validations:
+      required: true
+
+  - type: textarea
+    id: outcome
+    attributes:
+      label: Desired outcome
+      description: Describe the user result, not only a UI or technical solution.
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Include no-build, removal/simplification, documentation/manual process, and the smallest test.
+    validations:
+      required: true
+
+  - type: textarea
+    id: risks
+    attributes:
+      label: Security, privacy, abuse, accessibility, and support risks
+
+  - type: textarea
+    id: evidence-needed
+    attributes:
+      label: Evidence that should permit or stop implementation
+      description: Do not invent numeric thresholds; write OWNER INPUT REQUIRED when needed.
+
+  - type: checkboxes
+    id: confirmations
+    attributes:
+      label: Confirmation
+      options:
+        - label: I understand this proposal may be stopped, deferred, or tested instead of built.
+          required: true
+        - label: I removed personal, receipt, payment, credential, and security-sensitive data.
+          required: true

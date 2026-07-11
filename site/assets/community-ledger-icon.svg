@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title description">
+  <title id="title">Community Ledger logo</title>
+  <desc id="description">Three community entries recorded in one ledger.</desc>
+  <rect width="512" height="512" rx="112" fill="#10283f"/>
+  <rect x="122" y="98" width="268" height="316" rx="42" fill="#f7f5ef"/>
+  <path d="M164 98h42v316h-42c-23.2 0-42-18.8-42-42V140c0-23.2 18.8-42 42-42Z" fill="#2cb67d"/>
+  <circle cx="236" cy="180" r="18" fill="#2cb67d"/>
+  <circle cx="236" cy="256" r="18" fill="#f3b61f"/>
+  <circle cx="236" cy="332" r="18" fill="#ee6c4d"/>
+  <path d="M278 164h70v32h-70zm0 76h70v32h-70zm0 76h70v32h-70z" fill="#24445e"/>
+</svg>

@@ -1,0 +1,86 @@
+name: Bug report
+description: Report a reproducible non-sensitive Community Ledger problem.
+title: "[Bug]: "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **Protect personal and financial data.** Do not include receipt images, member details, phone numbers, email addresses, UPI IDs, transaction references, passwords, signing keys, or verification codes. Report suspected vulnerabilities through the private Security Policy link instead.
+
+  - type: input
+    id: app-version
+    attributes:
+      label: App version
+      description: Find this in Trust Center > About.
+      placeholder: 0.2.0-beta (2)
+    validations:
+      required: true
+
+  - type: input
+    id: android-version
+    attributes:
+      label: Device and Android version
+      placeholder: Example device, Android version
+    validations:
+      required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Affected area
+      options:
+        - Event creation or dashboard
+        - Members or transactions
+        - Receipt import, OCR, review, or save
+        - Event-copy link
+        - Trust Center, update check, or website
+        - Install, upgrade, restart, or data persistence
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Reproduction steps
+      description: Use synthetic/redacted values only. State what happened from a clean starting point.
+      placeholder: |
+        1. Open...
+        2. Tap...
+        3. Observe...
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+    validations:
+      required: true
+
+  - type: textarea
+    id: lifecycle
+    attributes:
+      label: Lifecycle and connectivity
+      description: Did it reproduce after cancel, retry, force-stop, restart, offline use, permission denial, or time change?
+
+  - type: checkboxes
+    id: confirmations
+    attributes:
+      label: Confirmation
+      options:
+        - label: I searched existing issues.
+          required: true
+        - label: I removed personal, receipt, payment, credential, and security-sensitive data.
+          required: true
+        - label: This is not a private security report.
+          required: true
