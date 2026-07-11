@@ -10,6 +10,16 @@ param(
 $ErrorActionPreference = "Stop"
 $packageName = "com.aistudio.communityledger.yrtqwx"
 
+function Stop-Preflight {
+    param(
+        [string]$Message,
+        [int]$Code = 2
+    )
+
+    [Console]::Error.WriteLine($Message)
+    exit $Code
+}
+
 function Invoke-Adb {
     param([string[]]$Arguments)
 
@@ -21,27 +31,23 @@ function Invoke-Adb {
 }
 
 if (-not (Get-Command adb -ErrorAction SilentlyContinue)) {
-    Write-Error "adb was not found. Install Android platform-tools and add adb to PATH."
-    exit 2
+    Stop-Preflight "adb was not found. Install Android platform-tools and add adb to PATH."
 }
 
 $resolvedApk = Resolve-Path $ApkPath -ErrorAction SilentlyContinue
 if ($null -eq $resolvedApk) {
-    Write-Error "APK not found: $ApkPath"
-    exit 2
+    Stop-Preflight "APK not found: $ApkPath"
 }
 
 $apkFile = Get-Item $resolvedApk.Path
 $apkHash = (Get-FileHash -Algorithm SHA256 $apkFile.FullName).Hash.ToUpperInvariant()
 if ($ExpectedSha256 -and $apkHash -ne $ExpectedSha256.ToUpperInvariant()) {
-    Write-Error "APK hash mismatch. Expected $ExpectedSha256 but found $apkHash."
-    exit 3
+    Stop-Preflight "APK hash mismatch. Expected $ExpectedSha256 but found $apkHash." 3
 }
 
 $deviceLines = & adb devices -l 2>&1
 if ($LASTEXITCODE -ne 0) {
-    Write-Error "adb devices failed: $($deviceLines -join [Environment]::NewLine)"
-    exit 2
+    Stop-Preflight "adb devices failed: $($deviceLines -join [Environment]::NewLine)"
 }
 
 $devices = @()
@@ -63,22 +69,18 @@ $physicalDevices = @($devices | Where-Object {
 if ($Serial) {
     $selected = $physicalDevices | Where-Object { $_.Serial -eq $Serial } | Select-Object -First 1
     if ($null -eq $selected) {
-        Write-Error "Physical device '$Serial' was not found. Connected physical devices: $($physicalDevices.Serial -join ', ')"
-        exit 2
+        Stop-Preflight "Physical device '$Serial' was not found. Connected physical devices: $($physicalDevices.Serial -join ', ')"
     }
 } elseif ($physicalDevices.Count -eq 1) {
     $selected = $physicalDevices[0]
 } elseif ($physicalDevices.Count -eq 0) {
-    Write-Error "No physical Android device is connected. Enable USB debugging, connect one unlocked phone, and accept the RSA prompt."
-    exit 2
+    Stop-Preflight "No physical Android device is connected. Enable USB debugging, connect one unlocked phone, and accept the RSA prompt."
 } else {
-    Write-Error "Multiple physical devices are connected. Re-run with -Serial. Devices: $($physicalDevices.Serial -join ', ')"
-    exit 2
+    Stop-Preflight "Multiple physical devices are connected. Re-run with -Serial. Devices: $($physicalDevices.Serial -join ', ')"
 }
 
 if ($selected.State -ne "device") {
-    Write-Error "Device $($selected.Serial) is $($selected.State). Unlock it and accept the USB debugging prompt."
-    exit 2
+    Stop-Preflight "Device $($selected.Serial) is $($selected.State). Unlock it and accept the USB debugging prompt."
 }
 
 $serialArgs = @("-s", $selected.Serial)

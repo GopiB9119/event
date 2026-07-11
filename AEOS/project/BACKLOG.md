@@ -9,6 +9,7 @@ This backlog is ordered by current constraint, not feature excitement. Evidence 
 ### 1. Physical-device launch matrix
 
 - Problem: `UNKNOWN` final picker/share/review/save/restart behavior on the publisher's exact phone and a second Android device.
+- Current status (11 July 2026): `BLOCKED`; no physical device was reported by `adb devices -l`. Candidate hash parity is verified and the non-destructive preflight/evidence kit passes its safe failure-path tests.
 - Why now: It is the cheapest test of the most dangerous launch assumption.
 - Smallest action: Run the [Physical Device Launch Matrix](../../docs/Testing/PHYSICAL_DEVICE_LAUNCH_MATRIX.md) on two devices and record Android versions and pass/fail evidence.
 - Acceptance evidence: event creation, real receipt share/import, review/save/cancel, force-stop/restart, totals, interruption notice, event-copy fallback, and reinstall/update behavior are explicit.

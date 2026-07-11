@@ -25,6 +25,8 @@ Scope: trusted beta only; not the permanent public signing lineage
 
 ## Preflight
 
+Current execution status (11 July 2026): `BLOCKED` because `adb devices -l` reported no connected physical phone. The preflight script was parser-validated and its no-device, missing-APK, and hash-mismatch paths returned the documented codes without installing, clearing data, or writing an evidence record.
+
 Connect one unlocked phone with USB debugging enabled and accept the RSA prompt.
 
 Inspect only:
@@ -34,6 +36,12 @@ Inspect only:
 ```
 
 Install/update while preserving existing app data:
+
+```powershell
+.\scripts\physical-device-preflight.ps1 -Install
+```
+
+Resume command after connecting one physical phone:
 
 ```powershell
 .\scripts\physical-device-preflight.ps1 -Install
