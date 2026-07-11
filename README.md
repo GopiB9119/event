@@ -1,21 +1,220 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://ai.google.dev/static/site-assets/images/share-ais-513315318.png" />
-</div>
+# Community Ledger
 
-# Run and deploy your AI Studio app
+Community Ledger is a local-first Android event finance ledger. It turns payment receipts into structured, reviewable ledger entries for community events.
 
-This contains everything you need to run your app locally.
+The app is built around receipt integrity: extract the receipt, validate the data, score confidence, check duplicates, link the entry to an event/member, save JSON proof, and only then update totals.
 
-View your app in AI Studio: https://ai.studio/apps/541d2faf-afc4-4698-be4d-dfbacd1ab457
+## What It Does
 
-## Run Locally
+- Create event ledgers.
+- Share an event-copy link that adds an independent local event shell on another device.
+- Upload receipt screenshots from device storage.
+- Receive shared receipt images/text from payment apps.
+- Extract receipt text using on-device Google ML Kit OCR.
+- Parse receipt data into JSON.
+- Block low-confidence or duplicate receipts.
+- Link transactions to persisted members.
+- Store receipt JSON in app-private event/person folders.
+- Calculate collected, spent, and available balance from saved transactions.
 
-**Prerequisites:**  [Android Studio](https://developer.android.com/studio)
+## Receipt OCR
 
+Receipt OCR is on-device only.
 
-1. Open Android Studio
-2. Select **Open** and choose the directory containing this project
-3. Allow Android Studio to fix any incompatibilities as it imports the project.
-4. Create a file named `.env` in the project directory and set `GEMINI_API_KEY` in that file to your Gemini API key (see `.env.example` for an example)
-5. Remove this line from the app's `build.gradle.kts` file: `signingConfig = signingConfigs.getByName("debugConfig")`
-6. Run the app on an emulator or physical device
+The app currently uses:
+
+- Google ML Kit Latin text recognition
+- Google ML Kit Devanagari text recognition
+
+The receipt flow does not use:
+
+- Gemini
+- cloud OCR
+- API-key OCR
+- filename-based receipt extraction
+- random or dummy receipt data
+
+## Receipt Pipeline
+
+1. User uploads or shares a receipt image/text.
+2. The app clears stale receipt state.
+3. ML Kit runs multi-pass OCR:
+	 - direct URI image
+	 - decoded bitmap
+	 - scaled bitmap
+	 - contrast-processed bitmap
+	 - scaled processed bitmap
+4. Latin and Devanagari OCR outputs are merged.
+5. Receipt fields are parsed.
+6. Confidence and warnings are generated.
+7. Duplicate detection runs.
+8. JSON review is shown.
+9. Save is allowed only when safe.
+10. Room transaction and app-private JSON proof file are written.
+
+## Saved Receipt JSON
+
+Example shape:
+
+```json
+{
+	"amount": 5000.0,
+	"currency": "INR",
+	"calculationAmount": 5000.0,
+	"calculationBucket": "Total Collected",
+	"calculationOperation": "add",
+	"paidTo": "ALLI RAMARAO",
+	"upiId": "alliramarao@ybl",
+	"upiReferenceOrTransactionId": null,
+	"paymentApp": "PhonePe",
+	"date": "18 June 2026",
+	"phone": null,
+	"email": null,
+	"ledgerType": "Donated",
+	"uploaderEmail": "user@example.com",
+	"extractionMethod": "On-device OCR (ML Kit Latin + Devanagari)",
+	"confidence": 75,
+	"warnings": [
+		"UPI reference or transaction ID not detected."
+	],
+	"duplicateCheck": {
+		"status": "clear",
+		"matchedTransactionRowId": null,
+		"reason": null
+	}
+}
+```
+
+## Storage
+
+Receipt JSON files are stored in app-private storage:
+
+```text
+files/receipts/event_<eventId>/person_<person>/uploader_<email>/receipt_<id>.json
+```
+
+These files are excluded from backup and device transfer rules.
+
+## Database
+
+The app uses Room with:
+
+- `events`
+- `members`
+- `transactions`
+
+Transactions link to events and, when possible, persisted members.
+
+Important safeguards already implemented:
+
+- No destructive Room migration.
+- Event delete cascades to transactions and members.
+- Receipt transactions use `memberId`.
+- Legacy transactions can be repaired/backfilled to members when opening an event.
+
+## Event-Copy Links
+
+Event-copy links are convenience links with checksum validation. They are not cryptographic access control or synchronized membership.
+
+Do not describe event-copy links as secure, authenticated, or tamper-proof unless server-issued tokens are added later.
+
+## Public And Private Events
+
+Events can be marked public or private. The dashboard can filter by this marker, event cards show it, and event-copy links preserve it when another device adds the local shell.
+
+This is a local visibility marker, not server authorization. Share private-event links only with trusted people until real account-based access control exists.
+
+## Local Identity
+
+A valid email label is stored on the device and is required before creating events, sharing event copies, or saving/replacing receipt transactions. It is normalized to lowercase and used for local ownership/uploader checks. It is not sign-in or authentication.
+
+## Publisher And Support
+
+Community Ledger is independently published by **Gopi Banoth**.
+
+- Private support and privacy: [banothgopikrishna19@gmail.com](mailto:banothgopikrishna19@gmail.com)
+- GitHub: [GopiB9119](https://github.com/GopiB9119)
+- LinkedIn: [Gopi Banoth](https://www.linkedin.com/in/gopib-960965243/)
+- Public non-sensitive bug reports: [project issues](https://github.com/GopiB9119/event/issues)
+
+Never post receipt images, personal or financial data, passwords, signing keys, or verification codes in a public issue.
+
+## Repository Governance
+
+- [Security policy](SECURITY.md)
+- [Incident response](docs/Security/INCIDENT_RESPONSE.md)
+- [Support](SUPPORT.md)
+- [Code of conduct](CODE_OF_CONDUCT.md)
+- [Contributing](CONTRIBUTING.md)
+- [Changelog](CHANGELOG.md)
+- [GitHub repository operations](docs/GitHub/REPOSITORY_OPERATIONS.md)
+
+The source repository is public, but no open-source license is currently granted. Public visibility does not grant permission to copy, modify, redistribute, or create derivative versions. External code contributions remain closed until explicit license and contribution terms are chosen.
+
+## Project Documentation
+
+- [Architecture overview](docs/Architecture/OVERVIEW.md)
+- [Future shared-event architecture](docs/Architecture/SHARED_EVENTS_FUTURE.md)
+- [Product overview](docs/Product/PRODUCT_OVERVIEW.md)
+- [Test strategy](docs/Testing/TEST_STRATEGY.md)
+- [Physical-device launch matrix](docs/Testing/PHYSICAL_DEVICE_LAUNCH_MATRIX.md)
+- [Friend beta readiness](docs/Release/FRIEND_BETA_READINESS.md)
+- [Privacy policy](docs/Legal/PRIVACY_POLICY.md)
+- [Beta terms](docs/Legal/TERMS_OF_USE.md)
+- [Data and permissions](docs/Legal/DATA_AND_PERMISSIONS.md)
+- [Public launch checklist](docs/Release/PUBLIC_LAUNCH_CHECKLIST.md)
+- [Signing and distribution](docs/Release/SIGNING_AND_DISTRIBUTION.md)
+- [Receipt OCR validation](docs/Research/RECEIPT_OCR_VALIDATION.md)
+- [Receipt integrity ADR](docs/Decisions/ADR-0001-RECEIPT-INTEGRITY.md)
+
+## Validation
+
+Run Kotlin/Room compile validation:
+
+```powershell
+.\gradlew.bat --no-daemon --no-configuration-cache :app:compileDebugKotlin
+```
+
+Build a debug APK:
+
+```powershell
+.\gradlew.bat --no-daemon --no-configuration-cache :app:assembleDebug
+```
+
+Install on a connected device:
+
+```powershell
+adb install -r app\build\outputs\apk\debug\app-debug.apk
+```
+
+Launch:
+
+```powershell
+adb shell monkey -p com.aistudio.communityledger.yrtqwx 1
+```
+
+## Testing Notes
+
+The complete debug unit/Robolectric suite currently passes 35 tests across seven suites. The complete Android instrumentation suite passes six tests across five classes, covering Room collision safety, file-backed database reopen, shared receipt state, app context, and six private real-image OCR fixtures. First-use disclosure, local identity gating, Trust Center navigation, and an honest receipt-interruption notice after process death have also been verified through runtime interaction. The bounded workflow at `.github/workflows/android-ci.yml` runs compile, unit tests, and APK assembly with a 30-minute timeout; its exact command passes locally, while the first hosted GitHub run remains pending.
+
+## Launch Website
+
+The static launch package lives in [site](site). It includes the product page, real privacy-safe app screenshots, Privacy, Terms, Contact, event-copy fallback, and a release manifest used by the manual in-app update check. The site and APK are not published automatically. `.github/workflows/pages.yml` requires an explicit manual deployment, and the download remains gated until a release-signed APK exists.
+
+Next recommended test work:
+
+- Add more JVM-only parser tests for Amazon Pay, Paytm, BHIM, WhatsApp Pay, and noisier low-light receipts.
+- For image OCR checks, use real private receipt screenshots only. Do not commit them. The focused instrumentation test can read images from either `app/src/androidTest/assets/receipt-images-private/` or the app-specific device folder `Android/data/com.aistudio.communityledger.yrtqwx/files/receipt-images-private/`.
+- Obtain the first green hosted CI run and add physical-device coverage for image sharing, interruption, and restart behavior.
+
+Run the private image OCR test on a connected device:
+
+```powershell
+.\gradlew.bat --no-daemon --no-configuration-cache :app:connectedDebugAndroidTest '-Pandroid.testInstrumentationRunnerArguments.class=com.example.receipt.ReceiptImageOcrInstrumentedTest'
+```
+
+The test writes OCR/parse JSON reports to the app-specific external files directory and prints the report path in the test output. If no private receipt images exist, the test is skipped instead of using dummy data. In PowerShell, keep the `-P...` argument quoted.
+
+## Engineering Doctrine
+
+Read [prompts.md](prompts.md) before major changes. It contains the current product and engineering rules for receipt integrity, OCR, JSON storage, duplicate protection, member linking, and security language.
