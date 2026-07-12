@@ -84,7 +84,7 @@ Processing stages:
 7. Score confidence.
 8. Generate validation warnings.
 9. Check duplicates.
-10. Show JSON review.
+10. Show a compact amount/details review; keep JSON as app-private evidence.
 11. Save only if the result is safe enough.
 12. Store JSON under event/person/uploader folders.
 13. Insert or update Room transaction.

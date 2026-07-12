@@ -60,6 +60,8 @@
 
 ## Play Store Later
 
+Follow the detailed [Google Play Launch Plan](GOOGLE_PLAY_LAUNCH_PLAN.md).
+
 - [ ] Build an Android App Bundle with Play App Signing.
 - [x] Supply a public privacy-policy URL.
 - [ ] Complete Data safety, Ads, App access, Target audience, Content rating, and Financial features declarations truthfully.

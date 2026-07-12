@@ -2,6 +2,33 @@
 
 All notable public release changes will be recorded here. This file does not make an artifact publicly released; GitHub Releases and the signed release manifest are authoritative for distribution.
 
+## 0.2.0-beta.2 - 2026-07-13
+
+### Changed
+
+- Receipt review now shows a compact amount and four human-readable details instead of raw JSON or an overall confidence percentage.
+- OCR processing now uses a neutral progress indicator without terminal-like scripts or staged fake delays.
+- Clearly labelled amounts can be saved when optional app/reference details are missing; unlabelled amounts require explicit confirmation against the original receipt.
+- The parser no longer applies an undocumented ₹150,000 ceiling and rejects split available-balance values when selecting the payment amount.
+- Event-copy links use opaque cross-device keys instead of reusing one device's Room integer ID.
+- Legacy event-copy links remain accepted; they never attach to an existing row by ambiguous numeric ID/title/organizer label. Reopening a link for a shell imported before migration can create one additional empty shell.
+- Reopening one opaque-key link returns to the same local shell without duplicating it.
+- Share-copy controls no longer use add-member imagery and explicitly state that sharing does not create membership.
+
+### Data Integrity
+
+- Receipt JSON remains app-private and must be written before the ledger transaction; evidence-file failure leaves the ledger unchanged.
+- Receipt evidence and Room persistence run through one awaited operation; database failure removes the newly written evidence file.
+- Evidence filenames include a full UUID so receipt replacement cannot overwrite prior proof with the same payment reference.
+- Private receipt JSON records both the OCR amount and any amount confirmed or changed during review.
+- Room migration 4 to 5 assigns unique event keys while preserving existing events, members, and transactions.
+- The browser fallback accepts both new `eventKey` links and legacy `eventId` links.
+
+### Still Not Implemented
+
+- Event copies do not synchronize members, receipts, uploader activity, transactions, balances, utilization, event details, or custom information.
+- Real shared events remain gated on accounts, authorization, revocable invitations, server-confirmed revisions, conflict handling, audit history, recovery, and privacy operations.
+
 ## 0.2.0-beta.1 - 2026-07-12
 
 ### Added
@@ -39,4 +66,5 @@ All notable public release changes will be recorded here. This file does not mak
 
 ## Releases
 
+- [0.2.0-beta.2](https://github.com/GopiB9119/event/releases/tag/v0.2.0-beta.2) - limited public beta prerelease
 - [0.2.0-beta.1](https://github.com/GopiB9119/event/releases/tag/v0.2.0-beta.1) - limited public beta prerelease

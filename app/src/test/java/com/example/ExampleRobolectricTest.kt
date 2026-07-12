@@ -6,6 +6,8 @@ import android.net.Uri
 import android.os.Looper
 import androidx.test.core.app.ApplicationProvider
 import com.example.ui.EventViewModel
+import com.example.ui.Screen
+import org.json.JSONObject
 import org.junit.Assert.*
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -78,6 +80,55 @@ class ExampleRobolectricTest {
     }
 
     @Test
+    fun `receipt evidence file records its own private path`() {
+        val app = ApplicationProvider.getApplicationContext<Application>()
+        val viewModel = EventViewModel(app)
+
+        val path = viewModel.saveReceiptJsonFile(
+            eventId = 77,
+            personName = "Synthetic Member",
+            uploaderEmail = "organizer@example.com",
+            receiptJsonText = JSONObject().apply {
+                put("amount", 500.0)
+                put("upiReferenceOrTransactionId", "SYNTHETIC123456")
+            }.toString()
+        )
+
+        assertNotNull(path)
+        val evidenceFile = java.io.File(path.orEmpty())
+        assertTrue(evidenceFile.isFile)
+        assertEquals(path, JSONObject(evidenceFile.readText()).getString("receiptFilePath"))
+    }
+
+    @Test
+    fun `same receipt reference creates distinct evidence files`() {
+        val app = ApplicationProvider.getApplicationContext<Application>()
+        val viewModel = EventViewModel(app)
+        val evidence = JSONObject().apply {
+            put("amount", 500.0)
+            put("upiReferenceOrTransactionId", "SYNTHETIC123456")
+        }.toString()
+
+        val firstPath = viewModel.saveReceiptJsonFile(78, "Synthetic Member", "organizer@example.com", evidence)
+        val secondPath = viewModel.saveReceiptJsonFile(78, "Synthetic Member", "organizer@example.com", evidence)
+
+        assertNotNull(firstPath)
+        assertNotNull(secondPath)
+        assertNotEquals(firstPath, secondPath)
+        assertTrue(java.io.File(firstPath.orEmpty()).isFile)
+        assertTrue(java.io.File(secondPath.orEmpty()).isFile)
+    }
+
+    @Test
+    fun `receipt evidence rejects invalid event or uploader`() {
+        val app = ApplicationProvider.getApplicationContext<Application>()
+        val viewModel = EventViewModel(app)
+
+        assertNull(viewModel.saveReceiptJsonFile(0, "Member", "organizer@example.com", "{}"))
+        assertNull(viewModel.saveReceiptJsonFile(1, "Member", "not-an-email", "{}"))
+    }
+
+    @Test
     fun `verify event ID encoding and decoding`() {
         val app = ApplicationProvider.getApplicationContext<Application>()
         val viewModel = EventViewModel(app)
@@ -127,7 +178,137 @@ class ExampleRobolectricTest {
         awaitDeepLinkResult(viewModel)
 
         assertNull(viewModel.deepLinkError.value)
-        assertEquals("Added 'TestEvent' to this device. Ledger entries do not sync between devices.", viewModel.deepLinkMessage.value)
+        assertEquals("Added an independent copy of 'TestEvent'. You were not added as a member; entries and balances do not sync.", viewModel.deepLinkMessage.value)
+    }
+
+    @Test
+    fun `legacy event copy with reused local id creates a distinct ledger`() {
+        val app = ApplicationProvider.getApplicationContext<Application>()
+        val viewModel = EventViewModel(app)
+
+        viewModel.setMyUserEmail("local.organizer@example.com")
+        viewModel.createEvent("Existing Local Event", null, false, emptyMap())
+        shadowOf(Looper.getMainLooper()).idle()
+
+        val reusedSourceId = 1
+        val expiry = System.currentTimeMillis() + 3600000L
+        val remoteCreator = "remote.organizer@example.com"
+        val signature = viewModel.generateInviteChecksum(reusedSourceId, expiry, remoteCreator)
+        val encodedEventId = viewModel.encodeEventId(reusedSourceId)
+        val deepLinkUri = Uri.parse(
+            "https://gopib9119.github.io/event/join?eventId=$encodedEventId" +
+                "&expiry=$expiry&checksum=$signature&creatorEmail=$remoteCreator&title=RemoteEvent"
+        )
+
+        viewModel.handleDeepLink(deepLinkUri)
+        awaitDeepLinkResult(viewModel)
+
+        assertNull(viewModel.deepLinkError.value)
+        assertEquals(
+            "Added an independent copy of 'RemoteEvent'. You were not added as a member; entries and balances do not sync.",
+            viewModel.deepLinkMessage.value
+        )
+        val openedEvent = viewModel.navigationStack.last() as Screen.EventDetails
+        assertNotEquals(reusedSourceId, openedEvent.eventId)
+    }
+
+    @Test
+    fun `legacy link cannot attach to matching local title and creator`() {
+        val app = ApplicationProvider.getApplicationContext<Application>()
+        val viewModel = EventViewModel(app)
+
+        val creator = "organizer@example.com"
+        val title = "Existing Imported Event"
+        viewModel.setMyUserEmail(creator)
+        viewModel.createEvent(title, null, false, emptyMap())
+        shadowOf(Looper.getMainLooper()).idle()
+
+        val legacySourceId = 1
+        val expiry = System.currentTimeMillis() + 3600000L
+        val signature = viewModel.generateInviteChecksum(legacySourceId, expiry, creator)
+        val encodedEventId = viewModel.encodeEventId(legacySourceId)
+        val deepLinkUri = Uri.parse(
+            "https://gopib9119.github.io/event/join?eventId=$encodedEventId" +
+                "&expiry=$expiry&checksum=$signature&creatorEmail=$creator&title=$title"
+        )
+
+        viewModel.handleDeepLink(deepLinkUri)
+        awaitDeepLinkResult(viewModel)
+
+        assertNull(viewModel.deepLinkError.value)
+        val openedEvent = viewModel.navigationStack.last() as Screen.EventDetails
+        assertNotEquals(legacySourceId, openedEvent.eventId)
+    }
+
+    @Test
+    fun `legacy title change cannot create another event shell`() {
+        val app = ApplicationProvider.getApplicationContext<Application>()
+        val viewModel = EventViewModel(app)
+
+        val legacySourceId = 404
+        val expiry = System.currentTimeMillis() + 3600000L
+        val creator = "organizer@example.com"
+        val signature = viewModel.generateInviteChecksum(legacySourceId, expiry, creator)
+        val encodedEventId = viewModel.encodeEventId(legacySourceId)
+        val firstUri = Uri.parse(
+            "https://gopib9119.github.io/event/join?eventId=$encodedEventId" +
+                "&expiry=$expiry&checksum=$signature&creatorEmail=$creator&title=OriginalTitle"
+        )
+        val changedTitleUri = Uri.parse(
+            "https://gopib9119.github.io/event/join?eventId=$encodedEventId" +
+                "&expiry=$expiry&checksum=$signature&creatorEmail=$creator&title=ChangedTitle"
+        )
+
+        viewModel.handleDeepLink(firstUri)
+        awaitDeepLinkResult(viewModel)
+        val firstLocalId = (viewModel.navigationStack.last() as Screen.EventDetails).eventId
+
+        viewModel.dismissDeepLinkMessage()
+        viewModel.handleDeepLink(changedTitleUri)
+        awaitDeepLinkResult(viewModel)
+        val secondLocalId = (viewModel.navigationStack.last() as Screen.EventDetails).eventId
+
+        assertNull(viewModel.deepLinkError.value)
+        assertEquals(firstLocalId, secondLocalId)
+        assertEquals(
+            "Added an independent copy of 'OriginalTitle'. You were not added as a member; entries and balances do not sync.",
+            viewModel.deepLinkMessage.value
+        )
+    }
+
+    @Test
+    fun `opaque event copy key reopens one local ledger`() {
+        val app = ApplicationProvider.getApplicationContext<Application>()
+        val viewModel = EventViewModel(app)
+
+        val eventKey = "0123456789abcdef0123456789abcdef"
+        val expiry = System.currentTimeMillis() + 3600000L
+        val creator = "organizer@example.com"
+        val title = "Shared Event"
+        val checksum = viewModel.generateEventCopyChecksum(
+            eventKey = eventKey,
+            expiry = expiry,
+            creatorEmail = creator,
+            isPrivate = false,
+            title = title
+        )
+        val deepLinkUri = Uri.parse(
+            "https://gopib9119.github.io/event/join?eventKey=$eventKey" +
+                "&expiry=$expiry&checksum=$checksum&creatorEmail=$creator&title=$title&private=false"
+        )
+
+        viewModel.handleDeepLink(deepLinkUri)
+        awaitDeepLinkResult(viewModel)
+        assertNull(viewModel.deepLinkError.value)
+        val firstLocalEventId = (viewModel.navigationStack.last() as Screen.EventDetails).eventId
+
+        viewModel.dismissDeepLinkMessage()
+        viewModel.handleDeepLink(deepLinkUri)
+        awaitDeepLinkResult(viewModel)
+        assertNull(viewModel.deepLinkError.value)
+        val reopenedLocalEventId = (viewModel.navigationStack.last() as Screen.EventDetails).eventId
+
+        assertEquals(firstLocalEventId, reopenedLocalEventId)
     }
 
     @Test
@@ -190,6 +371,6 @@ class ExampleRobolectricTest {
         awaitDeepLinkResult(viewModel)
 
         assertNull(viewModel.deepLinkError.value)
-        assertEquals("Added 'OneDayEvent' to this device. Ledger entries do not sync between devices.", viewModel.deepLinkMessage.value)
+        assertEquals("Added an independent copy of 'OneDayEvent'. You were not added as a member; entries and balances do not sync.", viewModel.deepLinkMessage.value)
     }
 }

@@ -46,11 +46,12 @@ The receipt flow does not use:
 	 - scaled processed bitmap
 4. Latin and Devanagari OCR outputs are merged.
 5. Receipt fields are parsed.
-6. Confidence and warnings are generated.
+6. Amount evidence and optional-detail completeness are evaluated separately.
 7. Duplicate detection runs.
-8. JSON review is shown.
-9. Save is allowed only when safe.
-10. Room transaction and app-private JSON proof file are written.
+8. A compact human-readable review shows the amount, app, counterparty, date, and reference; users can correct or explicitly confirm the amount.
+9. The app-private JSON proof file must be written successfully before save can continue.
+10. Save is allowed only when amount evidence or explicit user confirmation, receipt context, duplicate clearance, attribution, and evidence persistence pass.
+11. The Room transaction references the private JSON proof record.
 
 ## Saved Receipt JSON
 
@@ -114,7 +115,9 @@ Important safeguards already implemented:
 
 ## Event-Copy Links
 
-Event-copy links are convenience links with checksum validation. They are not cryptographic access control or synchronized membership.
+Event-copy links use an opaque cross-device copy key plus checksum validation. Room integer IDs remain device-local, so unrelated ledgers with the same local ID do not conflict. Legacy numeric-ID links remain accepted.
+
+These links still create independent metadata shells. They are not cryptographic access control or synchronized membership, and they do not carry members, receipts, transactions, balances, or later changes.
 
 Do not describe event-copy links as secure, authenticated, or tamper-proof unless server-issued tokens are added later.
 
@@ -195,7 +198,7 @@ adb shell monkey -p com.aistudio.communityledger.yrtqwx 1
 
 ## Testing Notes
 
-The complete debug unit/Robolectric suite currently passes 39 tests across eight suites. The last complete Android instrumentation suite passes eight tests across six classes, covering Room collision safety, file-backed database reopen, shared receipt state, app context, six private real-image OCR fixtures, receipt attribution, and acknowledged deletion. First-use disclosure, local identity gating, Trust Center navigation, and an honest receipt-interruption notice after process death have also been verified through runtime interaction. The bounded workflow at `.github/workflows/android-ci.yml` runs compile, unit tests, and APK assembly with a 30-minute timeout; its exact command passes locally and on hosted GitHub runners.
+The complete debug unit/Robolectric suite currently passes 54 tests across nine suites. The last complete API 36 Android instrumentation suite passes 14 tests across six classes, covering compact receipt review, detected/edited amount confirmation, private evidence persistence, Room 4-to-5 migration, fail-closed numeric-ID and opaque-key collision safety, file-backed database reopen, shared receipt state, app context, six private real-image OCR fixtures, receipt attribution, and acknowledged deletion. First-use disclosure, local identity gating, Trust Center navigation, and an honest receipt-interruption notice after process death have also been verified through runtime interaction. The bounded workflow at `.github/workflows/android-ci.yml` runs compile, unit tests, and APK assembly with a 30-minute timeout; its exact command passes locally and on hosted GitHub runners.
 
 ## Launch Website
 

@@ -2,8 +2,22 @@ package com.example.receipt
 
 import java.util.regex.Pattern
 
+enum class AmountEvidenceSource {
+    NOT_DETECTED,
+    CURRENCY_MARKED,
+    AMOUNT_LABEL,
+    NEAR_AMOUNT_LABEL,
+    PARTY_LINE_AMOUNT,
+    TOP_RECEIPT_VALUE,
+    UNLABELLED_NUMBER,
+    USER_ENTERED,
+    USER_CONFIRMED
+}
+
 data class ParsedReceipt(
     val amount: Double = 0.0,
+    val amountEvidenceConfidence: Int = 0,
+    val amountEvidenceSource: AmountEvidenceSource = AmountEvidenceSource.NOT_DETECTED,
     val transactionId: String = "",
     val phone: String = "",
     val email: String = "",
@@ -14,6 +28,7 @@ data class ParsedReceipt(
     val extractionMethod: String = "No receipt data found",
     val rawTextPreview: String = "",
     val confidence: Int = 0,
+    val isReceiptLike: Boolean = false,
     val validationWarnings: List<String> = emptyList()
 )
 
@@ -39,7 +54,7 @@ object ReceiptParser {
 
             val parsed = value.replace(" ", "").replace(",", "").toDoubleOrNull()
             if (parsed != null && digitsOnly.length == 4 && parsed.toInt() in 2020..2035) return null
-            return parsed?.takeIf { it >= 1.0 && it <= 150000.0 }
+            return parsed?.takeIf { it >= 1.0 }
         }
 
         fun cleanReferenceId(value: String): String {
@@ -98,6 +113,7 @@ object ReceiptParser {
             val lowerLine = line.lowercase()
             val digitCount = line.count { it.isDigit() }
             return line.contains("@") ||
+                isDateLikeLine(line) ||
                 digitCount >= 10 ||
                 referenceLabelPattern.matcher(line).find() ||
                 containsToken(lowerLine, "\\b(?:account|card|bank|phone|mobile|contact|balance|powered|axis)\\b") ||
@@ -128,6 +144,13 @@ object ReceiptParser {
         fun cleanPartyCandidate(value: String): String? {
             val candidate = value
                 .replace(Regex("^(?:from|to|paid\\s+to|sent\\s+to|transferred\\s+to|received\\s+from|merchant|payee|recipient|banking\\s+name)\\s*:?\\s*", RegexOption.IGNORE_CASE), "")
+                .replace(
+                    Regex(
+                        "\\s+(?:(?:₹|Rs\\.?|INR)\\s*\\d[\\d,]*(?:\\.\\d{1,2})?|\\d{3,}(?:,\\d{2,3})+(?:\\.\\d{1,2})?)$",
+                        RegexOption.IGNORE_CASE
+                    ),
+                    ""
+                )
                 .trim()
                 .trim('-', ':', '•')
                 .trim()
@@ -175,53 +198,113 @@ object ReceiptParser {
             }
         }
 
-        data class AmountCandidate(val value: Double, val score: Int, val order: Int)
+        data class AmountCandidate(
+            val value: Double,
+            val score: Int,
+            val order: Int,
+            val source: AmountEvidenceSource
+        )
         val amountCandidates = mutableListOf<AmountCandidate>()
         var amountCandidateOrder = 0
         val amountNumberPattern = "([0-9]{1,3}(?:[ ,][0-9]{2,3})+(?:\\.\\d{1,2})?|[0-9]{1,6}(?:\\.\\d{1,2})?)"
         val currencyAmountPattern = Pattern.compile("(?:₹|Rs\\.?|INR)\\s*$amountNumberPattern|$amountNumberPattern\\s*(?:₹|Rs\\.?|INR)", Pattern.CASE_INSENSITIVE)
         val looseAmountPattern = Pattern.compile(amountNumberPattern)
         val standaloneAmountPattern = Pattern.compile("^(?:₹|Rs\\.?|INR)?\\s*$amountNumberPattern\\s*(?:₹|Rs\\.?|INR)?$", Pattern.CASE_INSENSITIVE)
-        val amountLabelPattern = Pattern.compile("\\b(?:paid|sent|amount|transfer|total|received|debited|credited|purchase|payment|transaction\\s+amount)\\b", Pattern.CASE_INSENSITIVE)
+        val amountLabelPattern = Pattern.compile(
+            "\\b(?:paid(?!\\s+to\\b)|sent(?!\\s+to\\b)|amount|transfer|total|received(?!\\s+from\\b)|debited|credited|purchase|payment|transaction\\s+amount)\\b",
+            Pattern.CASE_INSENSITIVE
+        )
+        val nearbyAmountNoisePattern = Pattern.compile(
+            "\\b(?:available\\s+balance|account\\s+balance|wallet\\s+balance|closing\\s+balance|credit\\s+limit|available\\s+limit|balance)\\b",
+            Pattern.CASE_INSENSITIVE
+        )
+        val partyLabelPattern = Pattern.compile(
+            "\\b(?:paid\\s+to|sent\\s+to|transferred\\s+to|received\\s+from|merchant|payee|recipient)\\b",
+            Pattern.CASE_INSENSITIVE
+        )
+        val trailingGroupedAmountPattern = Pattern.compile(
+            "([0-9]{1,3}(?:[ ,][0-9]{2,3})+(?:\\.\\d{1,2})?)\\s*$"
+        )
 
-        fun addAmountCandidate(rawValue: String, score: Int, sourceLine: String) {
+        fun addAmountCandidate(
+            rawValue: String,
+            score: Int,
+            sourceLine: String,
+            sourceIndex: Int,
+            source: AmountEvidenceSource
+        ) {
             if (isNumberNoiseLine(sourceLine)) return
+            val precedingLine = lines.getOrNull(sourceIndex - 1).orEmpty()
+            if (nearbyAmountNoisePattern.matcher(precedingLine).find()) return
             val parsed = parseAmountValue(rawValue) ?: return
-            amountCandidates += AmountCandidate(parsed, score, amountCandidateOrder++)
+            amountCandidates += AmountCandidate(parsed, score, amountCandidateOrder++, source)
         }
 
         lines.forEachIndexed { index, line ->
             val currencyMatcher = currencyAmountPattern.matcher(line)
             while (currencyMatcher.find()) {
-                addAmountCandidate(firstNonBlankGroup(currencyMatcher), 100, line)
+                addAmountCandidate(firstNonBlankGroup(currencyMatcher), 100, line, index, AmountEvidenceSource.CURRENCY_MARKED)
             }
 
             val standaloneMatcher = standaloneAmountPattern.matcher(line)
             if (standaloneMatcher.find()) {
                 val score = if (index <= 4) 90 else 55
-                addAmountCandidate(firstNonBlankGroup(standaloneMatcher), score, line)
+                addAmountCandidate(
+                    firstNonBlankGroup(standaloneMatcher),
+                    score,
+                    line,
+                    index,
+                    if (index <= 4) AmountEvidenceSource.TOP_RECEIPT_VALUE else AmountEvidenceSource.UNLABELLED_NUMBER
+                )
             }
 
             if (amountLabelPattern.matcher(line).find()) {
                 val lineMatcher = looseAmountPattern.matcher(line)
                 while (lineMatcher.find()) {
-                    addAmountCandidate(firstNonBlankGroup(lineMatcher), 80, line)
+                    addAmountCandidate(firstNonBlankGroup(lineMatcher), 80, line, index, AmountEvidenceSource.AMOUNT_LABEL)
                 }
 
-                lines.drop(index + 1).take(2).forEach { nearbyLine ->
+                lines.drop(index + 1).take(2).forEachIndexed { nearbyOffset, nearbyLine ->
+                    val nearbyIndex = index + nearbyOffset + 1
                     val nearbyCurrencyMatcher = currencyAmountPattern.matcher(nearbyLine)
                     var foundCurrencyNearby = false
                     while (nearbyCurrencyMatcher.find()) {
                         foundCurrencyNearby = true
-                        addAmountCandidate(firstNonBlankGroup(nearbyCurrencyMatcher), 95, nearbyLine)
+                        addAmountCandidate(
+                            firstNonBlankGroup(nearbyCurrencyMatcher),
+                            95,
+                            nearbyLine,
+                            nearbyIndex,
+                            AmountEvidenceSource.CURRENCY_MARKED
+                        )
                     }
 
                     if (!foundCurrencyNearby) {
                         val nearbyNumberMatcher = looseAmountPattern.matcher(nearbyLine)
                         while (nearbyNumberMatcher.find()) {
-                            addAmountCandidate(firstNonBlankGroup(nearbyNumberMatcher), 65, nearbyLine)
+                            addAmountCandidate(
+                                firstNonBlankGroup(nearbyNumberMatcher),
+                                65,
+                                nearbyLine,
+                                nearbyIndex,
+                                AmountEvidenceSource.NEAR_AMOUNT_LABEL
+                            )
                         }
                     }
+                }
+            }
+
+            val previousLine = lines.getOrNull(index - 1).orEmpty()
+            if (partyLabelPattern.matcher(line).find() || partyLabelPattern.matcher(previousLine).find()) {
+                val trailingAmountMatcher = trailingGroupedAmountPattern.matcher(line)
+                if (trailingAmountMatcher.find()) {
+                    addAmountCandidate(
+                        trailingAmountMatcher.group(1).orEmpty(),
+                        85,
+                        line,
+                        index,
+                        AmountEvidenceSource.PARTY_LINE_AMOUNT
+                    )
                 }
             }
         }
@@ -231,6 +314,7 @@ object ReceiptParser {
             .firstOrNull()
         amount = selectedAmountCandidate?.value ?: 0.0
         amountConfidence = selectedAmountCandidate?.score ?: 0
+        val amountEvidenceSource = selectedAmountCandidate?.source ?: AmountEvidenceSource.NOT_DETECTED
 
         data class ReferenceCandidate(val value: String, val priority: Int, val order: Int)
         val referenceCandidates = mutableListOf<ReferenceCandidate>()
@@ -314,10 +398,22 @@ object ReceiptParser {
 
         val warnings = mutableListOf<String>()
         if (amount <= 0.0) warnings += "Amount not detected; ledger calculation is blocked."
-        if (amountConfidence in 1..69) warnings += "Amount was detected with low OCR confidence."
+        if (amountConfidence in 1 until MIN_RELIABLE_AMOUNT_EVIDENCE) {
+            warnings += "Amount was found only as an unlabelled number."
+        }
         if (paymentApp == "Unknown UPI") warnings += "Payment app not detected."
         if (transactionId.isBlank()) warnings += "UPI reference or transaction ID not detected."
         if (counterpartyName.isBlank() && upiId.isBlank()) warnings += "Counterparty name or UPI ID not detected."
+
+        val receiptKeywords = listOf(
+            "upi", "utr", "txn", "transaction", "reference", "ref no", "paid", "sent",
+            "payment", "success", "successful", "completed", "received", "debited", "credited",
+            "bank", "approved", "approval code", "authorization code", "receipt", "purchase",
+            "google pay", "gpay", "phonepe", "paytm", "amazon pay", "samsung pay", "samsung wallet",
+            "₹", "rs.", "inr"
+        )
+        val isReceiptLike = receiptKeywords.any { lowerText.contains(it) }
+        if (!isReceiptLike) warnings += "Payment receipt context was not detected."
 
         val confidence = listOf(
             if (amount > 0.0) when {
@@ -335,6 +431,8 @@ object ReceiptParser {
 
         return ParsedReceipt(
             amount = amount,
+            amountEvidenceConfidence = amountConfidence,
+            amountEvidenceSource = amountEvidenceSource,
             transactionId = transactionId,
             phone = phone,
             email = email,
@@ -343,6 +441,7 @@ object ReceiptParser {
             date = dateStr,
             paymentApp = paymentApp,
             confidence = confidence,
+            isReceiptLike = isReceiptLike,
             validationWarnings = warnings
         )
     }

@@ -47,7 +47,7 @@ MemberEntity 1 -> many TransactionEntity (nullable memberId)
 
 Room
   -> events / members / transactions
-  -> explicit migrations 2 -> 3 -> 4
+  -> explicit migrations 2 -> 3 -> 4 -> 5
 
 SharedPreferences app_prefs
   -> local identity
@@ -89,7 +89,7 @@ picker or Android share intent
   -> ReceiptParser
   -> amount/reference/receiver/date + confidence/warnings
   -> duplicate and positive-amount gates
-  -> human JSON review
+  -> compact human review of amount and receipt details
   -> app-private JSON evidence
   -> validated Room transaction
   -> collected/spent/balance totals
@@ -106,8 +106,8 @@ Ownership:
 ```text
 organizer shares expiring checksum link
   -> recipient app validates shape/checksum/expiry
-  -> direct Room collision check
-  -> add metadata shell when local ID is free
+  -> find by opaque event-copy key
+  -> add metadata shell with a new local Room ID when absent
   -> open independent local event
 ```
 
@@ -172,7 +172,7 @@ Ownership:
 - Receipt OCR is evidence, not truth; no save without human review and policy gates.
 - Runtime receipt values must come from user input or real ML Kit output; no dummy, random, filename, Gemini, or cloud fallback.
 - Transaction amounts are finite, positive, and use a supported type.
-- Event-copy ID conflicts cannot replace an existing local ledger.
+- Event-copy key conflicts cannot replace an existing local ledger; Room IDs remain local.
 - Local email is a self-declared label, not authentication.
 - Public/private is a local marker, not access control.
 - Receipt/database/preferences are app-private and excluded from Android backup/device transfer.

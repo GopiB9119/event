@@ -5,9 +5,13 @@ import androidx.room.ForeignKey
 import androidx.room.Index
 import androidx.room.PrimaryKey
 
-@Entity(tableName = "events")
+@Entity(
+    tableName = "events",
+    indices = [Index(value = ["eventKey"], unique = true)]
+)
 data class EventEntity(
     @PrimaryKey(autoGenerate = true) val id: Int = 0,
+    val eventKey: String? = null,
     val title: String,
     val duration: String? = null,
     val createdDate: Long = System.currentTimeMillis(),

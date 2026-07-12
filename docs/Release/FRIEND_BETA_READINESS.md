@@ -23,6 +23,8 @@ Do not claim:
 
 ## Verified Release Evidence
 
+The counts in this section describe the published `0.2.0-beta.1` artifact and are retained as historical release evidence.
+
 - Explicit Room migrations; no destructive fallback
 - Event/member/transaction foreign keys
 - ML Kit-only OCR and private real-image checks
@@ -47,6 +49,19 @@ Do not claim:
 - Rebuilt candidate passed the complete API 36 Android suite: 6 classes / 8 tests / zero failures
 - Signed `0.2.0-beta.1` APK installed on a clean API 36 emulator, launched successfully, and cold-relaunched after force-stop with no crash/ANR record
 - Installed public APK manual update check reached the live manifest only after an explicit tap and reported `0.2.0-beta.1` current
+
+## Unreleased Event-Copy Fix Evidence
+
+- Receipt review is compact and human-readable; raw JSON, overall confidence percentages, terminal-like logs, and fake processing delays are removed.
+- Amount evidence is gated separately from optional detail completeness; large labelled amounts and balance-noise regressions pass, while unlabelled amounts require explicit confirmation.
+- Receipt evidence-file persistence and the Room mutation run in one awaited operation; database failure removes the new file, and the saved private JSON records its own path.
+- Full debug unit/Robolectric suite passed: 9 suites / 54 tests / zero failures, errors, or skips.
+- Complete isolated API 36 instrumentation suite passed: 6 classes / 14 tests / zero failures.
+- Room migration 4 to 5 preserved an existing event and transaction amount while assigning an opaque event key.
+- Reused numeric IDs from unrelated devices create distinct local shells; repeated opaque-key links reopen one shell.
+- Regular and event-copy inserts fail closed; duplicate opaque keys cannot replace a ledger or delete its transaction.
+- Static join fallback accepts both new `eventKey` and legacy `eventId` links; five-page site validation reports zero errors.
+- This evidence does not implement or verify live member, receipt, transaction, total, utilization, or event-detail synchronization.
 
 ## Current Signed Public Beta
 

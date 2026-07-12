@@ -19,11 +19,11 @@ The current product serves one organizer or one shared physical device used by a
 | Add members | Persisted per event |
 | Import receipt | Picker or Android share intent |
 | Extract receipt | On-device ML Kit Latin + Devanagari |
-| Review and save | JSON review, confidence warning, duplicate block |
+| Review and save | Compact amount/details review, explicit amount confirmation when needed, duplicate block |
 | View ledger | Collected, spent, balance, members, transactions |
 | Attribute receipt | User confirms the ledger contributor/payer or vendor separately from OCR Paid to evidence |
 | Delete transaction | Authorized user must acknowledge permanent total/balance impact before deletion |
-| Share event copy | Expiring convenience link with checksum |
+| Share event copy | Expiring convenience link with an opaque copy key and checksum |
 | Add event copy | Creates or opens an independent event metadata shell on that device |
 | Delete event | Creator-email comparison plus confirmation flow |
 
@@ -63,7 +63,7 @@ Public/private controls labels, dashboard filtering, and the marker copied in ev
 1. A new user understands before use that data is local and does not sync.
 2. Event creation, receipt import, review, save, and totals work on a real device.
 3. Invalid or duplicate receipt evidence cannot mutate totals.
-4. Event-copy link collisions fail without changing existing data.
+4. Reused Room IDs from different devices create distinct local shells without changing an existing ledger.
 5. App restart preserves saved events and transactions.
 6. Known limitations are visible in-app and in release notes.
 
@@ -77,6 +77,8 @@ Choose one direction before expanding features:
 2. **Shared multi-device ledger:** design authentication, server-issued event IDs, authorization, synchronization, conflict resolution, and privacy before writing sync code.
 
 Trying to imply multi-device sharing without that architecture will damage trust.
+
+The reported expectation is now concrete: after joining, users expect members, receipt submissions, contributor activity, collected/spent/balance totals, utilization, event details, and custom information to converge across devices. That is evidence for evaluating the shared-ledger direction, not evidence that the current copy link already provides it. Play production should not market this beta as collaboration while that gap remains.
 
 ## Money And Identity Vocabulary
 

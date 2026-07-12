@@ -58,7 +58,7 @@ Test at least one receipt-like sample for:
 1. Install latest debug APK.
 2. Open or create an event.
 3. Share a receipt image from a payment app into Community Ledger.
-4. Confirm extracted JSON.
+4. Review and confirm the extracted amount and receipt details; JSON remains private evidence.
 5. Save if confidence is valid.
 6. Verify event total changes exactly once.
 7. Re-share the same receipt and confirm duplicate blocking.

@@ -16,6 +16,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.room.Room
+import androidx.room.withTransaction
 import com.example.BuildConfig
 import com.example.data.AppDatabase
 import com.example.data.EventEntity
@@ -46,6 +47,7 @@ import kotlinx.coroutines.suspendCancellableCoroutine
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import java.util.UUID
 import org.json.JSONObject
 import kotlin.coroutines.resume
 
@@ -57,6 +59,7 @@ sealed class Screen {
 }
 
 private const val PREF_RECEIPT_REVIEW_IN_PROGRESS = "receipt_review_in_progress"
+private const val PREF_INSTALLATION_ID = "installation_id"
 
 class EventViewModel(application: Application) : AndroidViewModel(application) {
 
@@ -90,7 +93,11 @@ class EventViewModel(application: Application) : AndroidViewModel(application) {
                 application.applicationContext,
                 AppDatabase::class.java,
                 "community_ledger_db"
-            ).addMigrations(AppDatabase.MIGRATION_2_3, AppDatabase.MIGRATION_3_4)
+            ).addMigrations(
+                AppDatabase.MIGRATION_2_3,
+                AppDatabase.MIGRATION_3_4,
+                AppDatabase.MIGRATION_4_5
+            )
         }
         builder.build()
     }
@@ -241,6 +248,7 @@ class EventViewModel(application: Application) : AndroidViewModel(application) {
             }
 
             val newEvent = EventEntity(
+                eventKey = newEventKey(),
                 title = title,
                 duration = duration?.takeIf { it.isNotBlank() },
                 isPrivate = isPrivate,
@@ -328,76 +336,49 @@ class EventViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun addReceiptTransaction(
+    suspend fun persistReceiptTransactionWithEvidence(
+        txId: Int?,
         eventId: Int,
         personName: String,
         personPhone: String,
         personEmail: String,
         amount: Double,
         type: String,
-        notes: String? = null,
-        transactionId: String = "",
-        uploaderEmail: String = getMyUserEmail()
-    ) {
-        val cleanUploaderEmail = normalizeLocalIdentity(uploaderEmail) ?: return
-        if (!isValidLedgerTransaction(eventId, amount, type)) return
-        viewModelScope.launch {
-            val cleanName = personName.trim().ifBlank { cleanUploaderEmail.substringBefore("@").ifBlank { "Anonymous" } }
-            val cleanPhone = personPhone.trim()
-            val cleanEmail = personEmail.trim()
-            val memberId = resolveOrCreateMemberId(
-                eventId = eventId,
-                name = cleanName,
-                phone = cleanPhone,
-                email = cleanEmail,
-                role = if (type == "Expense" || type == "Debit") "Vendor" else "Donor"
-            )
-            repository.insertTransaction(
-                TransactionEntity(
-                    eventId = eventId,
-                    memberId = memberId,
-                    personName = cleanName,
-                    personPhone = cleanPhone,
-                    personEmail = cleanEmail,
-                    amount = amount,
-                    type = type,
-                    transactionId = transactionId.trim(),
-                    notes = notes?.trim(),
-                    uploaderEmail = cleanUploaderEmail
-                )
-            )
-        }
-    }
-
-    fun replaceReceiptTransaction(
-        txId: Int,
-        eventId: Int,
-        personName: String,
-        personPhone: String,
-        personEmail: String,
-        amount: Double,
-        type: String,
-        notes: String? = null,
+        receiptJsonText: String,
         transactionId: String = "",
         uploaderEmail: String = getMyUserEmail(),
         existingMemberId: Int? = null
-    ) {
-        val cleanUploaderEmail = normalizeLocalIdentity(uploaderEmail) ?: return
-        if (!isValidLedgerTransaction(eventId, amount, type)) return
-        viewModelScope.launch {
+    ): Boolean = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+        val cleanUploaderEmail = normalizeLocalIdentity(uploaderEmail) ?: return@withContext false
+        if (!isValidLedgerTransaction(eventId, amount, type)) return@withContext false
+
+        val storedReceiptPath = saveReceiptJsonFile(
+            eventId = eventId,
+            personName = personName,
+            uploaderEmail = cleanUploaderEmail,
+            receiptJsonText = receiptJsonText
+        ) ?: return@withContext false
+        val evidenceFile = java.io.File(storedReceiptPath)
+
+        try {
             val cleanName = personName.trim().ifBlank { cleanUploaderEmail.substringBefore("@").ifBlank { "Anonymous" } }
             val cleanPhone = personPhone.trim()
             val cleanEmail = personEmail.trim()
-            val memberId = existingMemberId ?: resolveOrCreateMemberId(
-                eventId = eventId,
-                name = cleanName,
-                phone = cleanPhone,
-                email = cleanEmail,
-                role = if (type == "Expense" || type == "Debit") "Vendor" else "Donor"
-            )
-            repository.insertTransaction(
-                TransactionEntity(
-                    id = txId,
+            val storedReceiptJson = JSONObject(receiptJsonText).apply {
+                put("receiptFilePath", storedReceiptPath)
+            }.toString(2)
+
+            val insertedId = database.withTransaction {
+                val memberId = existingMemberId ?: resolveOrCreateMemberId(
+                    eventId = eventId,
+                    name = cleanName,
+                    phone = cleanPhone,
+                    email = cleanEmail,
+                    role = if (type == "Expense" || type == "Debit") "Vendor" else "Donor"
+                )
+                repository.insertTransaction(
+                    TransactionEntity(
+                    id = txId ?: 0,
                     eventId = eventId,
                     memberId = memberId,
                     personName = cleanName,
@@ -406,10 +387,21 @@ class EventViewModel(application: Application) : AndroidViewModel(application) {
                     amount = amount,
                     type = type,
                     transactionId = transactionId.trim(),
-                    notes = notes?.trim(),
+                    notes = storedReceiptJson,
                     uploaderEmail = cleanUploaderEmail
                 )
-            )
+                )
+            }
+            if (insertedId == -1L) {
+                evidenceFile.delete()
+                false
+            } else {
+                true
+            }
+        } catch (error: Exception) {
+            evidenceFile.delete()
+            error.printStackTrace()
+            false
         }
     }
 
@@ -437,8 +429,10 @@ class EventViewModel(application: Application) : AndroidViewModel(application) {
             }
 
             val txPart = receiptJson.optString("upiReferenceOrTransactionId").takeIf { it.isNotBlank() && it != "null" }
-                ?: System.currentTimeMillis().toString()
-            val file = java.io.File(directory, "receipt_${safeFileSegment(txPart)}.json")
+                ?: "no_reference"
+            val uniquePart = "${System.currentTimeMillis()}_${UUID.randomUUID()}"
+            val file = java.io.File(directory, "receipt_${safeFileSegment(txPart)}_$uniquePart.json")
+            receiptJson.put("receiptFilePath", file.absolutePath)
             file.writeText(receiptJson.toString(2))
             file.absolutePath
         } catch (e: Exception) {
@@ -620,6 +614,22 @@ class EventViewModel(application: Application) : AndroidViewModel(application) {
         return checksumFor(raw)
     }
 
+    fun getEventShareKey(event: EventEntity): String {
+        return event.eventKey?.takeIf { it.isNotBlank() }
+            ?: sha256Hex("${getOrCreateInstallationId()}:${event.id}:${event.createdDate}").take(32)
+    }
+
+    fun generateEventCopyChecksum(
+        eventKey: String,
+        expiry: Long,
+        creatorEmail: String,
+        isPrivate: Boolean,
+        title: String
+    ): String {
+        val raw = "eventKey=${eventKey.trim()}&expiry=$expiry&creatorEmail=${creatorEmail.trim()}&private=$isPrivate&title=${title.trim()}"
+        return checksumFor(raw)
+    }
+
     private fun generateLegacyInviteChecksum(
         eventId: Int,
         expiry: Long,
@@ -631,12 +641,29 @@ class EventViewModel(application: Application) : AndroidViewModel(application) {
 
     private fun checksumFor(raw: String): String {
         return try {
-            val digest = java.security.MessageDigest.getInstance("SHA-256")
-            val hash = digest.digest(raw.toByteArray(Charsets.UTF_8))
-            hash.joinToString("") { "%02x".format(it) }.take(16)
+            sha256Hex(raw).take(16)
         } catch (e: Exception) {
             raw.hashCode().toString()
         }
+    }
+
+    private fun sha256Hex(raw: String): String {
+        val digest = java.security.MessageDigest.getInstance("SHA-256")
+        return digest.digest(raw.toByteArray(Charsets.UTF_8))
+            .joinToString("") { "%02x".format(it) }
+    }
+
+    private fun newEventKey(): String = UUID.randomUUID().toString().replace("-", "")
+
+    private fun getOrCreateInstallationId(): String {
+        sharedPrefs.getString(PREF_INSTALLATION_ID, null)?.takeIf { it.isNotBlank() }?.let { return it }
+        val installationId = newEventKey()
+        sharedPrefs.edit().putString(PREF_INSTALLATION_ID, installationId).commit()
+        return installationId
+    }
+
+    private fun legacyEventKey(eventId: Int, creatorEmail: String, isPrivate: Boolean): String {
+        return sha256Hex("legacy:$eventId:${creatorEmail.trim().lowercase(Locale.ROOT)}:$isPrivate").take(32)
     }
 
     fun handleDeepLink(uri: android.net.Uri) {
@@ -644,6 +671,7 @@ class EventViewModel(application: Application) : AndroidViewModel(application) {
         _deepLinkMessage.value = null
         viewModelScope.launch {
             try {
+                val eventKeyParam = uri.getQueryParameter("eventKey")
                 val eventIdStr = uri.getQueryParameter("eventId")
                 val expiryStr = uri.getQueryParameter("expiry")
                 val checksum = uri.getQueryParameter("checksum") ?: uri.getQueryParameter("signature")
@@ -652,23 +680,43 @@ class EventViewModel(application: Application) : AndroidViewModel(application) {
                 val hasPrivateMarker = uri.getQueryParameter("private") != null
                 val linkIsPrivate = uri.getQueryParameter("private")?.equals("true", ignoreCase = true) == true
 
-                if (eventIdStr == null || expiryStr == null || checksum == null) {
+                if ((eventKeyParam == null && eventIdStr == null) || expiryStr == null || checksum == null) {
                     _deepLinkError.value = "Malformed event-copy link: required link components are missing."
                     return@launch
                 }
 
-                val eventId = decodeEventId(eventIdStr) ?: eventIdStr.toIntOrNull() ?: 0
                 val expiry = expiryStr.toLongOrNull() ?: 0L
-                if (eventId <= 0) {
-                    _deepLinkError.value = "Invalid event-copy link: event id is not valid."
-                    return@launch
-                }
-
-                val expectedChecksum = generateInviteChecksum(eventId, expiry, creatorEmail, linkIsPrivate)
-                val legacyChecksum = generateLegacyInviteChecksum(eventId, expiry, creatorEmail)
-                if (checksum != expectedChecksum && (hasPrivateMarker || checksum != legacyChecksum)) {
-                    _deepLinkError.value = "Invalid event-copy link: link details do not match their checksum."
-                    return@launch
+                val eventKey = if (eventKeyParam != null) {
+                    val normalizedEventKey = eventKeyParam.trim().lowercase(Locale.ROOT)
+                    if (!normalizedEventKey.matches(Regex("[0-9a-f]{32}"))) {
+                        _deepLinkError.value = "Invalid event-copy link: event key is not valid."
+                        return@launch
+                    }
+                    val expectedChecksum = generateEventCopyChecksum(
+                        eventKey = normalizedEventKey,
+                        expiry = expiry,
+                        creatorEmail = creatorEmail,
+                        isPrivate = linkIsPrivate,
+                        title = title
+                    )
+                    if (checksum != expectedChecksum) {
+                        _deepLinkError.value = "Invalid event-copy link: link details do not match their checksum."
+                        return@launch
+                    }
+                    normalizedEventKey
+                } else {
+                    val legacyEventId = decodeEventId(eventIdStr.orEmpty()) ?: eventIdStr?.toIntOrNull() ?: 0
+                    if (legacyEventId <= 0) {
+                        _deepLinkError.value = "Invalid event-copy link: event id is not valid."
+                        return@launch
+                    }
+                    val expectedChecksum = generateInviteChecksum(legacyEventId, expiry, creatorEmail, linkIsPrivate)
+                    val legacyChecksum = generateLegacyInviteChecksum(legacyEventId, expiry, creatorEmail)
+                    if (checksum != expectedChecksum && (hasPrivateMarker || checksum != legacyChecksum)) {
+                        _deepLinkError.value = "Invalid event-copy link: link details do not match their checksum."
+                        return@launch
+                    }
+                    legacyEventKey(legacyEventId, creatorEmail, linkIsPrivate)
                 }
 
                 if (expiry != 0L && System.currentTimeMillis() > expiry) {
@@ -677,31 +725,17 @@ class EventViewModel(application: Application) : AndroidViewModel(application) {
                     return@launch
                 }
 
-                // Read Room directly. The reactive events flow may still hold its empty initial
-                // value when a launch intent arrives before the dashboard starts collecting it.
                 val existingEvent = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-                    repository.getEventByIdOnce(eventId)
+                    repository.getEventByEventKeyOnce(eventKey)
                 }
-                if (existingEvent != null) {
-                    val existingCreatorEmail = try {
-                        JSONObject(existingEvent.customFieldsJson).optString("creatorEmail", "")
-                    } catch (e: Exception) {
-                        ""
-                    }
-                    val titleMatches = existingEvent.title == title
-                    val creatorMatches = creatorEmail.isBlank() ||
-                        existingCreatorEmail.isBlank() ||
-                        existingCreatorEmail.equals(creatorEmail, ignoreCase = true)
-                    if (!titleMatches || !creatorMatches) {
-                        _deepLinkError.value = "Cannot add this event copy: its link ID conflicts with a different ledger already stored on this device."
-                        return@launch
-                    }
+                val localEvent = if (existingEvent != null) {
+                    existingEvent
                 } else {
                     val json = org.json.JSONObject()
                     json.put("creatorEmail", creatorEmail)
                     json.put("visibility", if (linkIsPrivate) "private" else "public")
                     val newEvent = EventEntity(
-                        id = eventId,
+                        eventKey = eventKey,
                         title = title,
                         createdDate = System.currentTimeMillis(),
                         isPrivate = linkIsPrivate,
@@ -711,16 +745,24 @@ class EventViewModel(application: Application) : AndroidViewModel(application) {
                         repository.insertEventIfAbsent(newEvent)
                     }
                     if (insertedId == -1L) {
-                        _deepLinkError.value = "Cannot add this event copy because its local ledger ID is already in use."
-                        return@launch
+                        val concurrentlyInserted = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                            repository.getEventByEventKeyOnce(eventKey)
+                        }
+                        if (concurrentlyInserted == null) {
+                            _deepLinkError.value = "Cannot add this event copy because its event identity is already in use."
+                            return@launch
+                        }
+                        concurrentlyInserted
+                    } else {
+                        newEvent.copy(id = insertedId.toInt())
                     }
                 }
 
                 // Success: increment local link clicks and open the matching event.
-                incrementLinkClicks(eventId)
-                selectEvent(eventId)
+                incrementLinkClicks(localEvent.id)
+                selectEvent(localEvent.id)
 
-                _deepLinkMessage.value = "Added '$title' to this device. Ledger entries do not sync between devices."
+                _deepLinkMessage.value = "Added an independent copy of '${localEvent.title}'. You were not added as a member; entries and balances do not sync."
             } catch (e: Exception) {
                 _deepLinkError.value = "Event-copy link check failed: ${e.localizedMessage}"
             }

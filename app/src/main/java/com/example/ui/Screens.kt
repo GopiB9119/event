@@ -14,6 +14,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -39,6 +40,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -49,8 +51,11 @@ import com.example.data.MemberEntity
 import com.example.data.TransactionEntity
 import com.example.data.normalizeLocalIdentity
 import com.example.receipt.ParsedReceipt
+import com.example.receipt.AmountEvidenceSource
+import com.example.receipt.MIN_RELIABLE_AMOUNT_EVIDENCE
 import com.example.receipt.ReceiptLedgerIdentity
 import com.example.receipt.defaultReceiptLedgerPersonName
+import com.example.receipt.evaluateReceiptSaveEligibility
 import com.example.receipt.resolveNewReceiptLedgerIdentity
 import android.net.Uri
 import android.widget.Toast
@@ -61,12 +66,12 @@ import androidx.compose.material.icons.automirrored.filled.EventNote
 import androidx.compose.material.icons.automirrored.filled.ReceiptLong
 import androidx.compose.material.icons.automirrored.filled.TrendingDown
 import androidx.compose.material.icons.automirrored.filled.TrendingUp
-import kotlinx.coroutines.delay
 import org.json.JSONObject
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import java.util.regex.Pattern
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -215,6 +220,53 @@ private enum class IdentityRequiredAction {
     ScanReceipt,
     ProcessSharedReceipt,
     ReplaceReceipt
+}
+
+private fun receiptAmountInputValue(amount: Double): String {
+    if (!amount.isFinite() || amount <= 0.0) return ""
+    return if (amount % 1.0 == 0.0) amount.toLong().toString() else amount.toString()
+}
+
+private fun parseReceiptAmountInput(value: String): Double? {
+    return value.replace(",", "").trim().toDoubleOrNull()?.takeIf { it.isFinite() && it > 0.0 }
+}
+
+private fun amountEvidenceLabel(source: AmountEvidenceSource, userConfirmed: Boolean): String {
+    if (userConfirmed) return "Confirmed by you"
+    return when (source) {
+        AmountEvidenceSource.CURRENCY_MARKED -> "Found with currency"
+        AmountEvidenceSource.AMOUNT_LABEL -> "Found on an amount line"
+        AmountEvidenceSource.NEAR_AMOUNT_LABEL -> "Found near an amount label"
+        AmountEvidenceSource.PARTY_LINE_AMOUNT -> "Found beside the counterparty"
+        AmountEvidenceSource.TOP_RECEIPT_VALUE -> "Found near the top of the receipt"
+        AmountEvidenceSource.UNLABELLED_NUMBER -> "Found as an unlabelled number"
+        AmountEvidenceSource.USER_ENTERED -> "Entered by you · confirmation required"
+        AmountEvidenceSource.USER_CONFIRMED -> "Confirmed by you"
+        AmountEvidenceSource.NOT_DETECTED -> "Not detected"
+    }
+}
+
+@Composable
+private fun ReceiptDetailRow(label: String, value: String) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.Top
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.weight(0.38f)
+        )
+        Text(
+            text = value,
+            style = MaterialTheme.typography.bodySmall,
+            fontWeight = FontWeight.SemiBold,
+            textAlign = TextAlign.End,
+            modifier = Modifier.weight(0.62f)
+        )
+    }
 }
 
 @Composable
@@ -458,7 +510,7 @@ fun DashboardScreen(viewModel: EventViewModel) {
                     )
 
                     Text(
-                        text = "Data stays on this device. Invite links copy event details but do not sync balances, transactions, or receipts.",
+                        text = "Data stays on this device. Event-copy links carry only the title, organizer label, and visibility marker; they do not sync custom fields, balances, transactions, members, or receipts.",
                         style = MaterialTheme.typography.bodySmall,
                         color = Color.White.copy(alpha = 0.85f),
                         lineHeight = 16.sp
@@ -1734,6 +1786,7 @@ fun EventDetailsScreen(eventId: Int, viewModel: EventViewModel) {
     val invitedList by viewModel.selectedEventMembers.collectAsStateWithLifecycle()
     val currentUserEmail by viewModel.userEmail.collectAsStateWithLifecycle()
     val pendingSharedReceipt by viewModel.pendingSharedReceipt.collectAsStateWithLifecycle()
+    val receiptSaveScope = rememberCoroutineScope()
 
     // Dialog state controllers
     var isInviteDialogOpen by remember { mutableStateOf(false) }
@@ -1879,7 +1932,7 @@ fun EventDetailsScreen(eventId: Int, viewModel: EventViewModel) {
                         }
                     }) {
                         Icon(
-                            imageVector = Icons.Default.PersonAdd,
+                            imageVector = Icons.Default.Share,
                             contentDescription = "Share event copy",
                             tint = MaterialTheme.colorScheme.primary
                         )
@@ -2303,7 +2356,7 @@ fun EventDetailsScreen(eventId: Int, viewModel: EventViewModel) {
                             },
                             colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.primary)
                         ) {
-                            Icon(Icons.Default.Add, contentDescription = "Share event copy", modifier = Modifier.size(16.dp))
+                            Icon(Icons.Default.Share, contentDescription = "Share event copy", modifier = Modifier.size(16.dp))
                             Spacer(modifier = Modifier.width(4.dp))
                             Text("Share Copy", fontSize = 12.sp, fontWeight = FontWeight.Bold)
                         }
@@ -2311,7 +2364,7 @@ fun EventDetailsScreen(eventId: Int, viewModel: EventViewModel) {
 
                     if (invitedList.isEmpty()) {
                         Text(
-                            text = "Add members to link their contributions and expenses",
+                            text = "Members appear after a transaction is saved for them on this device. Sharing a copy does not add a member.",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.padding(horizontal = 4.dp, vertical = 8.dp)
@@ -2639,7 +2692,7 @@ fun EventDetailsScreen(eventId: Int, viewModel: EventViewModel) {
         )
     }
 
-    // 1. Share Event Copy Dialog (Includes link generation and local member registration)
+    // 1. Share Event Copy Dialog
     if (isInviteDialogOpen) {
         val context = LocalContext.current
 
@@ -2667,14 +2720,15 @@ fun EventDetailsScreen(eventId: Int, viewModel: EventViewModel) {
         val expiryVal = System.currentTimeMillis() + durationMs
 
         val creatorEmail = viewModel.getMyUserEmail()
-        val encodedEventId = viewModel.encodeEventId(currentEvent.id)
-        val checksum = viewModel.generateInviteChecksum(
-            eventId = currentEvent.id,
+        val eventKey = viewModel.getEventShareKey(currentEvent)
+        val checksum = viewModel.generateEventCopyChecksum(
+            eventKey = eventKey,
             expiry = expiryVal,
             creatorEmail = creatorEmail,
-            isPrivate = currentEvent.isPrivate
+            isPrivate = currentEvent.isPrivate,
+            title = currentEvent.title
         )
-        val generatedLink = "https://gopib9119.github.io/event/join/?eventId=${Uri.encode(encodedEventId)}&expiry=$expiryVal&checksum=$checksum&title=${Uri.encode(currentEvent.title)}&creatorEmail=${Uri.encode(creatorEmail)}&private=${currentEvent.isPrivate}"
+        val generatedLink = "https://gopib9119.github.io/event/join/?eventKey=$eventKey&expiry=$expiryVal&checksum=$checksum&title=${Uri.encode(currentEvent.title)}&creatorEmail=${Uri.encode(creatorEmail)}&private=${currentEvent.isPrivate}"
 
         val formattedExpiry = remember(expiryVal) {
             SimpleDateFormat("dd MMM hh:mm a", Locale.getDefault()).format(Date(expiryVal))
@@ -2701,7 +2755,7 @@ fun EventDetailsScreen(eventId: Int, viewModel: EventViewModel) {
                 append("*Organizer:* ${creatorEmail.ifBlank { "Community Member" }}\n")
                 append("*Visibility:* ${if (currentEvent.isPrivate) "Private marker" else "Public marker"}\n")
                 append("*Link Expires:* $formattedExpiry ($linkDurationHours)\n")
-                append("*Local only:* This link adds event details. Ledger entries and balances do not sync between devices.\n")
+                append("*Local only:* This link adds the event title, organizer label, and visibility marker. It does not add the recipient as a member or sync custom fields, entries, and balances.\n")
                 
                 append("Open the link below to add an independent local copy:\n")
                 append("🔗 $generatedLink\n\n")
@@ -2739,7 +2793,7 @@ fun EventDetailsScreen(eventId: Int, viewModel: EventViewModel) {
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     Text(
-                        text = "This link adds an event shell on another device; it does not sync ledger entries or balances. It preserves the public/private marker and includes a checksum for accidental changes, not security.",
+                        text = "This link adds an independent shell with the event title, organizer label, and visibility marker. It does not add the recipient as a member or sync custom fields, entries, and balances. Its checksum detects accidental changes; it is not security.",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -3075,45 +3129,15 @@ fun EventDetailsScreen(eventId: Int, viewModel: EventViewModel) {
         )
     }
 
-    // Real-time Image Processing Pipeline Terminal
+    // Receipt image processing
     if (isProcessingPipelineActive && selectedImageUriForPipeline != null) {
         val selectedUri = selectedImageUriForPipeline!!
         val context = LocalContext.current
-        var currentStep by remember { mutableStateOf(0) }
-        val logs = remember { mutableStateListOf<String>() }
 
         LaunchedEffect(selectedUri, receiptProcessingToken) {
-            logs.clear()
             extractedReceiptToVerify = null
             isVerifyReceiptDialogOpen = false
-            logs.add("⏳ [INIT] Preparing local OCR cleanup pipeline...")
-            delay(800)
-            currentStep = 1
-            logs.add("🔒 [PRIVACY] Stripping sensitive EXIF metadata, GPS details, and camera tags...")
-            // Call the real EXIF stripper
-            val cleanBitmap = viewModel.stripImageMetadataAndProcess(context, selectedUri)
-            delay(1000)
-            currentStep = 2
-            if (cleanBitmap != null) {
-                logs.add("✨ [PRIVACY] OCR bitmap prepared without image metadata.")
-            } else {
-                logs.add("⚠️ [PRIVACY] Using processed image stream for OCR.")
-            }
-            delay(600)
-            currentStep = 3
-            logs.add("🎨 [PREPROCESS] Applying grayscale filter and 1.5x color matrix contrast...")
-            delay(800)
-            currentStep = 4
-            logs.add("🔍 [OCR] Reading text directly from the selected image...")
             val parsedResult = viewModel.extractReceiptFromUri(context, selectedUri)
-            delay(1000)
-            currentStep = 5
-            logs.add("⚡ [METHOD] Extraction Method used: ${parsedResult.extractionMethod}")
-            logs.add("🎯 [EXTRACT] Amount: ₹${parsedResult.amount}, ID: ${parsedResult.transactionId}")
-            delay(800)
-            currentStep = 6
-            logs.add("🧾 [REVIEW] Extraction ready. Please verify before saving to ledger...")
-            delay(800)
             extractedReceiptToVerify = parsedResult
             transactionPendingReceiptReview = null
             if (clearPendingSharedReceiptAfterProcessing) {
@@ -3121,6 +3145,7 @@ fun EventDetailsScreen(eventId: Int, viewModel: EventViewModel) {
                 clearPendingSharedReceiptAfterProcessing = false
             }
             isProcessingPipelineActive = false
+            selectedImageUriForPipeline = null
             isVerifyReceiptDialogOpen = true
         }
 
@@ -3137,67 +3162,29 @@ fun EventDetailsScreen(eventId: Int, viewModel: EventViewModel) {
             title = {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(
-                        imageVector = Icons.Default.SettingsSuggest,
-                        contentDescription = "Processing",
+                        imageVector = Icons.Default.DocumentScanner,
+                        contentDescription = null,
                         tint = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.size(28.dp)
                     )
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("Image Processing", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                    Text("Reading Receipt", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                 }
             },
             text = {
                 Column(
-                    verticalArrangement = Arrangement.spacedBy(12.dp),
-                    modifier = Modifier.fillMaxWidth()
+                    verticalArrangement = Arrangement.spacedBy(16.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 8.dp)
+                        .testTag("receipt_processing_dialog")
                 ) {
+                    CircularProgressIndicator(modifier = Modifier.size(36.dp))
                     Text(
-                        text = "Reading text from the selected payment screenshot. Nothing is saved until you confirm the extracted values.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-
-                    // Terminal-style Box
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .heightIn(min = 160.dp, max = 240.dp)
-                            .background(Color(0xFF1E1E1E), RoundedCornerShape(12.dp))
-                            .border(1.dp, Color(0xFF333333), RoundedCornerShape(12.dp))
-                            .padding(12.dp)
-                    ) {
-                        LazyColumn(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                            items(logs) { log ->
-                                Text(
-                                    text = log,
-                                    fontFamily = FontFamily.Monospace,
-                                    fontSize = 11.sp,
-                                    color = if (log.contains("🎯") || log.contains("✨")) Color(0xFF4CAF50) else if (log.contains("⚠️")) Color(0xFFFFEB3B) else Color(0xFF00FF00)
-                                )
-                            }
-                        }
-                    }
-
-                    // Progress Loader Row
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.Center,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        LinearProgressIndicator(
-                            progress = { currentStep.toFloat() / 6f },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(6.dp)
-                                .clip(RoundedCornerShape(3.dp)),
-                            color = MaterialTheme.colorScheme.primary,
-                            trackColor = MaterialTheme.colorScheme.primaryContainer
-                        )
-                    }
-                    Text(
-                        text = "Scrubbing original headers to block camera, location, and device metadata leaking into ledger archives...",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                        text = "Reading this image on your device. Nothing is saved until you review and confirm the result.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         textAlign = TextAlign.Center,
                         modifier = Modifier.fillMaxWidth()
                     )
@@ -3273,48 +3260,20 @@ fun EventDetailsScreen(eventId: Int, viewModel: EventViewModel) {
         )
     }
 
-    // Real-time Image Processing Pipeline Terminal for screenshot replacements
+    // Replacement receipt image processing
     if (isReplacementPipelineActive && selectedImageUriForReplacementPipeline != null && replacingTransaction != null) {
         val selectedUri = selectedImageUriForReplacementPipeline!!
         val context = LocalContext.current
         val txToReplace = replacingTransaction!!
-        var currentStep by remember { mutableStateOf(0) }
-        val logs = remember { mutableStateListOf<String>() }
 
         LaunchedEffect(selectedUri, replacementProcessingToken) {
-            logs.clear()
             extractedReceiptToVerify = null
             isVerifyReceiptDialogOpen = false
-            logs.add("⏳ [INIT] Preparing local OCR cleanup pipeline...")
-            delay(600)
-            currentStep = 1
-            logs.add("🔒 [PRIVACY] Stripping sensitive EXIF metadata, GPS details, and camera tags...")
-            val cleanBitmap = viewModel.stripImageMetadataAndProcess(context, selectedUri)
-            delay(800)
-            currentStep = 2
-            if (cleanBitmap != null) {
-                logs.add("✨ [PRIVACY] OCR bitmap prepared without image metadata.")
-            } else {
-                logs.add("⚠️ [PRIVACY] Using processed image stream for OCR.")
-            }
-            delay(500)
-            currentStep = 3
-            logs.add("🎨 [PREPROCESS] Boosting contrast and threshold levels for OCR readability...")
-            delay(600)
-            currentStep = 4
-            logs.add("🔍 [OCR] Reading text directly from the replacement image...")
             val parsedResult = viewModel.extractReceiptFromUri(context, selectedUri)
-            delay(800)
-            currentStep = 5
-            logs.add("⚡ [METHOD] Extraction Method used: ${parsedResult.extractionMethod}")
-            logs.add("🎯 [EXTRACT] Extraction completed: Amount: ₹${parsedResult.amount}, ID: ${parsedResult.transactionId}")
-            delay(600)
-            currentStep = 6
-            logs.add("🧾 [REVIEW] Replacement extraction ready. Please verify before saving...")
-            delay(600)
             extractedReceiptToVerify = parsedResult
             transactionPendingReceiptReview = txToReplace
             isReplacementPipelineActive = false
+            selectedImageUriForReplacementPipeline = null
             replacingTransaction = null
             isVerifyReceiptDialogOpen = true
         }
@@ -3328,54 +3287,30 @@ fun EventDetailsScreen(eventId: Int, viewModel: EventViewModel) {
             title = {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(
-                        imageVector = Icons.Default.SettingsSuggest,
-                        contentDescription = "Processing",
+                        imageVector = Icons.Default.DocumentScanner,
+                        contentDescription = null,
                         tint = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.size(28.dp)
                     )
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("Processing Replacement Image", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                    Text("Reading Replacement", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                 }
             },
             text = {
                 Column(
-                    verticalArrangement = Arrangement.spacedBy(12.dp),
-                    modifier = Modifier.fillMaxWidth()
+                    verticalArrangement = Arrangement.spacedBy(16.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 8.dp)
+                        .testTag("replacement_receipt_processing_dialog")
                 ) {
+                    CircularProgressIndicator(modifier = Modifier.size(36.dp))
                     Text(
-                        text = "Running local OCR cleanup to replace screenshot on entry ID: ${txToReplace.id}...",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .heightIn(min = 140.dp, max = 220.dp)
-                            .background(Color(0xFF1E1E1E), RoundedCornerShape(12.dp))
-                            .border(1.dp, Color(0xFF333333), RoundedCornerShape(12.dp))
-                            .padding(12.dp)
-                    ) {
-                        LazyColumn(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                            items(logs) { log ->
-                                Text(
-                                    text = log,
-                                    fontFamily = FontFamily.Monospace,
-                                    fontSize = 11.sp,
-                                    color = if (log.contains("🎯") || log.contains("✨")) Color(0xFF4CAF50) else if (log.contains("⚠️")) Color(0xFFFFEB3B) else Color(0xFF00FF00)
-                                )
-                            }
-                        }
-                    }
-
-                    LinearProgressIndicator(
-                        progress = { currentStep.toFloat() / 6f },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(6.dp)
-                            .clip(RoundedCornerShape(3.dp)),
-                        color = MaterialTheme.colorScheme.primary,
-                        trackColor = MaterialTheme.colorScheme.primaryContainer
+                        text = "Reading the new image on your device. The existing ledger entry is unchanged until you review and confirm.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.Center
                     )
                 }
             },
@@ -3387,6 +3322,33 @@ fun EventDetailsScreen(eventId: Int, viewModel: EventViewModel) {
     if (isVerifyReceiptDialogOpen && extractedReceiptToVerify != null) {
         val parsed = extractedReceiptToVerify!!
         val replacementTarget = transactionPendingReceiptReview
+        var amountInput by remember(parsed, replacementTarget) {
+            mutableStateOf(receiptAmountInputValue(parsed.amount))
+        }
+        var weakAmountConfirmed by remember(parsed, replacementTarget) { mutableStateOf(false) }
+        var receiptSaveError by remember(parsed, replacementTarget) { mutableStateOf<String?>(null) }
+        var isReceiptSaveInProgress by remember(parsed, replacementTarget) { mutableStateOf(false) }
+        val reviewedAmount = parseReceiptAmountInput(amountInput)
+        val amountWasChanged = reviewedAmount != null && kotlin.math.abs(reviewedAmount - parsed.amount) >= 0.01
+        val amountConfirmedDuringReview = weakAmountConfirmed
+        val reviewedReceipt = when {
+            reviewedAmount == null -> parsed.copy(
+                amount = 0.0,
+                amountEvidenceConfidence = 0,
+                amountEvidenceSource = AmountEvidenceSource.NOT_DETECTED
+            )
+            amountConfirmedDuringReview -> parsed.copy(
+                amount = reviewedAmount,
+                amountEvidenceConfidence = 100,
+                amountEvidenceSource = AmountEvidenceSource.USER_CONFIRMED
+            )
+            amountWasChanged -> parsed.copy(
+                amount = reviewedAmount,
+                amountEvidenceConfidence = 0,
+                amountEvidenceSource = AmountEvidenceSource.USER_ENTERED
+            )
+            else -> parsed
+        }
         var receiptType by remember(parsed, replacementTarget) {
             mutableStateOf(replacementTarget?.type ?: "Donated")
         }
@@ -3435,7 +3397,7 @@ fun EventDetailsScreen(eventId: Int, viewModel: EventViewModel) {
             }
         }
 
-        val duplicateReceipt = remember(transactions, parsed, extractedPhone, extractedDate, replacementTarget) {
+        val duplicateReceipt = remember(transactions, reviewedReceipt, extractedPhone, extractedDate, replacementTarget) {
             val newReference = parsed.transactionId.trim()
             val newCounterparty = parsed.counterpartyName.trim()
             val newUpiId = parsed.upiId.trim()
@@ -3452,13 +3414,13 @@ fun EventDetailsScreen(eventId: Int, viewModel: EventViewModel) {
                     return@firstOrNull true
                 }
 
-                if (parsed.amount <= 0.0) return@firstOrNull false
+                if (reviewedReceipt.amount <= 0.0) return@firstOrNull false
                 val existingAmount = if (existingJson != null && !existingJson.isNull("amount")) {
                     existingJson.optDouble("amount", tx.amount)
                 } else {
                     tx.amount
                 }
-                val amountMatches = kotlin.math.abs(existingAmount - parsed.amount) < 0.01
+                val amountMatches = kotlin.math.abs(existingAmount - reviewedReceipt.amount) < 0.01
                 if (!amountMatches) return@firstOrNull false
 
                 val existingDate = cleanJsonString(existingJson, "date")
@@ -3485,9 +3447,26 @@ fun EventDetailsScreen(eventId: Int, viewModel: EventViewModel) {
                 "Same amount with matching receipt details already exists."
             }
         }
-        val canSaveReceipt = parsed.amount > 0.0 && parsed.confidence >= 60 && duplicateReceipt == null && ledgerIdentity != null
-        val extractionLooksEmpty = parsed.amount <= 0.0 && parsed.transactionId.isBlank() && parsed.phone.isBlank() && parsed.email.isBlank()
-        val hasOcrText = parsed.rawTextPreview.isNotBlank()
+        val saveEligibility = evaluateReceiptSaveEligibility(
+            receipt = reviewedReceipt,
+            hasDuplicate = duplicateReceipt != null,
+            hasLedgerIdentity = ledgerIdentity != null
+        )
+        val canSaveReceipt = saveEligibility.canSave
+        val requiresAmountConfirmation = reviewedAmount != null &&
+            (amountWasChanged || parsed.amountEvidenceConfidence < MIN_RELIABLE_AMOUNT_EVIDENCE)
+        val detectedDetailCount = listOf(
+            parsed.paymentApp != "Unknown UPI",
+            parsed.transactionId.isNotBlank(),
+            parsed.counterpartyName.isNotBlank() || parsed.upiId.isNotBlank(),
+            parsed.date.isNotBlank()
+        ).count { it }
+        val missingDetails = buildList {
+            if (parsed.paymentApp == "Unknown UPI") add("payment app")
+            if (parsed.transactionId.isBlank()) add("reference")
+            if (parsed.counterpartyName.isBlank() && parsed.upiId.isBlank()) add("counterparty")
+            if (parsed.date.isBlank()) add("date")
+        }
         val effectiveReceiptType = replacementTarget?.type ?: receiptType
         val calculationBucket = if (effectiveReceiptType == "Donated" || effectiveReceiptType == "Credit") "Total Collected" else "Total Spent"
         val calculationOperation = if (effectiveReceiptType == "Donated" || effectiveReceiptType == "Credit") "add" else "subtract"
@@ -3497,6 +3476,10 @@ fun EventDetailsScreen(eventId: Int, viewModel: EventViewModel) {
             ?: currentUserEmail
         val receiptJsonText = remember(
             parsed,
+            reviewedReceipt,
+            reviewedAmount,
+            amountWasChanged,
+            amountConfirmedDuringReview,
             replacementTarget,
             currentUserEmail,
             effectiveReceiptType,
@@ -3508,11 +3491,16 @@ fun EventDetailsScreen(eventId: Int, viewModel: EventViewModel) {
             preservedUploaderEmail
         ) {
             JSONObject().apply {
-                put("amount", if (parsed.amount > 0.0) parsed.amount else JSONObject.NULL)
+                put("amount", reviewedAmount ?: JSONObject.NULL)
                 put("currency", "INR")
-                put("calculationAmount", if (parsed.amount > 0.0) parsed.amount else JSONObject.NULL)
+                put("calculationAmount", reviewedAmount ?: JSONObject.NULL)
                 put("calculationBucket", calculationBucket)
                 put("calculationOperation", calculationOperation)
+                put("ocrDetectedAmount", if (parsed.amount > 0.0) parsed.amount else JSONObject.NULL)
+                put("amountEvidenceSource", reviewedReceipt.amountEvidenceSource.name)
+                put("amountEvidenceConfidence", reviewedReceipt.amountEvidenceConfidence)
+                put("amountChangedDuringReview", amountWasChanged)
+                put("amountConfirmedDuringReview", amountConfirmedDuringReview)
                 put("counterpartyName", parsed.counterpartyName.ifBlank { JSONObject.NULL })
                 put("upiId", parsed.upiId.ifBlank { JSONObject.NULL })
                 put("upiReferenceOrTransactionId", parsed.transactionId.ifBlank { JSONObject.NULL })
@@ -3538,10 +3526,12 @@ fun EventDetailsScreen(eventId: Int, viewModel: EventViewModel) {
 
         AlertDialog(
             onDismissRequest = {
-                isVerifyReceiptDialogOpen = false
-                extractedReceiptToVerify = null
-                transactionPendingReceiptReview = null
-                viewModel.clearReceiptReviewInProgress()
+                if (!isReceiptSaveInProgress) {
+                    isVerifyReceiptDialogOpen = false
+                    extractedReceiptToVerify = null
+                    transactionPendingReceiptReview = null
+                    viewModel.clearReceiptReviewInProgress()
+                }
             },
             title = {
                 Row(
@@ -3551,11 +3541,11 @@ fun EventDetailsScreen(eventId: Int, viewModel: EventViewModel) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.ReceiptLong,
                         contentDescription = "Extracted receipt",
-                        tint = if (extractionLooksEmpty || duplicateReceipt != null) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
+                        tint = if (canSaveReceipt) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
                         modifier = Modifier.size(28.dp)
                     )
                     Text(
-                        text = "Extracted Receipt",
+                        text = "Review Receipt",
                         fontWeight = FontWeight.Bold,
                         style = MaterialTheme.typography.titleMedium
                     )
@@ -3569,7 +3559,11 @@ fun EventDetailsScreen(eventId: Int, viewModel: EventViewModel) {
                         .verticalScroll(rememberScrollState())
                 ) {
                     Surface(
-                        color = if (extractionLooksEmpty) MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.35f) else MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f),
+                        color = if (canSaveReceipt) {
+                            MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f)
+                        } else {
+                            MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.35f)
+                        },
                         shape = RoundedCornerShape(12.dp),
                         modifier = Modifier.fillMaxWidth()
                     ) {
@@ -3580,62 +3574,26 @@ fun EventDetailsScreen(eventId: Int, viewModel: EventViewModel) {
                             Text(
                                 text = when {
                                     duplicateReceipt != null -> "Possible duplicate receipt"
-                                    extractionLooksEmpty && hasOcrText -> "OCR text found"
-                                    extractionLooksEmpty -> "No receipt data found"
-                                    else -> "Check extracted values"
+                                    reviewedAmount == null -> "Enter the receipt amount"
+                                    requiresAmountConfirmation && !weakAmountConfirmed -> "Confirm the amount"
+                                    !reviewedReceipt.isReceiptLike -> "Payment receipt not recognized"
+                                    ledgerIdentity == null -> "Choose the ledger person"
+                                    else -> "Ready to save"
                                 },
                                 style = MaterialTheme.typography.labelMedium,
                                 fontWeight = FontWeight.Bold,
-                                color = if (extractionLooksEmpty || duplicateReceipt != null) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
+                                color = if (canSaveReceipt) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
                             )
                             Text(
                                 text = when {
                                     duplicateReceipt != null -> "This receipt looks already saved in this event. Saving is blocked to protect ledger totals."
-                                    extractionLooksEmpty && hasOcrText -> "Text was read from the image, but amount/reference was not confidently parsed. Use the OCR preview below to correct it."
-                                    extractionLooksEmpty -> "OCR could not read text from this image. It will not affect ledger calculations until an amount is detected."
-                                    !canSaveReceipt -> "OCR detected an amount, but confidence is too low for ledger calculation. Re-upload a clearer receipt."
-                                    else -> "Amount will be used for $calculationBucket calculations. Verify before saving."
+                                    saveEligibility.blockingReasons.isNotEmpty() -> saveEligibility.blockingReasons.first()
+                                    amountWasChanged -> "You changed the OCR amount. Check it once more against the original receipt."
+                                    else -> "This amount will update $calculationBucket after you tap save."
                                 },
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(6.dp),
-                                modifier = Modifier
-                                    .background(
-                                        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.55f),
-                                        shape = RoundedCornerShape(8.dp)
-                                    )
-                                    .padding(horizontal = 8.dp, vertical = 5.dp)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.DocumentScanner,
-                                    contentDescription = "OCR method",
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.size(14.dp)
-                                )
-                                Text(
-                                    text = parsed.extractionMethod,
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
-                                )
-                            }
-                            Text(
-                                text = "Confidence: ${parsed.confidence}%",
-                                style = MaterialTheme.typography.labelSmall,
-                                fontWeight = FontWeight.Bold,
-                                color = if (canSaveReceipt) Color(0xFF10B981) else MaterialTheme.colorScheme.error
-                            )
-                            if (parsed.validationWarnings.isNotEmpty()) {
-                                Text(
-                                    text = parsed.validationWarnings.joinToString("\n") { "• $it" },
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.error
-                                )
-                            }
                             if (duplicateReason != null) {
                                 Text(
                                     text = "• $duplicateReason",
@@ -3646,28 +3604,99 @@ fun EventDetailsScreen(eventId: Int, viewModel: EventViewModel) {
                         }
                     }
 
+                    OutlinedTextField(
+                        value = amountInput,
+                        onValueChange = { newValue ->
+                            if (newValue.all { character -> character.isDigit() || character == ',' || character == '.' }) {
+                                amountInput = newValue
+                                weakAmountConfirmed = false
+                                receiptSaveError = null
+                            }
+                        },
+                        label = { Text("Amount (INR)") },
+                        prefix = { Text("₹") },
+                        supportingText = {
+                            Text(amountEvidenceLabel(reviewedReceipt.amountEvidenceSource, amountConfirmedDuringReview))
+                        },
+                        isError = reviewedAmount == null || (requiresAmountConfirmation && !weakAmountConfirmed),
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                        singleLine = true,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("receipt_amount_input")
+                    )
+
+                    if (requiresAmountConfirmation) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { weakAmountConfirmed = !weakAmountConfirmed },
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Checkbox(
+                                checked = weakAmountConfirmed,
+                                onCheckedChange = { weakAmountConfirmed = it },
+                                modifier = Modifier.testTag("receipt_amount_confirmation")
+                            )
+                            Text(
+                                text = "I checked this amount against the receipt",
+                                style = MaterialTheme.typography.bodySmall
+                            )
+                        }
+                    }
+
+                    if (amountWasChanged && parsed.amount > 0.0) {
+                        Text(
+                            text = "OCR originally read ₹${String.format(Locale.getDefault(), "%,.2f", parsed.amount)}.",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+
                     Surface(
                         color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
                         shape = RoundedCornerShape(12.dp),
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        Column(modifier = Modifier.padding(12.dp)) {
+                        Column(
+                            modifier = Modifier.padding(12.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
                             Text(
-                                text = "Extracted JSON",
-                                style = MaterialTheme.typography.labelSmall,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                text = "Receipt details · $detectedDetailCount of 4 found",
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.Bold
                             )
-                            Spacer(modifier = Modifier.height(6.dp))
-                            Text(
-                                text = receiptJsonText,
-                                style = MaterialTheme.typography.labelSmall,
-                                fontFamily = FontFamily.Monospace,
-                                color = MaterialTheme.colorScheme.onSurface,
-                                maxLines = 40,
-                                overflow = TextOverflow.Ellipsis
+                            ReceiptDetailRow(
+                                label = "Payment app",
+                                value = parsed.paymentApp.takeIf { it != "Unknown UPI" } ?: "Not detected"
                             )
+                            ReceiptDetailRow(
+                                label = "Counterparty",
+                                value = parsed.counterpartyName.ifBlank { parsed.upiId.ifBlank { "Not detected" } }
+                            )
+                            ReceiptDetailRow(label = "Date", value = parsed.date.ifBlank { "Not detected" })
+                            ReceiptDetailRow(
+                                label = "Reference",
+                                value = parsed.transactionId.ifBlank { "Not detected" }
+                            )
+                            if (missingDetails.isNotEmpty()) {
+                                Text(
+                                    text = "Not detected: ${missingDetails.joinToString()}. Optional details do not block a reviewed amount.",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
                         }
+                    }
+
+                    if (receiptSaveError != null) {
+                        Text(
+                            text = receiptSaveError.orEmpty(),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.error,
+                            modifier = Modifier.testTag("receipt_save_error")
+                        )
                     }
 
                     Surface(
@@ -3798,56 +3827,50 @@ fun EventDetailsScreen(eventId: Int, viewModel: EventViewModel) {
             },
             confirmButton = {
                 Button(
-                    enabled = canSaveReceipt,
+                    enabled = canSaveReceipt && !isReceiptSaveInProgress,
                     onClick = {
-                        val cleanAmount = parsed.amount.takeIf { it > 0.0 } ?: return@Button
+                        val cleanAmount = reviewedAmount ?: return@Button
                         val confirmedLedgerIdentity = ledgerIdentity ?: return@Button
                         val receiptOwnerName = confirmedLedgerIdentity.personName
-                        val storedReceiptPath = viewModel.saveReceiptJsonFile(
-                            eventId = replacementTarget?.eventId ?: eventId,
-                            personName = receiptOwnerName,
-                            uploaderEmail = preservedUploaderEmail,
-                            receiptJsonText = receiptJsonText
-                        )
-
-                        if (replacementTarget == null) {
-                            viewModel.addReceiptTransaction(
-                                eventId = eventId,
-                                personName = receiptOwnerName,
-                                personPhone = "",
-                                personEmail = confirmedLedgerIdentity.personEmail,
+                        isReceiptSaveInProgress = true
+                        receiptSaveError = null
+                        receiptSaveScope.launch {
+                            val saved = viewModel.persistReceiptTransactionWithEvidence(
+                                txId = replacementTarget?.id,
+                                eventId = replacementTarget?.eventId ?: eventId,
+                                personName = replacementTarget?.personName ?: receiptOwnerName,
+                                personPhone = replacementTarget?.personPhone.orEmpty(),
+                                personEmail = replacementTarget?.personEmail ?: confirmedLedgerIdentity.personEmail,
                                 amount = cleanAmount,
-                                type = effectiveReceiptType,
-                                notes = if (storedReceiptPath.isNullOrBlank()) receiptJsonText else JSONObject(receiptJsonText).apply { put("receiptFilePath", storedReceiptPath) }.toString(2),
-                                transactionId = parsed.transactionId,
-                                uploaderEmail = currentUserEmail
-                            )
-                        } else {
-                            viewModel.replaceReceiptTransaction(
-                                txId = replacementTarget.id,
-                                eventId = replacementTarget.eventId,
-                                personName = replacementTarget.personName,
-                                personPhone = replacementTarget.personPhone,
-                                personEmail = replacementTarget.personEmail,
-                                amount = cleanAmount,
-                                type = replacementTarget.type,
-                                notes = if (storedReceiptPath.isNullOrBlank()) receiptJsonText else JSONObject(receiptJsonText).apply { put("receiptFilePath", storedReceiptPath) }.toString(2),
+                                type = replacementTarget?.type ?: effectiveReceiptType,
+                                receiptJsonText = receiptJsonText,
                                 transactionId = parsed.transactionId,
                                 uploaderEmail = preservedUploaderEmail,
-                                existingMemberId = replacementTarget.memberId
+                                existingMemberId = replacementTarget?.memberId
                             )
+                            isReceiptSaveInProgress = false
+                            if (saved) {
+                                isVerifyReceiptDialogOpen = false
+                                extractedReceiptToVerify = null
+                                transactionPendingReceiptReview = null
+                                viewModel.clearReceiptReviewInProgress()
+                            } else {
+                                receiptSaveError = "Could not save receipt evidence. No ledger entry was created. Try again."
+                            }
                         }
-
-                        isVerifyReceiptDialogOpen = false
-                        extractedReceiptToVerify = null
-                        transactionPendingReceiptReview = null
-                        viewModel.clearReceiptReviewInProgress()
                     },
                     modifier = Modifier
                         .fillMaxWidth()
                         .testTag("verify_receipt_confirm_button")
                 ) {
-                    Text(if (replacementTarget == null) "Save to Ledger" else "Update Transaction", fontWeight = FontWeight.Bold)
+                    if (isReceiptSaveInProgress) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(18.dp),
+                            strokeWidth = 2.dp
+                        )
+                    } else {
+                        Text(if (replacementTarget == null) "Save to Ledger" else "Update Transaction", fontWeight = FontWeight.Bold)
+                    }
                 }
             }
         )
@@ -3958,54 +3981,27 @@ fun TransactionItem(
                                 verticalArrangement = Arrangement.spacedBy(3.dp)
                             ) {
                                 Text(
-                                    text = "Receipt JSON",
+                                    text = "Receipt details",
                                     style = MaterialTheme.typography.labelSmall,
                                     fontWeight = FontWeight.Bold,
                                     color = MaterialTheme.colorScheme.primary
                                 )
                                 Text(
-                                    text = "app: ${receiptJson.optString("paymentApp", "Unknown")}",
+                                    text = "Payment app: ${receiptJson.optString("paymentApp").takeIf { it.isNotBlank() && it != "null" } ?: "Not detected"}",
                                     style = MaterialTheme.typography.labelSmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                                Text(
-                                    text = "calc: ${if (isCredit) "+" else "-"}₹${String.format(Locale.getDefault(), "%,.2f", receiptJson.optDouble("calculationAmount", tx.amount))} → ${receiptJson.optString("calculationBucket", if (isCredit) "Total Collected" else "Total Spent")}",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    fontWeight = FontWeight.Bold,
-                                    color = if (isCredit) Color(0xFF10B981) else Color(0xFFEF4444),
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
                                 )
                                 val counterparty = receiptJson.optString("counterpartyName")
                                     .ifBlank { receiptJson.optString("paidTo") }
                                 if (counterparty.isNotBlank() && counterparty != "null") {
                                     Text(
-                                        text = "counterparty: $counterparty",
+                                        text = "Counterparty: $counterparty",
                                         style = MaterialTheme.typography.labelSmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                                         maxLines = 1,
                                         overflow = TextOverflow.Ellipsis
                                     )
                                 }
-                                val upiId = receiptJson.optString("upiId")
-                                if (upiId.isNotBlank() && upiId != "null") {
-                                    Text(
-                                        text = "upi: $upiId",
-                                        style = MaterialTheme.typography.labelSmall,
-                                        fontFamily = FontFamily.Monospace,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis
-                                    )
-                                }
-                                Text(
-                                    text = "ref: ${receiptJson.optString("upiReferenceOrTransactionId", "N/A")}",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    fontFamily = FontFamily.Monospace,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
-                                )
                             }
                         }
                     } else if (!tx.notes.isNullOrBlank()) {
@@ -4041,7 +4037,7 @@ fun TransactionItem(
                         )
                         Spacer(modifier = Modifier.width(4.dp))
                         Text(
-                            text = if (isMyPost) "Uploaded by me" else "Uploaded by: ${tx.uploaderEmail.substringBefore("@")}",
+                            text = if (isMyPost) "Uploaded by me" else "Uploaded by another local user",
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
                             fontWeight = if (isMyPost) FontWeight.Bold else FontWeight.Normal

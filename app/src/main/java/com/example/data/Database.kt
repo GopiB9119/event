@@ -21,7 +21,10 @@ interface EventDao {
     @Query("SELECT * FROM events WHERE id = :id LIMIT 1")
     suspend fun getEventByIdOnce(id: Int): EventEntity?
 
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    @Query("SELECT * FROM events WHERE eventKey = :eventKey LIMIT 1")
+    suspend fun getEventByEventKeyOnce(eventKey: String): EventEntity?
+
+    @Insert(onConflict = OnConflictStrategy.ABORT)
     suspend fun insertEvent(event: EventEntity): Long
 
     @Insert(onConflict = OnConflictStrategy.IGNORE)
@@ -69,7 +72,7 @@ interface EventDao {
     suspend fun deleteTransactionById(id: Int)
 }
 
-@Database(entities = [EventEntity::class, MemberEntity::class, TransactionEntity::class], version = 4, exportSchema = false)
+@Database(entities = [EventEntity::class, MemberEntity::class, TransactionEntity::class], version = 5, exportSchema = false)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun eventDao(): EventDao
 
@@ -162,6 +165,14 @@ abstract class AppDatabase : RoomDatabase() {
                 db.execSQL("ALTER TABLE `transactions_new` RENAME TO `transactions`")
                 db.execSQL("CREATE INDEX IF NOT EXISTS `index_transactions_eventId` ON `transactions` (`eventId`)")
                 db.execSQL("CREATE INDEX IF NOT EXISTS `index_transactions_memberId` ON `transactions` (`memberId`)")
+            }
+        }
+
+        val MIGRATION_4_5 = object : Migration(4, 5) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE `events` ADD COLUMN `eventKey` TEXT")
+                db.execSQL("UPDATE `events` SET `eventKey` = lower(hex(randomblob(16))) WHERE `eventKey` IS NULL")
+                db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_events_eventKey` ON `events` (`eventKey`)")
             }
         }
     }
