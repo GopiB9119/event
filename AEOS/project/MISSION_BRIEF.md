@@ -29,10 +29,10 @@ Current milestone: Beta Reliability Validation.
 | Claim | Label | Evidence | Consequence if wrong |
 |---|---|---|---|
 | The debug app compiles and all current JVM tests pass. | `VERIFIED` | [Test Strategy](../../docs/Testing/TEST_STRATEGY.md) and [Friend Beta Readiness](../../docs/Release/FRIEND_BETA_READINESS.md) | Public builds may contain known regressions. |
-| The permanent release-signed `0.2.0-beta.1` candidate verifies, installs, launches, and cold-relaunches on a clean API 36 emulator. | `VERIFIED` | [Beta Release Notes](../../docs/Release/0.2.0-beta.1.md) and [Friend Beta Readiness](../../docs/Release/FRIEND_BETA_READINESS.md) | The staged artifact or signing lineage may be invalid before physical testing. |
+| The permanent release-signed `0.2.0-beta.2` candidate verifies, installs fresh and over beta.1, launches, and cold-relaunches on API 36. | `VERIFIED` | [Beta.2 Release Notes](../../docs/Release/0.2.0-beta.2.md) and [Friend Beta Readiness](../../docs/Release/FRIEND_BETA_READINESS.md) | The staged artifact, migration, or signing lineage may be invalid before physical testing. |
 | API 36 Room/share/OCR tests pass, including private real-image fixtures. | `VERIFIED` | [Friend Beta Readiness](../../docs/Release/FRIEND_BETA_READINESS.md) | Ledger or OCR behavior may fail on the tested environment. |
 | Branding, Trust Center, legal/data documents, support identity, and responsive site exist locally. | `VERIFIED` | [Public Launch Checklist](../../docs/Release/PUBLIC_LAUNCH_CHECKLIST.md) | Public trust claims or contact paths may be missing. |
-| Public downloads resolve only to the release-signed `0.2.0-beta.1` GitHub asset, whose public bytes match the recorded SHA-256. | `VERIFIED` | [Release manifest](../../site/releases/latest.json) and [Beta Release Notes](../../docs/Release/0.2.0-beta.1.md) | Users could install an unintended or corrupted artifact. |
+| Public downloads resolve only to the release-signed `0.2.0-beta.2` GitHub asset, whose public bytes match the recorded SHA-256. | `VERIFIED` | [Release manifest](../../site/releases/latest.json) and [Beta.2 Release Notes](../../docs/Release/0.2.0-beta.2.md) | Users could install an unintended or corrupted artifact. |
 | The final flow works on the publisher's physical phone. | `UNKNOWN` | Physical-device gate not recorded. | Users may hit picker/share/restart failures not reproduced on the emulator. |
 | The final flow works across a second Android device/version. | `UNKNOWN` | Second-device gate not recorded. | Compatibility claims exceed evidence. |
 | Hosted CI, Pages, and GitHub prerelease behave as designed. | `VERIFIED` | Green Android/Site/Pages runs, HTTPS route checks, anonymous APK download, and public release/tag metadata recorded on 12 July 2026. | Public download, update, or event-copy fallback can fail after launch. |
@@ -93,6 +93,6 @@ Independent Decision Challenge required before changing this verdict to `BUILD`:
 - [ ] Exact release-signed APK passes all automated and physical-device gates.
 - [x] GitHub prerelease contains APK, version, SHA-256, signing fingerprint, notes, and limitations.
 - [x] Pages, Privacy, Terms, Contact, event-copy fallback, and update manifest pass over HTTPS.
-- [x] Installed public APK manual update check read the live manifest after an explicit tap and reported `0.2.0-beta.1` current; no background polling or silent install occurred.
-- [ ] Documentation, decision log, knowledge graph, and project memory match the public artifact.
+- [x] Installed public APK manual update check read the live manifest after an explicit tap and reported `0.2.0-beta.2` current; no background polling or silent install occurred.
+- [x] Documentation, decision log, knowledge graph, and project memory match the public artifact.
 - [x] Rollback/data-loss limits and residual risks are visible to users.

@@ -23,8 +23,8 @@
 | `LedgerSafetyInstrumentedTest` | Focused API 36 run passed; compact review hides JSON/confidence text, labelled amounts survive missing optional fields, unlabelled amounts require confirmation, private evidence paths exist, Money out attribution is correct, and deletion remains acknowledged |
 | `ExampleInstrumentedTest` | Passed with the real application ID |
 | Complete Android instrumentation suite | Passed together on isolated API 36 AVD: 6 classes / 14 tests / zero failures |
-| Signed release APK emulator smoke | Exact `0.2.0-beta.1` asset installed on a clean API 36 emulator; first launch and force-stop/cold relaunch passed with no crash/ANR exit record |
-| Installed-app live update check | Public APK on API 36 reached the deployed HTTPS manifest after an explicit Trust Center tap and reported `0.2.0-beta.1` current; no automatic check or silent install was observed |
+| Signed release APK emulator smoke | Exact `0.2.0-beta.2` asset installed fresh and over beta.1 on API 36; launch, migration-preserving cold relaunch, and post-update-check health checks passed with no app crash/ANR exit record |
+| Installed-app live update check | Public beta.2 APK on API 36 reached the deployed HTTPS manifest after an explicit Trust Center tap and reported `0.2.0-beta.2` current; no automatic check or silent install was observed |
 | Full Robolectric/unit suite | Passed: 9 suites, 54 tests, zero failures/errors/skips |
 | Screenshot test | Included in the passing full suite |
 | First-use disclosure runtime check | Rendered, gated, accepted, and persisted after force-stop/relaunch on API 36 emulator |
@@ -33,7 +33,7 @@
 | Update manifest validation | Passed 11 focused cases covering unpublished/current/new releases, schema/hash validation, and deceptive URL rejection |
 | Receipt attribution policy | Passed; uploader-derived default, confirmed uploader email, another-person isolation, and blank-person rejection |
 | Website rendering | Five pages, three real privacy-safe screenshots, zero missing local targets; measured without horizontal overflow at 390x844 and 1440x1000 |
-| Bounded GitHub Actions workflow | Added with a 30-minute timeout; YAML and exact release command validated locally; first hosted run pending |
+| Bounded GitHub Actions workflow | Required Android gate has a 30-minute timeout; both push and PR runs passed for the beta.2 channel commit, alongside both Site CI runs |
 
 ## Required Test Matrix
 
