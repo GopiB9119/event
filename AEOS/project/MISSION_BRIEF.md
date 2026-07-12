@@ -93,6 +93,6 @@ Independent Decision Challenge required before changing this verdict to `BUILD`:
 - [ ] Exact release-signed APK passes all automated and physical-device gates.
 - [x] GitHub prerelease contains APK, version, SHA-256, signing fingerprint, notes, and limitations.
 - [x] Pages, Privacy, Terms, Contact, event-copy fallback, and update manifest pass over HTTPS.
-- [ ] End-to-end installed-app update check against the live manifest is recorded; implementation, unit validation, and live manifest integrity already pass, but the final on-device tap was not observed after deployment.
+- [x] Installed public APK manual update check read the live manifest after an explicit tap and reported `0.2.0-beta.1` current; no background polling or silent install occurred.
 - [ ] Documentation, decision log, knowledge graph, and project memory match the public artifact.
 - [x] Rollback/data-loss limits and residual risks are visible to users.
