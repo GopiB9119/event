@@ -1,10 +1,10 @@
 # Community Ledger Evidence-Based Backlog
 
-Last review: 11 July 2026
+Last review: 12 July 2026
 
 This backlog is ordered by current constraint, not feature excitement. Evidence labels follow [Decision Intelligence](../00-foundation/DECISION_INTELLIGENCE.md). Reorder only when new evidence changes user value, risk, dependencies, or opportunity cost.
 
-## NOW
+## PRIMARY OPEN GATE
 
 ### 1. Physical-device launch matrix
 
@@ -15,20 +15,24 @@ This backlog is ordered by current constraint, not feature excitement. Evidence 
 - Acceptance evidence: event creation, real receipt share/import, review/save/cancel, force-stop/restart, totals, interruption notice, event-copy fallback, and reinstall/update behavior are explicit.
 - Stop condition: silent ledger mutation, data loss, unexplainable total, blocked update, or misleading synchronized/access-control expectation.
 
-### 2. Permanent release signing and recovery custody
+## COMPLETED RELEASE FOUNDATIONS
 
-- Problem: `VERIFIED` current APK is debug-signed and cannot establish a permanent public update lineage.
+### 2. Permanent release signing and recovery custody - COMPLETED
+
+- Outcome: `VERIFIED` the `0.2.0-beta.1` APK is release-signed, its certificate fingerprint is recorded, and the keystore has a byte-identical independent backup.
 - Dependency: Publisher must create secrets directly in a secure terminal and maintain two independent backups.
 - Smallest action: Follow [Signing And Distribution](../../docs/Release/SIGNING_AND_DISTRIBUTION.md); record only certificate fingerprint and backup confirmation, never secrets.
 - Acceptance evidence: release APK builds, verifies, aligns, installs over the same release lineage, and survives cold launch/ledger smoke tests.
 - Opportunity cost avoided: prevents publishing an APK that cannot receive trusted updates.
 
-### 3. Hosted CI, Pages, and release-candidate evidence
+### 3. Hosted CI, Pages, and release-candidate evidence - COMPLETED
 
-- Problem: `UNKNOWN` local workflows have not been proven on hosted runners or deployed HTTPS.
+- Outcome: `VERIFIED` hosted Android CI/Site CI/Pages pass, all public routes return HTTPS 200, the prerelease has two verified assets, and the public APK matches the recorded SHA-256.
 - Dependency: explicit approval before push, deployment, release, or publication.
-- Smallest action: push the prepared governance/workflow files; obtain green Android CI and Site CI runs; manually deploy Pages; verify every route; keep `available=false` until the signed release passes.
-- Acceptance evidence: hosted logs, improved Community Profile, configured repository rules/security settings, HTTPS 200 checks, valid JSON, no broken assets, and fail-closed download behavior.
+- Evidence: public release/tag metadata, workflow run IDs, Pages deployment, anonymous APK download, live manifest, and route checks recorded on 12 July 2026.
+- Acceptance evidence: hosted logs, 85% Community Profile, required Android CI rules, security settings, HTTPS 200 checks, valid JSON, fail-closed validation, and the enabled channel's exact APK digest.
+
+## OTHER OPEN DECISIONS
 
 ### License and contribution terms
 

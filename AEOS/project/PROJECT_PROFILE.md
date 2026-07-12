@@ -33,11 +33,11 @@ Each installation owns an independent ledger. Event-copy links copy metadata but
 
 ## Current Milestone
 
-**Public Launch Trust Package**
+**Beta Reliability Validation**
 
-Done when branding, in-app trust disclosures, legal/data inventory, responsive public website, release-gated downloads, and manual update checks are verified; broad publication still requires permanent signing, hosted deployment, and physical-device launch checks.
+The signed `0.2.0-beta.1` limited prerelease, HTTPS website, release manifest, Privacy, Terms, Contact, hosted CI, and permanent update lineage are live and verified. Broader reliance still requires physical-device breadth, qualified legal review, and user-value evidence.
 
-Current decision state: `DEFER` broad public distribution. Debug and API 36 evidence is `VERIFIED`; physical-device, hosted deployment, and permanent signing evidence remains `UNKNOWN`. See the [Mission Brief](MISSION_BRIEF.md).
+Current decision state: limited public prerelease published with explicit beta limits; `DEFER` broader public-distribution/reliability claims. Signing, emulator, hosted CI, Pages, release, and public-download integrity are `VERIFIED`; complete physical-device and legal evidence remain `UNKNOWN`. See the [Mission Brief](MISSION_BRIEF.md).
 
 Current decision and priority records:
 
@@ -56,8 +56,8 @@ Current decision and priority records:
 - Receipt parser is now a plain Kotlin `ReceiptParser` with focused JVM tests and regressions from six real ML Kit OCR image outputs; coverage still needs more payment apps and edge cases.
 - Local identity is validated and required for owner/uploader actions, but remains self-declared and unauthenticated.
 - Private events need server-issued invites and real authentication for enforceable multi-device authorization.
-- The full unit/Robolectric suite passes and a bounded GitHub Actions workflow exists; repeatability remains unproven until its first hosted run.
+- The full unit/Robolectric suite and hosted Android CI pass; required Android CI is enforced on the default branch.
 - No export/restore exists; uninstall or device loss removes the ledger.
 - OCR/review does not resume after process death, but a persisted marker warns that no transaction was saved; active navigation is not restored.
-- The current APK is debug-signed; no permanent public update lineage exists until the release keystore is created and backed up.
-- Pages deployment, permanent release signing, GitHub Release, legal review for target launch jurisdictions, and physical-device launch evidence remain open.
+- The permanent release key is verified and independently backed up; `v0.2.0-beta.1` establishes the public signing lineage.
+- Pages, the limited GitHub prerelease, and the signed update manifest are live. Legal review for target jurisdictions and complete physical-device launch evidence remain open.
