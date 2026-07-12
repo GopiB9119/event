@@ -30,38 +30,43 @@ Do not claim:
 - Duplicate receipt save blocking
 - App-private receipt JSON and backup exclusions
 - Deep-link collisions cannot replace local ledgers
-- Full debug unit/Robolectric suite passed: 35 tests, zero failures/errors/skips
+- Full debug unit/Robolectric suite passed: 39 tests, zero failures/errors/skips
 - API 36 Room collision, database reopen, shared text/image state, and app-context instrumentation passed
 - Six private real-image OCR checks passed on the final emulator test APK
-- Complete API 36 Android instrumentation suite passed: 5 classes / 6 tests / zero failures
+- Complete API 36 Android instrumentation suite passed: 6 classes / 8 tests / zero failures
 - Two force-stop/cold-launch cycles completed and a real `ACTION_SEND text/plain` intent reached `MainActivity`
 - First-use local-only/data-loss disclosure rendered, required acknowledgement, and remained dismissed after force-stop/relaunch
 - Local identity gate rejected malformed input, normalized/persisted valid email, and blocked Create Event until saved
+- Receipt review separates ledger contributor/vendor attribution from OCR counterparty evidence and labels Money in versus Money out
+- Transaction deletion requires permanent-impact acknowledgement before the hard delete is enabled
 - Final APK smoke check confirmed identity-gated actions can be cancelled safely back to Dashboard
 - SIGKILL during real-image OCR produced an interruption notice after cold relaunch; no transaction was saved and acknowledgement remained cleared after restart
 - Original launcher mark, in-app Trust Center, manual update check, and truthful event-copy wording compiled and rendered on API 36
 - Static launch package passed local link/script/JSON checks and measured desktop/mobile rendering with three real privacy-safe app screenshots
 - Debug APK build passed after the integrity audit
+- Rebuilt candidate passed the complete API 36 Android suite: 6 classes / 8 tests / zero failures
+- Signed `0.2.0-beta.1` APK installed on a clean API 36 emulator, launched successfully, and cold-relaunched after force-stop with no crash/ANR record
 
-## Current Debug Artifact
+## Current Signed Beta Candidate
 
 ```text
-Path: app/build/outputs/apk/debug/app-debug.apk
+Release asset: community-ledger-0.2.0-beta.1.apk
 Package: com.aistudio.communityledger.yrtqwx
-Version: 0.2.0-beta (2)
+Version: 0.2.0-beta.1 (3)
 Minimum SDK: 24
 Target SDK: 36
-Size: 62,360,125 bytes
-SHA-256: 83F237EB6877FD839F73879F3500853B3F2A48A263130B2724620505C0B468FE
-Signature: APK Signature Scheme v2, Android Debug certificate
+Size: 56,257,295 bytes
+SHA-256: 742BEF49CBA3DA6E4D958880698D5DEF82097E39CC6AA16358B9AA44E946A068
+Signing certificate SHA-256: BC1415F8C2236009109CBDA483F351AB9F2C379B7E9A7661599D369E2FACA3CF
+Signature: APK Signature Scheme v2, permanent Community Ledger release certificate
 Alignment: verified with Android build-tools zipalign
 ```
 
-This is a debug-signed beta artifact. Do not treat it as a production release or publish it to an app store.
+This is a release-signed beta candidate. It is not public until hosted and physical-device gates pass and the GitHub prerelease is explicitly published.
 
 ## Remaining Gates Before Broader Sharing
 
-1. On a physical phone, create an event, save a receipt, force-stop, reopen, and verify the visible ledger.
+1. Repeat the complete physical-phone matrix with the signed `742BEF...A068` candidate; partial evidence from superseded candidates is documented separately.
 2. Share a real image from an external payment/gallery app and verify review/save/cancel/navigation behavior.
 3. Repeat the final APK smoke flow on a second physical device and record Android versions.
 4. Push `.github/workflows/android-ci.yml` and record its first green hosted run; the bounded command already passes locally.

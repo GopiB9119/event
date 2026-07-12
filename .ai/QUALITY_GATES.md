@@ -39,6 +39,16 @@ Saved receipt must include:
 - duplicate status
 - receipt file path when persisted
 
+## Boundary And Persistence Gate
+
+- Android share intents and receipt images are untrusted input.
+- OCR text is evidence, not truth; parser output must pass confidence and duplicate gates.
+- DAO writes preserve event/member ownership.
+- Events own members and transactions; event deletion cascades intentionally.
+- Receipt transactions link to `memberId` when possible.
+- Receipt JSON files remain outside Room and are referenced from transaction evidence.
+- Destructive migrations are forbidden for production ledger data.
+
 ## UX Gate
 
 The user must be able to tell:
@@ -48,6 +58,21 @@ The user must be able to tell:
 - why save is blocked
 - how the amount affects totals
 - whether a duplicate was found
+- the structured receipt JSON and exact ledger impact
+
+Unsafe save remains disabled and the UI explains the blocking reason.
+
+## State And Performance Gate
+
+- Clear stale receipt-review state before each new upload/share and reprocess reused input deliberately.
+- Event/member totals derive from persisted rows, not UI cache.
+- Receipt review represents only the current extraction.
+- Multi-pass OCR and bitmap scaling remain bounded and are measured on target devices when changed.
+
+## Documentation Gate
+
+- README states ML Kit-only OCR and the prohibited cloud/filename/dummy paths.
+- README links the receipt JSON contract, Room entities, validation commands, current test evidence, and known instability honestly.
 
 ## Security Gate
 
@@ -56,3 +81,10 @@ The user must be able to tell:
 - No public receipt file writes.
 - Receipt files excluded from backup.
 - Local invite checksum not described as security.
+
+## Critical Review And Release Gate
+
+- Review OCR/parsing, JSON storage, duplicate detection, member linking, migrations, totals, share intents, backup rules, and invite wording.
+- Receipt extraction remains ML Kit only, with no dummy, random, filename, or cloud fallback data.
+- Receipt save requires a positive amount, sufficient confidence, duplicate clearance, and app-private JSON evidence.
+- Event/member/transaction schema compiles with Room and ownership/cascade behavior remains verified.

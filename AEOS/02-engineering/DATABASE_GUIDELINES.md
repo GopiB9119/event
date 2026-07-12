@@ -32,13 +32,7 @@ Every migration must define:
 - What happens to orphaned data?
 - Does the new schema enforce the domain invariant?
 - Are indices aligned with query patterns?
-- Does generated Room schema match expectations?
+- Does the generated or deployed schema match expectations?
 - Does backup/export behavior need to change?
 
-## Community Ledger Rules
-
-- Events own members and transactions.
-- Deleting an event cascades to members and transactions.
-- Receipt transactions should link to `memberId` when possible.
-- Receipt JSON proof files live outside Room but must be referenced from transaction JSON.
-- Destructive migrations are not allowed for production data.
+Apply repository-specific persistence overlays after this universal standard.

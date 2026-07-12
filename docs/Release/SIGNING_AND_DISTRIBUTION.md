@@ -65,7 +65,7 @@ The website should link to GitHub Releases. Do not copy APKs into the GitHub Pag
 Example candidate asset name:
 
 ```text
-community-ledger-0.2.0-beta.apk
+community-ledger-0.2.0-beta.1.apk
 ```
 
 ## Rollback

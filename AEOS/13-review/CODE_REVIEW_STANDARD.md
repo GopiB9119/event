@@ -52,17 +52,7 @@ The reviewer’s job is not to make code look like their preferred style. The re
 - Is the validation strong enough for the risk?
 - Would a future engineer understand the decision?
 
-## Community Ledger Critical Review Areas
-
-- Receipt OCR and parsing.
-- Receipt JSON storage.
-- Duplicate detection.
-- Member linking.
-- Room migrations.
-- Event totals.
-- Share intents.
-- Backup/data extraction rules.
-- Invite link wording and behavior.
+Apply repository-specific critical review areas after this universal standard.
 
 ## Review Output Format
 

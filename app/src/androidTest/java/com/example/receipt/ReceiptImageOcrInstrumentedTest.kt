@@ -65,7 +65,7 @@ class ReceiptImageOcrInstrumentedTest {
                 .put("amount", parsed.amount.takeIf { it > 0.0 } ?: JSONObject.NULL)
                 .put("transactionId", parsed.transactionId.ifBlank { JSONObject.NULL })
                 .put("paymentApp", parsed.paymentApp.takeIf { it != "Unknown UPI" } ?: JSONObject.NULL)
-                .put("payeeName", parsed.payeeName.ifBlank { JSONObject.NULL })
+                .put("counterpartyName", parsed.counterpartyName.ifBlank { JSONObject.NULL })
                 .put("upiId", parsed.upiId.ifBlank { JSONObject.NULL })
                 .put("date", parsed.date.ifBlank { JSONObject.NULL })
                 .put("confidence", parsed.confidence)
@@ -76,9 +76,8 @@ class ReceiptImageOcrInstrumentedTest {
             val reportFile = File(reportDir, "${imageInput.name.safeReportName()}.json")
             reportFile.writeText(report.toString(2))
 
-            Log.i(TAG, "OCR report for ${imageInput.name} written to ${reportFile.absolutePath}\n${report.toString(2)}")
+            Log.i(TAG, "Private OCR report written to app-specific storage: ${reportFile.absolutePath}")
             println("OCR report for ${imageInput.name} written to ${reportFile.absolutePath}")
-            println(report.toString(2))
 
             assertTrue(
                 "ML Kit returned no OCR text for ${imageInput.name}. Report: ${reportFile.absolutePath}",
@@ -99,7 +98,7 @@ class ReceiptImageOcrInstrumentedTest {
             )
             assertTrue(
                 "Receipt has no reference, UPI ID, or counterparty evidence for ${imageInput.name}. Report: ${reportFile.absolutePath}",
-                parsed.transactionId.isNotBlank() || parsed.upiId.isNotBlank() || parsed.payeeName.isNotBlank()
+                parsed.transactionId.isNotBlank() || parsed.upiId.isNotBlank() || parsed.counterpartyName.isNotBlank()
             )
         }
     }

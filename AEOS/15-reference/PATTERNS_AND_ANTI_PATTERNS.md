@@ -4,7 +4,7 @@
 
 - Evidence before mutation.
 - Explicit migrations.
-- App-private sensitive storage.
+- Access-controlled sensitive storage.
 - Confidence gates.
 - Duplicate guards.
 - Persisted IDs over fuzzy matching.
@@ -12,10 +12,10 @@
 
 ## Anti-Patterns
 
-- Saving OCR output without review.
+- Persisting machine-extracted output without required review.
 - Guessing missing data.
 - Runtime dummy data.
 - Filename-derived facts.
-- Hardcoded developer identity.
+- Hardcoded operator or developer identity.
 - Hidden destructive migration.
 - Security language without security controls.

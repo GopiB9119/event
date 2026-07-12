@@ -8,7 +8,7 @@ It is not a prompt collection. It is a composable engineering knowledge base tha
 
 AEOS exists to make AI outputs consistent, reviewable, and durable across models and projects.
 
-AEOS v0.2 adds an upstream decision layer so agents can return `STOP`, `DEFER`, or `TEST` instead of treating every request as permission to build. See [Decision Intelligence](00-foundation/DECISION_INTELLIGENCE.md), [Idea Validation](01-product/IDEA_VALIDATION.md), and [Engineering Economics](02-engineering/ENGINEERING_ECONOMICS.md).
+AEOS v0.3 adds a bounded runtime and operating layer: explicit loop contracts, capability-based authority, deterministic terminal states, and provenance-bearing context. See [Loop Engineering](10-ai/LOOP_ENGINEERING.md), [Operating Model](00-foundation/OPERATING_MODEL.md), and [Context And Memory](10-ai/CONTEXT_AND_MEMORY.md).
 
 It is designed to be:
 
@@ -56,6 +56,29 @@ Understand
 - [14-playbooks](14-playbooks/) contains execution playbooks.
 - [15-reference](15-reference/) contains vocabulary, patterns, and examples.
 - [project](project/) binds AEOS to the current repository.
+
+## Deterministic Validation
+
+After changing AEOS, workspace prompts, root agent instructions, or project AI overlays, run:
+
+```powershell
+.\scripts\validate-aeos.ps1
+```
+
+The validator checks required core documents, the anchored machine-readable loop contract and runner self-test, prompt frontmatter and unique names, unresolved prompt inputs, product-specific leakage into universal AEOS documents, and local links across the governance corpus. Run `.\scripts\validate-aeos.ps1 -SelfTest` to verify its frontmatter parser guardrails.
+
+## v0.3 Boundaries
+
+AEOS v0.3 specifies and validates operating contracts. It does not yet ship a scheduler/event listener, MCP or LSP repository indexer, metrics service, machine-readable loop ledger, or jurisdiction-specific compliance package. Add those implementations only when a real project supplies an owner, threat model, operating environment, success predicate, and lifecycle cost.
+
+## Executable Pilot
+
+The first bounded adapter is the local [AEOS Governance Validation Loop](14-playbooks/AEOS_VALIDATION_LOOP_PILOT.md), governed by a [versioned machine-readable contract](14-playbooks/contracts/aeos-governance-validation.loop.json): one iteration, a 60-second watchdog, fixed verifier allowlist, no repair authority, and ignored JSON run evidence.
+
+```powershell
+.\scripts\invoke-aeos-governance-loop.ps1 -SelfTest
+.\scripts\invoke-aeos-governance-loop.ps1
+```
 
 ## First Rule
 

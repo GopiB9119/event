@@ -9,7 +9,7 @@ This backlog is ordered by current constraint, not feature excitement. Evidence 
 ### 1. Physical-device launch matrix
 
 - Problem: `UNKNOWN` final picker/share/review/save/restart behavior on the publisher's exact phone and a second Android device.
-- Current status (11 July 2026): `BLOCKED`; no physical device was reported by `adb devices -l`. Candidate hash parity is verified and the non-destructive preflight/evidence kit passes its safe failure-path tests.
+- Current status (11 July 2026): `BLOCKED` after a partial Samsung Galaxy A54 run. Candidate install/hash, cold restart persistence, Trust Center navigation, one persisted receipt/member/transaction, and six instrumentation tests passed. During the run, Samsung Package Installer displayed uninstall UI and Android fully removed the app; the initiator is `UNKNOWN`, no shell uninstall was issued, and uninstall deleted the disposable ledger. Reinstall requires explicit confirmation and a coordinated no-touch rerun.
 - Why now: It is the cheapest test of the most dangerous launch assumption.
 - Smallest action: Run the [Physical Device Launch Matrix](../../docs/Testing/PHYSICAL_DEVICE_LAUNCH_MATRIX.md) on two devices and record Android versions and pass/fail evidence.
 - Acceptance evidence: event creation, real receipt share/import, review/save/cancel, force-stop/restart, totals, interruption notice, event-copy fallback, and reinstall/update behavior are explicit.
@@ -44,22 +44,36 @@ This backlog is ordered by current constraint, not feature excitement. Evidence 
 - Smallest action: discover which organizer-controlled export format and restore workflow users understand; threat-model PII leakage, tampering, versioning, and duplicate restore.
 - Acceptance evidence: a reviewed `STOP / DEFER / TEST / BUILD` record and, only if `BUILD`, a minimal migration-safe plan.
 
+### 5. Define financial-purpose semantics before adding investment language
+
+- Problem: `VERIFIED` current types group `Donated/Credit` as Money in and `Debit/Expense` as Money out, but they do not model investment ownership, loan repayment, expected return, or equity.
+- Decision state: `TEST`; do not add an Investment type or marketing claim until the user's real accounting job and legal/trust consequences are understood.
+- Smallest action: document concrete personal-work and event-donation scenarios, required totals, ownership/repayment rules, and what final report must prove.
+- Acceptance evidence: reviewed vocabulary/data model, migration plan for existing types, calculation invariants, UI comprehension test, and legal/product review as applicable.
+
+### 6. Export and report format discovery
+
+- Problem: `VERIFIED` users cannot export or restore; `UNKNOWN` whether their first need is PDF presentation, spreadsheet analysis, or machine-readable backup.
+- Decision state: `TEST`.
+- Smallest action: define report audiences and tasks separately: organizer audit, member statement, public event summary, and restore backup. Compare PDF, CSV, and versioned JSON without treating one format as all four solutions.
+- Acceptance evidence: privacy/redaction policy, per-member/event totals, receipt-reference inclusion rules, tamper/verification limits, restore versioning/duplicate behavior, and owner-approved format priority.
+
 ## TEST
 
-### 5. Problem and retention validation with target organizers
+### 7. Problem and retention validation with target organizers
 
 - Assumption: organizers need a dedicated local ledger instead of spreadsheets, notebooks, or messaging threads.
 - Test: evidence-focused interviews and observed task use with a small relevant cohort; ask about recent behavior and workarounds, not feature opinions.
 - Predeclare: what repeated problem/action permits continued investment, and what result triggers `STOP` or repositioning.
 - Privacy: do not collect real receipt/member PII for product research.
 
-### 6. Event-copy comprehension
+### 8. Event-copy comprehension
 
 - Assumption: users understand that event-copy links do not synchronize or verify organizers.
 - Test: task-based comprehension check using exact in-app/site copy.
 - Failure threshold: any participant expects shared balances, private access control, organizer verification, or automatic updates across phones.
 
-### 7. OCR breadth and poor-image conditions
+### 9. OCR breadth and poor-image conditions
 
 - Evidence: `VERIFIED` six private fixtures pass; broader payment apps and image conditions remain unproven.
 - Test: consented private fixtures covering low light, crop, rotation, large image, missing fields, and supported app families.
@@ -67,19 +81,19 @@ This backlog is ordered by current constraint, not feature excitement. Evidence 
 
 ## LATER
 
-### 8. Google Play distribution
+### 10. Google Play distribution
 
 - Dependency: public-beta evidence, permanent signing, privacy URL, data-safety declarations, store assets, and current testing-policy compliance.
 - Reason later: direct trusted beta can validate the product before adding store process cost.
 
-### 9. Synchronized shared events
+### 11. Synchronized shared events
 
 - Decision state: `DEFER`.
 - Reason: no recorded demand evidence justifies authentication, server IDs, authorization, sync, conflict resolution, audit operations, and moderation cost.
 - Revisit trigger: repeated observed need for concurrent multi-device use after local beta, with willingness to adopt account-based workflows.
 - Required architecture: [Future Shared Events](../../docs/Architecture/SHARED_EVENTS_FUTURE.md).
 
-### 10. Public event discovery/search
+### 12. Public event discovery/search
 
 - Decision state: `DEFER` with shared-event architecture.
 - Reason: public search without verification, authorization, moderation, abuse reporting, and privacy controls would increase impersonation and fraud risk.

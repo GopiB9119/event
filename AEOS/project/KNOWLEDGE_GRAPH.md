@@ -8,7 +8,7 @@ This is a routing map, not a substitute for source inspection. Update it only wh
 
 ```text
 Gopi Banoth (independent publisher)
-  -> Community Ledger 0.2.0-beta
+  -> Community Ledger 0.2.0-beta.1
   -> local organizer ledger
   -> money in / money out / reviewed receipt evidence
   -> independent installation per device

@@ -24,11 +24,4 @@ A README is the front door to a project. It should let a new engineer, operator,
 - Link to AEOS and project-specific doctrine.
 - Keep the README shorter than deep docs; link instead of duplicating everything.
 
-## Community Ledger README Requirements
-
-- State ML Kit-only receipt OCR.
-- State no Gemini/cloud/filename/dummy receipt path.
-- Show receipt JSON shape.
-- Name Room entities.
-- Name validation commands.
-- Name test instability honestly.
+Apply repository-specific README requirements after this universal standard.

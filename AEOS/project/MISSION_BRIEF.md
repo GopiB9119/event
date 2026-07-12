@@ -29,6 +29,7 @@ Current milestone: Public Launch Trust Package.
 | Claim | Label | Evidence | Consequence if wrong |
 |---|---|---|---|
 | The debug app compiles and all current JVM tests pass. | `VERIFIED` | [Test Strategy](../../docs/Testing/TEST_STRATEGY.md) and [Friend Beta Readiness](../../docs/Release/FRIEND_BETA_READINESS.md) | Public builds may contain known regressions. |
+| The permanent release-signed `0.2.0-beta.1` candidate verifies, installs, launches, and cold-relaunches on a clean API 36 emulator. | `VERIFIED` | [Beta Release Notes](../../docs/Release/0.2.0-beta.1.md) and [Friend Beta Readiness](../../docs/Release/FRIEND_BETA_READINESS.md) | The staged artifact or signing lineage may be invalid before physical testing. |
 | API 36 Room/share/OCR tests pass, including private real-image fixtures. | `VERIFIED` | [Friend Beta Readiness](../../docs/Release/FRIEND_BETA_READINESS.md) | Ledger or OCR behavior may fail on the tested environment. |
 | Branding, Trust Center, legal/data documents, support identity, and responsive site exist locally. | `VERIFIED` | [Public Launch Checklist](../../docs/Release/PUBLIC_LAUNCH_CHECKLIST.md) | Public trust claims or contact paths may be missing. |
 | Public downloads remain disabled until a release-signed APK exists. | `VERIFIED` | [Release manifest](../../site/releases/latest.json) and [Signing And Distribution](../../docs/Release/SIGNING_AND_DISTRIBUTION.md) | Users could install an impermanent debug lineage. |

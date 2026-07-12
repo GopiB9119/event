@@ -1,62 +1,37 @@
 # Testing Standard
 
-## Test Pyramid
+## Risk-Driven Layers
 
-1. Pure unit tests for deterministic logic.
-2. Integration tests for persistence boundaries.
-3. UI tests for critical flows.
-4. Manual device tests for OCR and platform share intents.
+1. Pure unit tests for deterministic policy and transformation logic.
+2. Contract tests for schemas, boundaries, compatibility, and error behavior.
+3. Integration tests for persistence, process, network, and external-tool boundaries.
+4. UI or end-to-end tests for critical user journeys and state transitions.
+5. Operational and physical-environment checks for behavior automation cannot faithfully reproduce.
 
-## Deterministic Logic
+Use the lowest layer that can disprove the behavior. Higher-level coverage complements deterministic tests; it does not replace them.
 
-Receipt parsing and ledger write policy live in plain Kotlin and require focused JVM tests.
+## Required Cases
 
-Test cases should include:
+For each material invariant, cover the normal path and applicable malformed, missing, duplicate, boundary, cancellation, retry, concurrency, permission, outage, restart, migration, and rollback paths.
 
-- clear receipt
-- noisy receipt
-- missing amount
-- missing transaction ID
-- duplicate receipt
-- unrelated balance number
-- local-script label
-- Samsung Pay approval code
-- zero, negative, NaN, and infinite amounts
-- invalid event ID and unsupported ledger type
+Every test should prove one named invariant. Avoid tests that only mirror implementation details or assert that a screen exists without exercising its outcome.
 
-## Persistence Testing
+## Test Data
 
-Room instrumentation must cover:
+- Use deterministic synthetic data for routine automated tests.
+- Use minimized, consented, access-controlled real fixtures only when synthetic data cannot reproduce the behavior.
+- Do not commit secrets or unnecessary personal, health, financial, or production data.
+- Record fixture provenance, expected fields, redaction, retention, and deletion when real data is required.
 
-- event cascade delete
-- member delete with transaction `memberId` set null
-- migrations 2 -> 3 -> 4
-- conflict-safe event insertion
-- transaction preservation on invite ID collision
+## Reliability
 
-## Device Testing
+- Bound asynchronous waits using observable conditions rather than arbitrary sleeps.
+- Give CI jobs an explicit timeout and preserve failure artifacts without sensitive data.
+- Classify flaky tests as defects with an owner and bounded quarantine; repeated execution must not manufacture a pass.
+- Verify the exact build, environment, platform, and configuration when they affect the result.
 
-Use instrumentation/manual checks for:
+## Evidence
 
-- private real-image OCR fixtures
-- Android image/text share intents
-- deep-link join and collision handling
-- cancel/navigation during OCR
-- force-stop/restart persistence
-- permissions, large images, and process death
+Record command, source revision, environment, test count, failures, skips, and relevant artifact identifiers. A partial or filtered run must not be described as the full suite.
 
-## Unit Test Infrastructure
-
-The apparent `0 tests completed` stall was caused by deep-link Robolectric tests polling asynchronous Room work for only one second and asserting stale copy. Use a bounded result waiter for ViewModel coroutine tests.
-
-The complete debug unit suite is a required gate:
-
-```powershell
-.\gradlew.bat --no-daemon --no-configuration-cache :app:testDebugUnitTest
-```
-
-Establish repeatability in CI with a job timeout before calling the suite production-stable.
-
-## Test Output
-
-Every test should prove one invariant.
+Apply repository-specific test matrices and commands after this universal standard.

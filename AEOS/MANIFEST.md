@@ -7,6 +7,7 @@ AEOS is a connected knowledge graph, not a pile of documents.
 ```text
 Foundation
 -> Decision Intelligence
+-> Operating Model
 -> Idea Validation
 -> Product
 -> Engineering Economics
@@ -16,6 +17,8 @@ Foundation
 -> Performance
 -> Testing
 -> AI Agentic Coding
+-> Loop Engineering Runtime
+-> Context And Memory
 -> Documentation
 -> Review
 -> Playbooks
@@ -46,6 +49,13 @@ Every AEOS document should answer:
 
 - [10-ai/AI_BEHAVIOR_MODES.md](10-ai/AI_BEHAVIOR_MODES.md)
 - [10-ai/AGENTIC_CODING.md](10-ai/AGENTIC_CODING.md)
+- [10-ai/LOOP_ENGINEERING.md](10-ai/LOOP_ENGINEERING.md)
+- [10-ai/CONTEXT_AND_MEMORY.md](10-ai/CONTEXT_AND_MEMORY.md)
+
+## Core Operating Documents
+
+- [00-foundation/OPERATING_MODEL.md](00-foundation/OPERATING_MODEL.md)
+- [00-foundation/COMMUNICATION_FRAMEWORK.md](00-foundation/COMMUNICATION_FRAMEWORK.md)
 
 ## Core Decision Documents
 
@@ -71,6 +81,17 @@ Every AEOS document should answer:
 - [13-review/CODE_REVIEW_STANDARD.md](13-review/CODE_REVIEW_STANDARD.md)
 - [13-review/PRODUCTION_READINESS_CHECKLIST.md](13-review/PRODUCTION_READINESS_CHECKLIST.md)
 
+## Core Recovery Documents
+
+- [14-playbooks/GIT_RECOVERY_PLAYBOOK.md](14-playbooks/GIT_RECOVERY_PLAYBOOK.md)
+- [12-templates/RUNBOOK_TEMPLATE.md](12-templates/RUNBOOK_TEMPLATE.md)
+- [12-templates/POSTMORTEM_TEMPLATE.md](12-templates/POSTMORTEM_TEMPLATE.md)
+
+## Executable Pilots
+
+- [14-playbooks/AEOS_VALIDATION_LOOP_PILOT.md](14-playbooks/AEOS_VALIDATION_LOOP_PILOT.md)
+- [14-playbooks/contracts/aeos-governance-validation.loop.json](14-playbooks/contracts/aeos-governance-validation.loop.json)
+
 ## Core Engineering Documents
 
 - [02-engineering/ENGINEERING_STANDARD.md](02-engineering/ENGINEERING_STANDARD.md)
@@ -78,7 +99,17 @@ Every AEOS document should answer:
 - [02-engineering/STATE_MANAGEMENT.md](02-engineering/STATE_MANAGEMENT.md)
 - [02-engineering/API_STANDARDS.md](02-engineering/API_STANDARDS.md)
 
+## Core Security Documents
+
+- [07-security/SECURITY_STANDARD.md](07-security/SECURITY_STANDARD.md)
+- [07-security/HIGH_STAKES_MOBILE_SYSTEMS.md](07-security/HIGH_STAKES_MOBILE_SYSTEMS.md)
+- [14-playbooks/SECURITY_REVIEW_PLAYBOOK.md](14-playbooks/SECURITY_REVIEW_PLAYBOOK.md)
+
 ## Core Documentation Documents
 
 - [04-documentation/DOCUMENTATION_STANDARD.md](04-documentation/DOCUMENTATION_STANDARD.md)
 - [04-documentation/README_SYSTEM.md](04-documentation/README_SYSTEM.md)
+
+## Validation
+
+Run `..\scripts\validate-aeos.ps1` from the `AEOS` directory or `.\scripts\validate-aeos.ps1` from the repository root after changing governance documents or workspace prompts.

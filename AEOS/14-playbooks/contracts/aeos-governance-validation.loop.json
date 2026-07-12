@@ -1,0 +1,53 @@
+{
+  "schemaVersion": 1,
+  "id": "aeos-governance-validation",
+  "version": 5,
+  "mission": "Validate the AEOS governance corpus with deterministic local checks.",
+  "decisionState": "TEST",
+  "trigger": "goal",
+  "scope": [
+    "AEOS governance documents",
+    "workspace prompt contracts",
+    "local link and product-leak checks"
+  ],
+  "nonGoals": [
+    "repair failures",
+    "edit source",
+    "network access",
+    "schedule future runs",
+    "publish or deploy"
+  ],
+  "entryEvidence": [
+    "The AEOS validator exists in this repository.",
+    "Git can read the current repository HEAD and working tree.",
+    "The configured evidence path is ignored by Git."
+  ],
+  "protectedInvariants": [
+    "read-only governance verification",
+    "unchanged HEAD/status/content fingerprint",
+    "fixed verifier allowlist",
+    "safe persisted verifier output",
+    "no blind retry"
+  ],
+  "permittedTools": [
+    "Windows PowerShell 5.1",
+    "read-only Git inspection",
+    "scripts/validate-aeos.ps1"
+  ],
+  "successPredicate": "Every selected verifier exits with code 0, passes its safe-output policy, and repository source fingerprints remain unchanged.",
+  "iterationBudget": 1,
+  "timeBudgetSeconds": 60,
+  "retryAllowed": false,
+  "evidencePathTemplate": "build/aeos-loop-runs/{runId}.json",
+  "humanApprovalGates": [],
+  "contractOwner": "Repository owner",
+  "amendmentAuthority": [
+    "Repository owner",
+    "Accountable owner explicitly delegated by repository owner"
+  ],
+  "failureAndEscalationOwner": "Engineering coordinator",
+  "verifierIds": [
+    "validator-self-test",
+    "governance-validation"
+  ]
+}

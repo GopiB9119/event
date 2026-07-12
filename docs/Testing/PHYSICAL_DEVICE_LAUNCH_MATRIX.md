@@ -15,17 +15,33 @@ Use this matrix with the exact candidate recorded in [Friend Beta Readiness](../
 
 ```text
 Package: com.aistudio.communityledger.yrtqwx
-Version: 0.2.0-beta (2)
-APK: app/build/outputs/apk/debug/app-debug.apk
-Size: 62,360,125 bytes
-SHA-256: 83F237EB6877FD839F73879F3500853B3F2A48A263130B2724620505C0B468FE
-Signature: Android debug certificate, APK Signature Scheme v2
-Scope: trusted beta only; not the permanent public signing lineage
+Version: 0.2.0-beta.1 (3)
+Release asset: community-ledger-0.2.0-beta.1.apk
+Size: 56,257,295 bytes
+SHA-256: 742BEF49CBA3DA6E4D958880698D5DEF82097E39CC6AA16358B9AA44E946A068
+Signing certificate SHA-256: BC1415F8C2236009109CBDA483F351AB9F2C379B7E9A7661599D369E2FACA3CF
+Signature: permanent Community Ledger release certificate, APK Signature Scheme v2
+Scope: public beta candidate; release remains blocked until this matrix and hosted gates pass
 ```
+
+Clean-emulator evidence for this exact candidate is complete: all 8 Android tests passed on API 36, the signed APK installed, and first launch plus force-stop/cold relaunch succeeded with no crash/ANR. Emulator evidence does not satisfy the physical-device rows below.
 
 ## Preflight
 
-Current execution status (11 July 2026): `BLOCKED` because `adb devices -l` reported no connected physical phone. The preflight script was parser-validated and its no-device, missing-APK, and hash-mismatch paths returned the documented codes without installing, clearing data, or writing an evidence record.
+Current execution status (11 July 2026): `BLOCKED` after a partial Galaxy A54 run. The preflight script was parser-validated and its no-device, missing-APK, and hash-mismatch paths returned the documented codes without installing, clearing data, or writing an evidence record.
+
+### Partial Device A Evidence
+
+- Device: Samsung SM-A546E, Android 16 / SDK 36, ARM64.
+- Candidate size/hash matched and fresh installation succeeded without a scripted clear or uninstall.
+- The user completed onboarding and created a disposable private event with one member and one reviewed receipt transaction.
+- Intentional force-stop/cold launch completed in 1.261 seconds; the event, private marker, member, and transaction remained visible. Android exit history contained only the intentional force-stop and no Community Ledger crash/ANR.
+- Trust Center opened and exposed About, Privacy, and Terms tabs.
+- The complete isolated Android instrumentation suite passed 6 tests in 12.615 seconds; raw private OCR output is retained only in ignored local `build/` evidence.
+- At 19:48:16 Samsung Package Installer displayed its uninstall UI (`UninstallLaunch`). At 19:48:23 Android broadcast that `com.aistudio.communityledger.yrtqwx` was fully removed. The initiator is `UNKNOWN`; no shell uninstall command was issued, so this evidence must not be attributed to the app or test runner without further proof.
+- Full removal deleted the disposable local ledger as documented. The app was not reinstalled automatically after the removal.
+
+Device A verdict: `BLOCKED`. The partial evidence above applies to the superseded `83F237...B468FE` candidate. Repeat the complete matrix with the current signed `742BEF...A068` candidate, explicit coordination, disposable data, and no concurrent device interaction; confirm whether the previous uninstall was intentional before reinstalling.
 
 Connect one unlocked phone with USB debugging enabled and accept the RSA prompt.
 
@@ -77,11 +93,14 @@ Use `PASS`, `FAIL`, `BLOCKED`, or `NOT APPLICABLE`. Attach redacted evidence loc
 | Event survives force-stop and cold relaunch | | | |
 | Scan Receipt picker opens without broad storage permission | | | |
 | External Gallery/payment-app share reaches the selected event review | | | |
+| Receipt review keeps OCR counterparty separate from contributor/vendor attribution | | | |
+| Money in changes Total Collected; Money out changes Total Spent | | | |
 | Cancel during image selection/processing/review creates no transaction | | | |
 | Real private receipt OCR shows source text, amount, reference/receiver evidence, confidence, and warnings | | | |
 | Low-confidence/missing-amount/duplicate receipt cannot mutate totals | | | |
 | Save confirmed receipt creates one transaction and changes the correct total exactly once | | | |
 | Saved transaction/evidence survives force-stop and relaunch | | | |
+| Delete icon opens warning; cancel/disabled confirm preserves entry; acknowledged delete changes totals once | | | |
 | Receipt process termination shows interruption notice and saves nothing | | | |
 | Airplane mode: local event/ledger and on-device OCR remain usable | | | |
 | Airplane mode: manual update check fails honestly without affecting local data | | | |

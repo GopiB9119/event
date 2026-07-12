@@ -63,8 +63,8 @@ Example shape:
 	"calculationAmount": 5000.0,
 	"calculationBucket": "Total Collected",
 	"calculationOperation": "add",
-	"paidTo": "ALLI RAMARAO",
-	"upiId": "alliramarao@ybl",
+	"paidTo": "SAMPLE MERCHANT",
+	"upiId": "sample.merchant@ybl",
 	"upiReferenceOrTransactionId": null,
 	"paymentApp": "PhonePe",
 	"date": "18 June 2026",
@@ -195,11 +195,13 @@ adb shell monkey -p com.aistudio.communityledger.yrtqwx 1
 
 ## Testing Notes
 
-The complete debug unit/Robolectric suite currently passes 35 tests across seven suites. The complete Android instrumentation suite passes six tests across five classes, covering Room collision safety, file-backed database reopen, shared receipt state, app context, and six private real-image OCR fixtures. First-use disclosure, local identity gating, Trust Center navigation, and an honest receipt-interruption notice after process death have also been verified through runtime interaction. The bounded workflow at `.github/workflows/android-ci.yml` runs compile, unit tests, and APK assembly with a 30-minute timeout; its exact command passes locally, while the first hosted GitHub run remains pending.
+The complete debug unit/Robolectric suite currently passes 39 tests across eight suites. The last complete Android instrumentation suite passes eight tests across six classes, covering Room collision safety, file-backed database reopen, shared receipt state, app context, six private real-image OCR fixtures, receipt attribution, and acknowledged deletion. First-use disclosure, local identity gating, Trust Center navigation, and an honest receipt-interruption notice after process death have also been verified through runtime interaction. The bounded workflow at `.github/workflows/android-ci.yml` runs compile, unit tests, and APK assembly with a 30-minute timeout; its exact command passes locally, while the first hosted GitHub run remains pending.
 
 ## Launch Website
 
 The static launch package lives in [site](site). It includes the product page, real privacy-safe app screenshots, Privacy, Terms, Contact, event-copy fallback, and a release manifest used by the manual in-app update check. The site and APK are not published automatically. `.github/workflows/pages.yml` requires an explicit manual deployment, and the download remains gated until a release-signed APK exists.
+
+The current signed beta candidate is documented in [0.2.0-beta.1 release notes](docs/Release/0.2.0-beta.1.md). The release manifest remains fail-closed until its hosted CI, physical-device, GitHub prerelease, and live-download checks pass.
 
 Next recommended test work:
 

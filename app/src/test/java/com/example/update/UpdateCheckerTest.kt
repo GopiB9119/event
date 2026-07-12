@@ -25,7 +25,7 @@ class UpdateCheckerTest {
     fun `current official release is up to date`() {
         val result = UpdateChecker.evaluateManifest(validManifest(versionCode = 2), currentVersionCode = 2)
 
-        assertEquals(UpdateCheckResult.UpToDate("0.2.0-beta"), result)
+        assertEquals(UpdateCheckResult.UpToDate("0.2.0-beta.1"), result)
     }
 
     @Test
@@ -35,7 +35,7 @@ class UpdateCheckerTest {
         assertTrue(result is UpdateCheckResult.Available)
         result as UpdateCheckResult.Available
         assertEquals(3, result.versionCode)
-        assertEquals("0.2.0-beta", result.versionName)
+        assertEquals("0.2.0-beta.1", result.versionName)
         assertEquals(listOf("Integrity and trust updates."), result.releaseNotes)
     }
 
@@ -136,7 +136,7 @@ class UpdateCheckerTest {
           "schemaVersion": 1,
           "available": true,
           "versionCode": $versionCode,
-          "versionName": "0.2.0-beta",
+          "versionName": "0.2.0-beta.1",
           "downloadUrl": "https://github.com/GopiB9119/event/releases/download/v0.2.0/community-ledger.apk",
           "sha256": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
           "releaseNotes": ["Integrity and trust updates."]

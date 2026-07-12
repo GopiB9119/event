@@ -5,6 +5,7 @@ Workspace prompt files live in [../../.github/prompts](../../.github/prompts/). 
 ## Operating Rules
 
 - One prompt owns one job.
+- Roles are capability assignments governed by the Operating Model, not product-specific personas.
 - The coordinator owns the mission and final judgment.
 - Material product/architecture work passes Decision Intelligence before implementation planning.
 - `STOP`, `DEFER`, and `TEST` are valid outcomes; code volume is not success.
@@ -13,6 +14,8 @@ Workspace prompt files live in [../../.github/prompts](../../.github/prompts/). 
 - Completion, release, and deployment require evidence.
 - Deployment, publishing, tagging, pushing, and destructive actions require explicit approval.
 - Project Memory Sync stores only durable verified facts.
+- Repeated or unattended work requires the Loop Engineering contract and terminal states.
+- Derived memory and repository indexes must preserve provenance and route agents back to current evidence.
 
 ## Invocation
 
@@ -111,4 +114,10 @@ Self-review does not replace independent challenge. The author of a material dec
 
 ## Definition Of Done
 
-A mission is complete only when requirements are mapped to evidence, the smallest safe change exists, focused and repository-required checks pass, security/privacy and data risks are reviewed, documentation and memory match reality, rollback limits are clear, and residual risk is named.
+A mission is complete only when requirements are mapped to evidence, the smallest safe change exists, focused and repository-required checks pass, security/privacy and data risks are reviewed, documentation and memory match reality, rollback limits are clear, residual risk is named, and any loop ended in a recorded terminal state rather than an unbounded retry.
+
+Core runtime contracts:
+
+- [Operating Model](../00-foundation/OPERATING_MODEL.md)
+- [Loop Engineering](../10-ai/LOOP_ENGINEERING.md)
+- [Context And Memory](../10-ai/CONTEXT_AND_MEMORY.md)

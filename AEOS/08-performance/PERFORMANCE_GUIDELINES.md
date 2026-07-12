@@ -12,12 +12,12 @@
 
 - Battery
 - Memory pressure
-- Bitmap size
-- OCR runtime
-- Database query cost
-- Recomposition cost
+- media and binary size
+- background execution limits
+- persistence query cost
+- rendering and layout cost
 - Startup latency
 
-## OCR Performance
+## Processing Pipelines
 
-Multi-pass OCR improves recall but costs CPU and memory. Keep passes intentional and avoid unbounded image scaling.
+Each additional processing pass consumes time, memory, battery, or network capacity. Keep passes intentional, bound input and output size, and profile the real target environment before claiming an optimization.

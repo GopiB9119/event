@@ -2,7 +2,7 @@
 param(
     [string]$Serial,
     [string]$ApkPath = ".\app\build\outputs\apk\debug\app-debug.apk",
-    [string]$ExpectedSha256 = "83F237EB6877FD839F73879F3500853B3F2A48A263130B2724620505C0B468FE",
+    [string]$ExpectedSha256 = "C3B029AD4F335BCABF07377AFC4EC519BDA0370445C60D4F5003844B55AE91EA",
     [string]$OutputPath = ".\build\physical-device-preflight.json",
     [switch]$Install
 )

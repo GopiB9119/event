@@ -49,6 +49,9 @@ import com.example.data.MemberEntity
 import com.example.data.TransactionEntity
 import com.example.data.normalizeLocalIdentity
 import com.example.receipt.ParsedReceipt
+import com.example.receipt.ReceiptLedgerIdentity
+import com.example.receipt.defaultReceiptLedgerPersonName
+import com.example.receipt.resolveNewReceiptLedgerIdentity
 import android.net.Uri
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -1738,6 +1741,7 @@ fun EventDetailsScreen(eventId: Int, viewModel: EventViewModel) {
     var pendingIdentityAction by remember { mutableStateOf<IdentityRequiredAction?>(null) }
     var replacementPendingIdentity by remember { mutableStateOf<TransactionEntity?>(null) }
     var selectedMemberForProfile by remember { mutableStateOf<MemberEntity?>(null) }
+    var transactionPendingDeletion by remember { mutableStateOf<TransactionEntity?>(null) }
 
     // OCR result verifier modal
     var extractedReceiptToVerify by remember { mutableStateOf<ParsedReceipt?>(null) }
@@ -2518,7 +2522,7 @@ fun EventDetailsScreen(eventId: Int, viewModel: EventViewModel) {
                         tx = tx,
                         currentUserEmail = currentUserEmail,
                         eventCreatorEmail = eventCreatorEmail,
-                        onDelete = { viewModel.deleteTransaction(tx.id) },
+                        onDelete = { transactionPendingDeletion = tx },
                         onReplaceScreenshot = {
                             if (normalizeLocalIdentity(currentUserEmail) == null) {
                                 replacementPendingIdentity = tx
@@ -2565,6 +2569,72 @@ fun EventDetailsScreen(eventId: Int, viewModel: EventViewModel) {
                     }
                 }
                 saved
+            }
+        )
+    }
+
+    transactionPendingDeletion?.let { transaction ->
+        var deletionAcknowledged by remember(transaction.id) { mutableStateOf(false) }
+        val totalName = if (transaction.type == "Donated" || transaction.type == "Credit") {
+            "Total Collected"
+        } else {
+            "Total Spent"
+        }
+
+        AlertDialog(
+            onDismissRequest = { transactionPendingDeletion = null },
+            modifier = Modifier.testTag("delete_transaction_dialog"),
+            icon = {
+                Icon(
+                    imageVector = Icons.Default.DeleteForever,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.error
+                )
+            },
+            title = { Text("Delete ledger entry?", fontWeight = FontWeight.Bold) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text(
+                        text = "This permanently removes ${transaction.personName}'s ${transaction.type.lowercase(Locale.getDefault())} entry of ₹${String.format(Locale.getDefault(), "%,.2f", transaction.amount)}.",
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                    Text(
+                        text = "$totalName and the available balance will change immediately. There is no undo or restore in this beta.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error
+                    )
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { deletionAcknowledged = !deletionAcknowledged }
+                            .testTag("delete_transaction_acknowledgement"),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Checkbox(
+                            checked = deletionAcknowledged,
+                            onCheckedChange = { deletionAcknowledged = it }
+                        )
+                        Text("I understand this ledger change cannot be undone.")
+                    }
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        viewModel.deleteTransaction(transaction.id)
+                        transactionPendingDeletion = null
+                    },
+                    enabled = deletionAcknowledged,
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
+                    modifier = Modifier.testTag("delete_transaction_confirm")
+                ) {
+                    Text("Delete entry")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { transactionPendingDeletion = null }) {
+                    Text("Keep entry")
+                }
             }
         )
     }
@@ -3317,7 +3387,38 @@ fun EventDetailsScreen(eventId: Int, viewModel: EventViewModel) {
     if (isVerifyReceiptDialogOpen && extractedReceiptToVerify != null) {
         val parsed = extractedReceiptToVerify!!
         val replacementTarget = transactionPendingReceiptReview
-        val receiptType = replacementTarget?.type ?: "Donated"
+        var receiptType by remember(parsed, replacementTarget) {
+            mutableStateOf(replacementTarget?.type ?: "Donated")
+        }
+        val isMoneyIn = receiptType == "Donated" || receiptType == "Credit"
+        val defaultLedgerPersonName = remember(currentUserEmail, replacementTarget) {
+            replacementTarget?.personName ?: defaultReceiptLedgerPersonName(currentUserEmail)
+        }
+        var ledgerPersonName by remember(parsed, replacementTarget, currentUserEmail) {
+            mutableStateOf(defaultLedgerPersonName)
+        }
+        var isUploaderTheLedgerPerson by remember(parsed, replacementTarget) {
+            mutableStateOf(replacementTarget == null)
+        }
+        val ledgerIdentity = remember(
+            ledgerPersonName,
+            currentUserEmail,
+            isUploaderTheLedgerPerson,
+            isMoneyIn,
+            replacementTarget
+        ) {
+            replacementTarget?.let { transaction ->
+                ReceiptLedgerIdentity(
+                    personName = transaction.personName,
+                    personEmail = transaction.personEmail,
+                    source = "Existing transaction"
+                )
+            } ?: resolveNewReceiptLedgerIdentity(
+                personName = ledgerPersonName,
+                uploaderEmail = currentUserEmail,
+                isUploaderThePerson = isMoneyIn && isUploaderTheLedgerPerson
+            )
+        }
         val extractedPhone = parsed.phone.ifBlank { replacementTarget?.personPhone ?: "" }
         val extractedDate = parsed.date
         fun cleanJsonString(json: JSONObject?, key: String): String {
@@ -3336,7 +3437,7 @@ fun EventDetailsScreen(eventId: Int, viewModel: EventViewModel) {
 
         val duplicateReceipt = remember(transactions, parsed, extractedPhone, extractedDate, replacementTarget) {
             val newReference = parsed.transactionId.trim()
-            val newPaidTo = parsed.payeeName.trim()
+            val newCounterparty = parsed.counterpartyName.trim()
             val newUpiId = parsed.upiId.trim()
             val newPaymentApp = parsed.paymentApp.takeIf { it != "Unknown UPI" }.orEmpty()
 
@@ -3362,13 +3463,14 @@ fun EventDetailsScreen(eventId: Int, viewModel: EventViewModel) {
 
                 val existingDate = cleanJsonString(existingJson, "date")
                 val existingPaymentApp = cleanJsonString(existingJson, "paymentApp")
-                val existingPaidTo = cleanJsonString(existingJson, "paidTo")
+                val existingCounterparty = cleanJsonString(existingJson, "counterpartyName")
+                    .ifBlank { cleanJsonString(existingJson, "paidTo") }
                 val existingUpiId = cleanJsonString(existingJson, "upiId")
                 val dateMatches = extractedDate.isNotBlank() && existingDate.equals(extractedDate, ignoreCase = true)
                 val appMatches = newPaymentApp.isNotBlank() && existingPaymentApp.equals(newPaymentApp, ignoreCase = true)
                 val receiverMatches =
                     (newUpiId.isNotBlank() && existingUpiId.equals(newUpiId, ignoreCase = true)) ||
-                        (newPaidTo.isNotBlank() && existingPaidTo.equals(newPaidTo, ignoreCase = true))
+                        (newCounterparty.isNotBlank() && existingCounterparty.equals(newCounterparty, ignoreCase = true))
 
                 listOf(dateMatches, appMatches, receiverMatches).count { it } >= 2
             }
@@ -3383,27 +3485,46 @@ fun EventDetailsScreen(eventId: Int, viewModel: EventViewModel) {
                 "Same amount with matching receipt details already exists."
             }
         }
-        val canSaveReceipt = parsed.amount > 0.0 && parsed.confidence >= 60 && duplicateReceipt == null
+        val canSaveReceipt = parsed.amount > 0.0 && parsed.confidence >= 60 && duplicateReceipt == null && ledgerIdentity != null
         val extractionLooksEmpty = parsed.amount <= 0.0 && parsed.transactionId.isBlank() && parsed.phone.isBlank() && parsed.email.isBlank()
         val hasOcrText = parsed.rawTextPreview.isNotBlank()
-        val calculationBucket = if (receiptType == "Donated" || receiptType == "Credit") "Total Collected" else "Total Spent"
-        val calculationOperation = if (receiptType == "Donated" || receiptType == "Credit") "add" else "subtract"
-        val receiptJsonText = remember(parsed, replacementTarget, currentUserEmail) {
+        val effectiveReceiptType = replacementTarget?.type ?: receiptType
+        val calculationBucket = if (effectiveReceiptType == "Donated" || effectiveReceiptType == "Credit") "Total Collected" else "Total Spent"
+        val calculationOperation = if (effectiveReceiptType == "Donated" || effectiveReceiptType == "Credit") "add" else "subtract"
+        val preservedUploaderEmail = replacementTarget
+            ?.uploaderEmail
+            ?.takeIf { normalizeLocalIdentity(it) != null }
+            ?: currentUserEmail
+        val receiptJsonText = remember(
+            parsed,
+            replacementTarget,
+            currentUserEmail,
+            effectiveReceiptType,
+            ledgerIdentity,
+            extractedPhone,
+            extractedDate,
+            duplicateReceipt,
+            duplicateReason,
+            preservedUploaderEmail
+        ) {
             JSONObject().apply {
                 put("amount", if (parsed.amount > 0.0) parsed.amount else JSONObject.NULL)
                 put("currency", "INR")
                 put("calculationAmount", if (parsed.amount > 0.0) parsed.amount else JSONObject.NULL)
                 put("calculationBucket", calculationBucket)
                 put("calculationOperation", calculationOperation)
-                put("paidTo", parsed.payeeName.ifBlank { JSONObject.NULL })
+                put("counterpartyName", parsed.counterpartyName.ifBlank { JSONObject.NULL })
                 put("upiId", parsed.upiId.ifBlank { JSONObject.NULL })
                 put("upiReferenceOrTransactionId", parsed.transactionId.ifBlank { JSONObject.NULL })
                 put("paymentApp", parsed.paymentApp.takeIf { it != "Unknown UPI" } ?: JSONObject.NULL)
                 put("date", extractedDate.ifBlank { JSONObject.NULL })
                 put("phone", extractedPhone.ifBlank { JSONObject.NULL })
                 put("email", parsed.email.ifBlank { JSONObject.NULL })
-                put("ledgerType", receiptType)
-                put("uploaderEmail", currentUserEmail)
+                put("ledgerType", effectiveReceiptType)
+                put("ledgerPerson", ledgerIdentity?.personName ?: JSONObject.NULL)
+                put("ledgerPersonSource", ledgerIdentity?.source ?: JSONObject.NULL)
+                put("uploaderEmail", preservedUploaderEmail)
+                put("lastEditedBy", if (replacementTarget == null) JSONObject.NULL else currentUserEmail)
                 put("extractionMethod", parsed.extractionMethod)
                 put("confidence", parsed.confidence)
                 put("warnings", org.json.JSONArray(parsed.validationWarnings))
@@ -3549,6 +3670,129 @@ fun EventDetailsScreen(eventId: Int, viewModel: EventViewModel) {
                         }
                     }
 
+                    Surface(
+                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(12.dp),
+                            verticalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            Text(
+                                text = "Ledger attribution",
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(
+                                text = "Choose the person attached to this ledger entry. OCR counterparty evidence remains separate as Paid to.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+
+                            if (replacementTarget == null) {
+                                if (isMoneyIn) {
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .clickable { isUploaderTheLedgerPerson = !isUploaderTheLedgerPerson },
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Checkbox(
+                                            checked = isUploaderTheLedgerPerson,
+                                            onCheckedChange = { isUploaderTheLedgerPerson = it },
+                                            modifier = Modifier.testTag("receipt_uploader_is_person")
+                                        )
+                                        Text("I made this payment or contribution")
+                                    }
+                                }
+                                OutlinedTextField(
+                                    value = ledgerPersonName,
+                                    onValueChange = { ledgerPersonName = it },
+                                    label = { Text(if (isMoneyIn) "Contributor / payer" else "Vendor / paid to") },
+                                    supportingText = {
+                                        Text(
+                                            if (ledgerIdentity == null) {
+                                                if (isMoneyIn) {
+                                                    "Enter the person who paid or contributed."
+                                                } else {
+                                                    "Enter the vendor or recipient for this expense."
+                                                }
+                                            } else {
+                                                "This name appears in member totals and reports."
+                                            }
+                                        )
+                                    },
+                                    isError = ledgerIdentity == null,
+                                    singleLine = true,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .testTag("receipt_ledger_person_input")
+                                )
+                            } else {
+                                Text(
+                                    text = "Ledger person: ${replacementTarget.personName}",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                            }
+
+                            if (replacementTarget == null) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    FilterChip(
+                                        selected = isMoneyIn,
+                                        onClick = {
+                                            receiptType = "Donated"
+                                            isUploaderTheLedgerPerson = true
+                                            ledgerPersonName = defaultReceiptLedgerPersonName(currentUserEmail)
+                                        },
+                                        label = { Text("Money in") },
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .testTag("receipt_money_in")
+                                    )
+                                    FilterChip(
+                                        selected = !isMoneyIn,
+                                        onClick = {
+                                            receiptType = "Expense"
+                                            isUploaderTheLedgerPerson = false
+                                            ledgerPersonName = parsed.counterpartyName
+                                        },
+                                        label = { Text("Money out") },
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .testTag("receipt_money_out")
+                                    )
+                                }
+                            } else {
+                                Text(
+                                    text = "Direction: ${if (isMoneyIn) "Money in" else "Money out"} (unchanged by screenshot replacement)",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                            }
+                            Text(
+                                text = if (isMoneyIn) {
+                                    "Money in adds this amount to Total Collected."
+                                } else {
+                                    "Money out adds this amount to Total Spent."
+                                },
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            if (parsed.counterpartyName.isNotBlank()) {
+                                Text(
+                                    text = "OCR counterparty: ${parsed.counterpartyName}",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                    }
+
                     Spacer(modifier = Modifier.height(4.dp))
                 }
             },
@@ -3557,13 +3801,12 @@ fun EventDetailsScreen(eventId: Int, viewModel: EventViewModel) {
                     enabled = canSaveReceipt,
                     onClick = {
                         val cleanAmount = parsed.amount.takeIf { it > 0.0 } ?: return@Button
-                        val uploaderName = currentUserEmail.substringBefore("@")
-                            .replaceFirstChar { if (it.isLowerCase()) it.titlecase(Locale.getDefault()) else it.toString() }
-                        val receiptOwnerName = parsed.payeeName.ifBlank { uploaderName }
+                        val confirmedLedgerIdentity = ledgerIdentity ?: return@Button
+                        val receiptOwnerName = confirmedLedgerIdentity.personName
                         val storedReceiptPath = viewModel.saveReceiptJsonFile(
                             eventId = replacementTarget?.eventId ?: eventId,
                             personName = receiptOwnerName,
-                            uploaderEmail = currentUserEmail,
+                            uploaderEmail = preservedUploaderEmail,
                             receiptJsonText = receiptJsonText
                         )
 
@@ -3571,10 +3814,10 @@ fun EventDetailsScreen(eventId: Int, viewModel: EventViewModel) {
                             viewModel.addReceiptTransaction(
                                 eventId = eventId,
                                 personName = receiptOwnerName,
-                                personPhone = extractedPhone,
-                                personEmail = currentUserEmail,
+                                personPhone = "",
+                                personEmail = confirmedLedgerIdentity.personEmail,
                                 amount = cleanAmount,
-                                type = receiptType,
+                                type = effectiveReceiptType,
                                 notes = if (storedReceiptPath.isNullOrBlank()) receiptJsonText else JSONObject(receiptJsonText).apply { put("receiptFilePath", storedReceiptPath) }.toString(2),
                                 transactionId = parsed.transactionId,
                                 uploaderEmail = currentUserEmail
@@ -3584,13 +3827,13 @@ fun EventDetailsScreen(eventId: Int, viewModel: EventViewModel) {
                                 txId = replacementTarget.id,
                                 eventId = replacementTarget.eventId,
                                 personName = replacementTarget.personName,
-                                personPhone = extractedPhone,
+                                personPhone = replacementTarget.personPhone,
                                 personEmail = replacementTarget.personEmail,
                                 amount = cleanAmount,
-                                type = receiptType,
+                                type = replacementTarget.type,
                                 notes = if (storedReceiptPath.isNullOrBlank()) receiptJsonText else JSONObject(receiptJsonText).apply { put("receiptFilePath", storedReceiptPath) }.toString(2),
                                 transactionId = parsed.transactionId,
-                                uploaderEmail = currentUserEmail,
+                                uploaderEmail = preservedUploaderEmail,
                                 existingMemberId = replacementTarget.memberId
                             )
                         }
@@ -3733,10 +3976,11 @@ fun TransactionItem(
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis
                                 )
-                                val paidTo = receiptJson.optString("paidTo")
-                                if (paidTo.isNotBlank() && paidTo != "null") {
+                                val counterparty = receiptJson.optString("counterpartyName")
+                                    .ifBlank { receiptJson.optString("paidTo") }
+                                if (counterparty.isNotBlank() && counterparty != "null") {
                                     Text(
-                                        text = "paid to: $paidTo",
+                                        text = "counterparty: $counterparty",
                                         style = MaterialTheme.typography.labelSmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                                         maxLines = 1,
@@ -3862,6 +4106,7 @@ fun TransactionItem(
                             modifier = Modifier
                                 .size(28.dp)
                                 .background(MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.2f), CircleShape)
+                                .testTag("delete_transaction_button_${tx.id}")
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Close,

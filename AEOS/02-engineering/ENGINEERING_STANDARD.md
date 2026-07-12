@@ -13,7 +13,7 @@
 ## Architecture Principles
 
 - Separate parsing from persistence.
-- Separate OCR from interpretation.
+- Separate untrusted extraction from interpretation.
 - Separate UI review from durable mutation.
 - Keep database migrations explicit.
 - Preserve user data by default.

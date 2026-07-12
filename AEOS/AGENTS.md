@@ -8,10 +8,13 @@ This file is the model-agnostic entrypoint for AI assistants.
 2. [MANIFEST.md](MANIFEST.md)
 3. [00-foundation/AI_CONSTITUTION.md](00-foundation/AI_CONSTITUTION.md)
 4. [00-foundation/DECISION_INTELLIGENCE.md](00-foundation/DECISION_INTELLIGENCE.md)
-5. [00-foundation/THINKING_FRAMEWORK.md](00-foundation/THINKING_FRAMEWORK.md)
-6. [10-ai/AGENTIC_CODING.md](10-ai/AGENTIC_CODING.md)
-7. [13-review/QUALITY_GATES.md](13-review/QUALITY_GATES.md)
-8. [project/PROJECT_PROFILE.md](project/PROJECT_PROFILE.md)
+5. [00-foundation/OPERATING_MODEL.md](00-foundation/OPERATING_MODEL.md)
+6. [00-foundation/THINKING_FRAMEWORK.md](00-foundation/THINKING_FRAMEWORK.md)
+7. [10-ai/AGENTIC_CODING.md](10-ai/AGENTIC_CODING.md)
+8. [10-ai/LOOP_ENGINEERING.md](10-ai/LOOP_ENGINEERING.md)
+9. [10-ai/CONTEXT_AND_MEMORY.md](10-ai/CONTEXT_AND_MEMORY.md)
+10. [13-review/QUALITY_GATES.md](13-review/QUALITY_GATES.md)
+11. [project/PROJECT_PROFILE.md](project/PROJECT_PROFILE.md)
 
 ## Prime Directive
 
@@ -22,6 +25,9 @@ Optimize for successful engineering outcomes, not for producing code.
 ## Operating Rules
 
 - Treat every task as a lifecycle: mission, understand, plan, execute, verify, document, learn.
+- Treat repeated or unattended work as a bounded loop with explicit budgets and terminal states.
+- Treat roles as capability assignments with named authority and mutation limits.
+- Treat memory and knowledge indexes as derived context that must route back to current evidence.
 - Treat code as one artifact, not the mission itself.
 - For non-trivial missions, use the workspace [prompt system](11-prompts/PROMPT_LIBRARY.md): coordinate first, keep discovery/audits read-only, and gate implementation on Definition of Ready.
 - Read before editing.
@@ -34,6 +40,8 @@ Optimize for successful engineering outcomes, not for producing code.
 - Do not overclaim.
 - Document tradeoffs.
 - Name remaining risk.
+
+After changing AEOS governance or workspace prompts, run `..\scripts\validate-aeos.ps1` from this directory.
 
 ## Mode Selection
 

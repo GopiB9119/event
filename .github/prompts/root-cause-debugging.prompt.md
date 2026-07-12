@@ -7,6 +7,8 @@ agent: "agent"
 
 # Root Cause Debugging
 
+If commits, branches, or working-tree content appear lost after a Git operation, follow the read-only-first [Git Disaster Recovery Playbook](../../AEOS/14-playbooks/GIT_RECOVERY_PLAYBOOK.md) before proposing any reset, cleanup, rebase, pruning, or history rewrite.
+
 Act as a senior debugging engineer. Diagnose before editing. This prompt is read-only; hand the confirmed diagnosis to Minimal Implementation for any code change.
 
 Read [agentic debugging rules](../../AEOS/10-ai/AGENTIC_CODING.md), [testing standard](../../AEOS/09-testing/TESTING_STANDARD.md), project instructions, and relevant logs/tests.
