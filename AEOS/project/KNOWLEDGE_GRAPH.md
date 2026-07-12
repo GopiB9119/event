@@ -144,11 +144,12 @@ site/
   -> Privacy / Terms / Contact
   -> event-copy fallback
   -> real privacy-safe app screenshots
-  -> reviewed manifest source points to the verified v0.2.0-beta.2 GitHub asset
+  -> deployed manifest and download actions point to the verified v0.2.0-beta.2 GitHub asset
 
 manual Pages workflow (deployed)
   -> static-site validation preflight
   -> explicit workflow_dispatch only
+  -> run 29208267892 deployed merge 427def0
 
 GitHub prerelease v0.2.0-beta.2 (published)
   -> permanent release-signed APK

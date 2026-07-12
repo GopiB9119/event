@@ -61,6 +61,9 @@ The counts in this section describe the published `0.2.0-beta.1` artifact and ar
 - Reused numeric IDs from unrelated devices create distinct local shells; repeated opaque-key links reopen one shell.
 - Regular and event-copy inserts fail closed; duplicate opaque keys cannot replace a ledger or delete its transaction.
 - Static join fallback accepts both new `eventKey` and legacy `eventId` links; five-page site validation reports zero errors.
+- Protected PR #18 passed both Android and Site CI triggers and merged as `427def02334f1e57bb4b7db95aeeac7517e1a44d`.
+- Manual Pages run `29208267892` deployed that exact merge; the live manifest, website, JavaScript, and official APK endpoint returned HTTPS 200 and resolved to beta.2 with the recorded hash.
+- The signed public beta.2 APK reported `This build is current` after one explicit Trust Center check on API 36; Community Ledger had zero crash/ANR exit records afterward.
 - This evidence does not implement or verify live member, receipt, transaction, total, utilization, or event-detail synchronization.
 
 ## Current Signed Public Beta
