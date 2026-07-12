@@ -1,6 +1,6 @@
 # Community Ledger Mission Brief
 
-Last decision review: 11 July 2026
+Last decision review: 12 July 2026
 
 Owner: Gopi Banoth
 
@@ -10,7 +10,7 @@ Decision question: May Community Ledger move from a small trusted-device beta to
 
 Requested outcome: Ship a trustworthy local organizer ledger with a permanent signed update path, truthful public website, and evidence that core financial-record flows survive real devices and lifecycle failures.
 
-Why now: The trust package and debug beta are implemented, but publishing before signing and physical-device gates would create an update/rollback promise the project cannot yet support.
+Why now: The signed limited prerelease and public trust package are live. The next decision is whether evidence supports broader reliance beyond voluntary beta testing.
 
 ## Product Context
 
@@ -18,11 +18,11 @@ One-sentence product idea: Community Ledger helps a trusted organizer maintain a
 
 Target user and context: One community/event organizer or one shared physical device maintaining a local record of money in, money out, and supporting receipt evidence.
 
-Current maturity: Private/friend beta preparing for public beta.
+Current maturity: Limited public beta prerelease.
 
 Product promise affected: Honest, local-first event records with evidence before ledger mutation.
 
-Current milestone: Public Launch Trust Package.
+Current milestone: Beta Reliability Validation.
 
 ## Evidence Ledger
 
@@ -32,10 +32,10 @@ Current milestone: Public Launch Trust Package.
 | The permanent release-signed `0.2.0-beta.1` candidate verifies, installs, launches, and cold-relaunches on a clean API 36 emulator. | `VERIFIED` | [Beta Release Notes](../../docs/Release/0.2.0-beta.1.md) and [Friend Beta Readiness](../../docs/Release/FRIEND_BETA_READINESS.md) | The staged artifact or signing lineage may be invalid before physical testing. |
 | API 36 Room/share/OCR tests pass, including private real-image fixtures. | `VERIFIED` | [Friend Beta Readiness](../../docs/Release/FRIEND_BETA_READINESS.md) | Ledger or OCR behavior may fail on the tested environment. |
 | Branding, Trust Center, legal/data documents, support identity, and responsive site exist locally. | `VERIFIED` | [Public Launch Checklist](../../docs/Release/PUBLIC_LAUNCH_CHECKLIST.md) | Public trust claims or contact paths may be missing. |
-| Public downloads remain disabled until a release-signed APK exists. | `VERIFIED` | [Release manifest](../../site/releases/latest.json) and [Signing And Distribution](../../docs/Release/SIGNING_AND_DISTRIBUTION.md) | Users could install an impermanent debug lineage. |
+| Public downloads resolve only to the release-signed `0.2.0-beta.1` GitHub asset, whose public bytes match the recorded SHA-256. | `VERIFIED` | [Release manifest](../../site/releases/latest.json) and [Beta Release Notes](../../docs/Release/0.2.0-beta.1.md) | Users could install an unintended or corrupted artifact. |
 | The final flow works on the publisher's physical phone. | `UNKNOWN` | Physical-device gate not recorded. | Users may hit picker/share/restart failures not reproduced on the emulator. |
 | The final flow works across a second Android device/version. | `UNKNOWN` | Second-device gate not recorded. | Compatibility claims exceed evidence. |
-| Hosted CI, Pages, and GitHub Release behave as designed. | `UNKNOWN` | Workflows exist but no hosted green/deployment evidence is recorded. | Public download, update, or event-copy fallback can fail after launch. |
+| Hosted CI, Pages, and GitHub prerelease behave as designed. | `VERIFIED` | Green Android/Site/Pages runs, HTTPS route checks, anonymous APK download, and public release/tag metadata recorded on 12 July 2026. | Public download, update, or event-copy fallback can fail after launch. |
 | Target organizers repeatedly need and will adopt this local workflow. | `ASSUMPTION` | No durable interview, behavior, retention, or support evidence is recorded. | The team may polish a product without demand. |
 | Current legal text is sufficient for every intended launch jurisdiction. | `UNKNOWN` | No qualified legal review is recorded. | Publisher obligations or disclosures may be incomplete. |
 
@@ -69,11 +69,11 @@ Cheapest falsification test: Install the exact candidate on one physical phone; 
 
 Verdict: `DEFER` broad public distribution.
 
-Permitted next action: `TEST` the exact candidate on physical devices and obtain hosted CI evidence; prepare but do not publish permanent signing/deployment without explicit approval.
+Permitted next action: `TEST` the exact signed release on physical devices, obtain qualified legal review for intended jurisdictions, and collect consented beta-use evidence. Do not expand public claims beyond the limited-beta wording.
 
-Why: Core local integrity has strong emulator evidence, while public distribution and real-device assumptions remain unverified and partly irreversible.
+Why: Core local integrity and public infrastructure have strong evidence, while real-device breadth, legal scope, and user-demand assumptions remain unverified.
 
-Evidence that changes the verdict to `BUILD`: completed physical-device matrix, securely backed-up permanent release key, green hosted CI, release-signed install/update verification, deployed HTTPS route checks, and documented legal review scope.
+Evidence that changes the broad-distribution verdict to `BUILD`: completed physical-device matrix, signed install/update verification on real devices, documented legal review scope, and observed target-user value.
 
 Independent Decision Challenge required before changing this verdict to `BUILD`: **yes**. The reviewer must reopen the evidence above and may not rely on the proposing agent's self-audit.
 
@@ -83,16 +83,16 @@ Independent Decision Challenge required before changing this verdict to `BUILD`:
 - [x] Current architecture, data ownership, trust boundaries, and release flow are mapped.
 - [x] Public claims and prohibited claims are documented.
 - [x] Automated debug and API 36 evidence is recorded.
-- [ ] Permanent release key custody and backup are confirmed.
+- [x] Permanent release key custody and backup are confirmed.
 - [ ] Physical-device acceptance matrix is complete.
-- [ ] Hosted CI/deployment evidence is complete.
+- [x] Hosted CI/deployment evidence is complete.
 - [ ] Target launch jurisdictions and legal review scope are explicit.
 
 ## Definition Of Done
 
 - [ ] Exact release-signed APK passes all automated and physical-device gates.
-- [ ] GitHub Release contains APK, version, SHA-256, signing fingerprint, notes, and limitations.
-- [ ] Pages, Privacy, Terms, Contact, event-copy fallback, and update manifest pass over HTTPS.
-- [ ] In-app update check detects the published release without background polling or silent install.
+- [x] GitHub prerelease contains APK, version, SHA-256, signing fingerprint, notes, and limitations.
+- [x] Pages, Privacy, Terms, Contact, event-copy fallback, and update manifest pass over HTTPS.
+- [ ] End-to-end installed-app update check against the live manifest is recorded; implementation, unit validation, and live manifest integrity already pass, but the final on-device tap was not observed after deployment.
 - [ ] Documentation, decision log, knowledge graph, and project memory match the public artifact.
-- [ ] Rollback/data-loss limits and residual risks are visible to users.
+- [x] Rollback/data-loss limits and residual risks are visible to users.

@@ -1,6 +1,6 @@
 # Community Ledger Knowledge Graph
 
-Last evidence sync: 11 July 2026
+Last evidence sync: 12 July 2026
 
 This is a routing map, not a substitute for source inspection. Update it only when verified behavior or ownership changes. Preserve unknowns as unknowns.
 
@@ -15,7 +15,7 @@ Gopi Banoth (independent publisher)
   -> no account, authorization, synchronized ledger, export, or recovery
 ```
 
-Current milestone: **Public Launch Trust Package**. See [Project Profile](PROJECT_PROFILE.md) and [Product Overview](../../docs/Product/PRODUCT_OVERVIEW.md).
+Current milestone: **Beta Reliability Validation**. See [Project Profile](PROJECT_PROFILE.md) and [Product Overview](../../docs/Product/PRODUCT_OVERVIEW.md).
 
 ## Runtime Entry And Navigation
 
@@ -144,14 +144,14 @@ site/
   -> Privacy / Terms / Contact
   -> event-copy fallback
   -> real privacy-safe app screenshots
-  -> release manifest defaults to available=false
+  -> release manifest points to the verified v0.2.0-beta.1 GitHub asset
 
-manual Pages workflow
+manual Pages workflow (deployed)
   -> static-site validation preflight
   -> explicit workflow_dispatch only
 
-GitHub Release (not yet published)
-  -> permanent release-signed APK required
+GitHub prerelease v0.2.0-beta.1 (published)
+  -> permanent release-signed APK
   -> checksum + certificate fingerprint + notes
 ```
 
@@ -177,7 +177,7 @@ Ownership:
 - Public/private is a local marker, not access control.
 - Receipt/database/preferences are app-private and excluded from Android backup/device transfer.
 - Manual update checks are user-triggered and accept only official GitHub Release APK asset URLs.
-- Website and update manifest remain unpublished until permanent release signing exists.
+- Website and update manifest accept only the published release-signed GitHub APK asset.
 - The public repository has no open-source license; external code merging remains closed until the publisher chooses explicit terms.
 
 See [Security Playbook](../../.ai/SECURITY_PLAYBOOK.md) and [Data And Permissions](../../docs/Legal/DATA_AND_PERMISSIONS.md).
@@ -199,9 +199,8 @@ Current verified evidence is recorded in [Test Strategy](../../docs/Testing/TEST
 ## Known Unknowns And Open Gates
 
 - `UNKNOWN`: demand and retention evidence beyond the current trusted beta.
-- Permanent release keystore and public signing lineage are not created.
-- Hosted CI, Pages deployment, and GitHub Release evidence are not recorded.
-- GitHub repository rules, security settings, Project fields/views, and license selection require owner action.
+- Permanent signing lineage, hosted CI, Pages, GitHub prerelease, ruleset, and security-alert evidence are recorded.
+- Project fields/views and license selection require owner action.
 - Final flows still require a physical phone and a second device.
 - Legal text has not been reviewed for target launch jurisdictions.
 - Export/restore, authentication, authorization, sync, revocation, and conflict resolution do not exist.
