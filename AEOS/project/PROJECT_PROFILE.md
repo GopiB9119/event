@@ -35,7 +35,7 @@ Each installation owns an independent ledger. Event-copy links copy metadata but
 
 **Event-Copy Reliability And Shared-Ledger Decision**
 
-The signed `0.2.0-beta.1` limited prerelease, HTTPS website, release manifest, Privacy, Terms, Contact, hosted CI, and permanent update lineage are live and verified. Broader reliance still requires physical-device breadth, qualified legal review, and user-value evidence.
+The signed `0.2.0-beta.2` limited GitHub prerelease is public and anonymously verified. The currently deployed Pages manifest still points to beta.1 until the reviewed beta.2 manifest source is merged and manually deployed. Broader reliance still requires physical-device breadth, qualified legal review, and user-value evidence.
 
 Current decision state: limited public prerelease published with explicit beta limits; `BUILD` collision-safe event-copy identity; `TEST` the first account/server-identity shared-ledger slice after owner inputs; `DEFER` Play production and synchronized-ledger claims. Signing, emulator, hosted CI, Pages, release, and public-download integrity are `VERIFIED`; complete physical-device, legal, backend ownership, and market-demand evidence remain incomplete. See the [Mission Brief](MISSION_BRIEF.md).
 
@@ -59,5 +59,5 @@ Current decision and priority records:
 - The full unit/Robolectric suite and hosted Android CI pass; required Android CI is enforced on the default branch.
 - No export/restore exists; uninstall or device loss removes the ledger.
 - OCR/review does not resume after process death, but a persisted marker warns that no transaction was saved; active navigation is not restored.
-- The permanent release key is verified and independently backed up; `v0.2.0-beta.1` establishes the public signing lineage.
-- Pages, the limited GitHub prerelease, and the signed update manifest are live. Legal review for target jurisdictions and complete physical-device launch evidence remain open.
+- The permanent release key is verified and independently backed up; `v0.2.0-beta.1` established the public signing lineage and beta.2 preserves it.
+- The beta.2 GitHub prerelease is public. Pages/update-channel deployment is the current release operation; legal review and complete physical-device launch evidence remain open.

@@ -8,7 +8,7 @@ This is a routing map, not a substitute for source inspection. Update it only wh
 
 ```text
 Gopi Banoth (independent publisher)
-  -> Community Ledger 0.2.0-beta.1
+  -> Community Ledger 0.2.0-beta.2
   -> local organizer ledger
   -> money in / money out / reviewed receipt evidence
   -> independent installation per device
@@ -144,13 +144,13 @@ site/
   -> Privacy / Terms / Contact
   -> event-copy fallback
   -> real privacy-safe app screenshots
-  -> release manifest points to the verified v0.2.0-beta.1 GitHub asset
+  -> reviewed manifest source points to the verified v0.2.0-beta.2 GitHub asset
 
 manual Pages workflow (deployed)
   -> static-site validation preflight
   -> explicit workflow_dispatch only
 
-GitHub prerelease v0.2.0-beta.1 (published)
+GitHub prerelease v0.2.0-beta.2 (published)
   -> permanent release-signed APK
   -> checksum + certificate fingerprint + notes
 ```

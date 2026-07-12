@@ -50,7 +50,7 @@ The counts in this section describe the published `0.2.0-beta.1` artifact and ar
 - Signed `0.2.0-beta.1` APK installed on a clean API 36 emulator, launched successfully, and cold-relaunched after force-stop with no crash/ANR record
 - Installed public APK manual update check reached the live manifest only after an explicit tap and reported `0.2.0-beta.1` current
 
-## Unreleased Event-Copy Fix Evidence
+## Beta.2 Release Evidence
 
 - Receipt review is compact and human-readable; raw JSON, overall confidence percentages, terminal-like logs, and fake processing delays are removed.
 - Amount evidence is gated separately from optional detail completeness; large labelled amounts and balance-noise regressions pass, while unlabelled amounts require explicit confirmation.
@@ -66,13 +66,13 @@ The counts in this section describe the published `0.2.0-beta.1` artifact and ar
 ## Current Signed Public Beta
 
 ```text
-Release asset: community-ledger-0.2.0-beta.1.apk
+Release asset: community-ledger-0.2.0-beta.2.apk
 Package: com.aistudio.communityledger.yrtqwx
-Version: 0.2.0-beta.1 (3)
+Version: 0.2.0-beta.2 (4)
 Minimum SDK: 24
 Target SDK: 36
 Size: 56,257,295 bytes
-SHA-256: 742BEF49CBA3DA6E4D958880698D5DEF82097E39CC6AA16358B9AA44E946A068
+SHA-256: 1E007E7045A4A909CC0202F90AFCFB3C27D53CDDAF1428F1FEFAC0241EFA3685
 Signing certificate SHA-256: BC1415F8C2236009109CBDA483F351AB9F2C379B7E9A7661599D369E2FACA3CF
 Signature: APK Signature Scheme v2, permanent Community Ledger release certificate
 Alignment: verified with Android build-tools zipalign
@@ -82,7 +82,7 @@ This release-signed artifact is published as a limited GitHub prerelease for vol
 
 ## Remaining Gates Before Broader Reliance
 
-1. Repeat the complete physical-phone matrix with the signed `742BEF...A068` candidate; partial evidence from superseded candidates is documented separately.
+1. Repeat the complete physical-phone matrix with the signed `1E007E...A3685` candidate; partial evidence from superseded candidates is documented separately.
 2. Share a real image from an external payment/gallery app and verify review/save/cancel/navigation behavior.
 3. Repeat the final APK smoke flow on a second physical device and record Android versions.
 4. Obtain qualified legal review for intended launch jurisdictions; do not claim regulatory compliance before that review.

@@ -2,7 +2,7 @@
 
 ## Current State
 
-`0.2.0-beta.1` establishes the permanent Community Ledger release-certificate lineage and is published as a limited GitHub prerelease. Future Android updates must use the same signing lineage. Debug APKs remain development artifacts and must not be presented as the public release channel.
+`0.2.0-beta.1` established the permanent Community Ledger release-certificate lineage. `0.2.0-beta.2` is the current limited GitHub prerelease and uses the same certificate. Future Android updates must use this signing lineage. Debug APKs remain development artifacts and must not be presented as the public release channel.
 
 ## Release Key Rule
 
@@ -65,7 +65,7 @@ The website should link to GitHub Releases. Do not copy APKs into the GitHub Pag
 Example candidate asset name:
 
 ```text
-community-ledger-0.2.0-beta.1.apk
+community-ledger-0.2.0-beta.2.apk
 ```
 
 ## Rollback
