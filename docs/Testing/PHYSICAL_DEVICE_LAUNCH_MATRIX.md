@@ -45,6 +45,8 @@ Device A verdict: `BLOCKED`. The partial evidence above applies to the supersede
 
 Connect one unlocked phone with USB debugging enabled and accept the RSA prompt.
 
+Download or copy the official `community-ledger-0.2.0-beta.1.apk` asset into the repository root before using the default commands below. The APK is ignored by Git. Alternatively, pass `-ApkPath` with its absolute location; the script still requires the exact SHA-256 recorded above.
+
 Inspect only:
 
 ```powershell

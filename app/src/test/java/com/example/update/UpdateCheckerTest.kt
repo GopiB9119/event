@@ -1,5 +1,6 @@
 package com.example.update
 
+import com.example.BuildConfig
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -15,7 +16,7 @@ class UpdateCheckerTest {
     fun `unpublished channel is reported without a download`() {
         val result = UpdateChecker.evaluateManifest(
             jsonText = """{"schemaVersion":1,"available":false}""",
-            currentVersionCode = 2
+            currentVersionCode = BuildConfig.VERSION_CODE
         )
 
         assertEquals(UpdateCheckResult.NotPublished, result)
@@ -23,30 +24,33 @@ class UpdateCheckerTest {
 
     @Test
     fun `current official release is up to date`() {
-        val result = UpdateChecker.evaluateManifest(validManifest(versionCode = 2), currentVersionCode = 2)
+        val result = UpdateChecker.evaluateManifest(
+            validManifest(BuildConfig.VERSION_CODE, BuildConfig.VERSION_NAME),
+            currentVersionCode = BuildConfig.VERSION_CODE
+        )
 
-        assertEquals(UpdateCheckResult.UpToDate("0.2.0-beta.1"), result)
+        assertEquals(UpdateCheckResult.UpToDate(BuildConfig.VERSION_NAME), result)
     }
 
     @Test
     fun `newer official release exposes validated metadata`() {
-        val result = UpdateChecker.evaluateManifest(validManifest(versionCode = 3), currentVersionCode = 2)
+        val result = UpdateChecker.evaluateManifest(
+            newerManifest(),
+            currentVersionCode = BuildConfig.VERSION_CODE
+        )
 
         assertTrue(result is UpdateCheckResult.Available)
         result as UpdateCheckResult.Available
-        assertEquals(3, result.versionCode)
-        assertEquals("0.2.0-beta.1", result.versionName)
+        assertEquals(BuildConfig.VERSION_CODE + 1, result.versionCode)
+        assertEquals(NEWER_VERSION_NAME, result.versionName)
         assertEquals(listOf("Integrity and trust updates."), result.releaseNotes)
     }
 
     @Test
     fun `untrusted download host is rejected`() {
         val result = UpdateChecker.evaluateManifest(
-            validManifest(versionCode = 3).replace(
-                "https://github.com/GopiB9119/event/releases/download/v0.2.0/community-ledger.apk",
-                "https://example.com/community-ledger.apk"
-            ),
-            currentVersionCode = 2
+            newerManifest().replace("https://github.com", "https://example.com"),
+            currentVersionCode = BuildConfig.VERSION_CODE
         )
 
         assertEquals(UpdateCheckResult.Failed("Release information failed validation."), result)
@@ -55,8 +59,8 @@ class UpdateCheckerTest {
     @Test
     fun `insecure download URL is rejected`() {
         val result = UpdateChecker.evaluateManifest(
-            validManifest(versionCode = 3).replace("https://github.com", "http://github.com"),
-            currentVersionCode = 2
+            newerManifest().replace("https://github.com", "http://github.com"),
+            currentVersionCode = BuildConfig.VERSION_CODE
         )
 
         assertEquals(UpdateCheckResult.Failed("Release information failed validation."), result)
@@ -65,8 +69,8 @@ class UpdateCheckerTest {
     @Test
     fun `lookalike GitHub host is rejected`() {
         val result = UpdateChecker.evaluateManifest(
-            validManifest(versionCode = 3).replace("github.com", "github.com.example.org"),
-            currentVersionCode = 2
+            newerManifest().replace("github.com", "github.com.example.org"),
+            currentVersionCode = BuildConfig.VERSION_CODE
         )
 
         assertEquals(UpdateCheckResult.Failed("Release information failed validation."), result)
@@ -75,8 +79,8 @@ class UpdateCheckerTest {
     @Test
     fun `wrong repository download is rejected`() {
         val result = UpdateChecker.evaluateManifest(
-            validManifest(versionCode = 3).replace("GopiB9119/event", "GopiB9119/other"),
-            currentVersionCode = 2
+            newerManifest().replace("GopiB9119/event", "GopiB9119/other"),
+            currentVersionCode = BuildConfig.VERSION_CODE
         )
 
         assertEquals(UpdateCheckResult.Failed("Release information failed validation."), result)
@@ -85,11 +89,11 @@ class UpdateCheckerTest {
     @Test
     fun `non-download release path is rejected`() {
         val result = UpdateChecker.evaluateManifest(
-            validManifest(versionCode = 3).replace(
-                "/releases/download/v0.2.0/community-ledger.apk",
-                "/releases/tag/v0.2.0"
+            newerManifest().replace(
+                "/releases/download/v$NEWER_VERSION_NAME/community-ledger-$NEWER_VERSION_NAME.apk",
+                "/releases/tag/v$NEWER_VERSION_NAME"
             ),
-            currentVersionCode = 2
+            currentVersionCode = BuildConfig.VERSION_CODE
         )
 
         assertEquals(UpdateCheckResult.Failed("Release information failed validation."), result)
@@ -98,11 +102,11 @@ class UpdateCheckerTest {
     @Test
     fun `path traversal in release URL is rejected`() {
         val result = UpdateChecker.evaluateManifest(
-            validManifest(versionCode = 3).replace(
-                "community-ledger.apk",
+            newerManifest().replace(
+                "community-ledger-$NEWER_VERSION_NAME.apk",
                 "..%2F..%2Fissues"
             ),
-            currentVersionCode = 2
+            currentVersionCode = BuildConfig.VERSION_CODE
         )
 
         assertEquals(UpdateCheckResult.Failed("Release information failed validation."), result)
@@ -111,11 +115,8 @@ class UpdateCheckerTest {
     @Test
     fun `malformed checksum is rejected`() {
         val result = UpdateChecker.evaluateManifest(
-            validManifest(versionCode = 3).replace(
-                "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
-                "not-a-sha256"
-            ),
-            currentVersionCode = 2
+            newerManifest().replace(VALID_SHA256, "not-a-sha256"),
+            currentVersionCode = BuildConfig.VERSION_CODE
         )
 
         assertEquals(UpdateCheckResult.Failed("Release information failed validation."), result)
@@ -124,22 +125,32 @@ class UpdateCheckerTest {
     @Test
     fun `unsupported manifest schema is rejected`() {
         val result = UpdateChecker.evaluateManifest(
-            validManifest(versionCode = 3).replace("\"schemaVersion\": 1", "\"schemaVersion\": 2"),
-            currentVersionCode = 2
+            newerManifest().replace("\"schemaVersion\": 1", "\"schemaVersion\": 2"),
+            currentVersionCode = BuildConfig.VERSION_CODE
         )
 
         assertEquals(UpdateCheckResult.Failed("Release information uses an unsupported format."), result)
     }
 
-    private fun validManifest(versionCode: Int): String = """
+    private fun newerManifest(): String = validManifest(
+        versionCode = BuildConfig.VERSION_CODE + 1,
+        versionName = NEWER_VERSION_NAME
+    )
+
+    private fun validManifest(versionCode: Int, versionName: String): String = """
         {
           "schemaVersion": 1,
           "available": true,
           "versionCode": $versionCode,
-          "versionName": "0.2.0-beta.1",
-          "downloadUrl": "https://github.com/GopiB9119/event/releases/download/v0.2.0/community-ledger.apk",
-          "sha256": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+          "versionName": "$versionName",
+          "downloadUrl": "https://github.com/GopiB9119/event/releases/download/v$versionName/community-ledger-$versionName.apk",
+          "sha256": "$VALID_SHA256",
           "releaseNotes": ["Integrity and trust updates."]
         }
     """.trimIndent()
+
+    private companion object {
+        const val NEWER_VERSION_NAME = "0.2.0-beta.2"
+        const val VALID_SHA256 = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+    }
 }
