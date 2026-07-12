@@ -195,11 +195,11 @@ adb shell monkey -p com.aistudio.communityledger.yrtqwx 1
 
 ## Testing Notes
 
-The complete debug unit/Robolectric suite currently passes 39 tests across eight suites. The last complete Android instrumentation suite passes eight tests across six classes, covering Room collision safety, file-backed database reopen, shared receipt state, app context, six private real-image OCR fixtures, receipt attribution, and acknowledged deletion. First-use disclosure, local identity gating, Trust Center navigation, and an honest receipt-interruption notice after process death have also been verified through runtime interaction. The bounded workflow at `.github/workflows/android-ci.yml` runs compile, unit tests, and APK assembly with a 30-minute timeout; its exact command passes locally, while the first hosted GitHub run remains pending.
+The complete debug unit/Robolectric suite currently passes 39 tests across eight suites. The last complete Android instrumentation suite passes eight tests across six classes, covering Room collision safety, file-backed database reopen, shared receipt state, app context, six private real-image OCR fixtures, receipt attribution, and acknowledged deletion. First-use disclosure, local identity gating, Trust Center navigation, and an honest receipt-interruption notice after process death have also been verified through runtime interaction. The bounded workflow at `.github/workflows/android-ci.yml` runs compile, unit tests, and APK assembly with a 30-minute timeout; its exact command passes locally and on hosted GitHub runners.
 
 ## Launch Website
 
-The static launch package lives in [site](site). It includes the product page, real privacy-safe app screenshots, Privacy, Terms, Contact, event-copy fallback, and a release manifest used by the manual in-app update check. `.github/workflows/pages.yml` requires explicit deployment; publishing a GitHub prerelease alone does not silently change the in-app update channel.
+The static launch package lives in [site](site). It includes the product page, real privacy-safe app screenshots, Privacy, Terms, Contact, event-copy fallback, and a release manifest used by the manual in-app update check. `.github/workflows/pages.yml` requires an explicit deployment; publishing a GitHub prerelease alone does not silently change the in-app update channel.
 
 The signed [0.2.0-beta.1 limited public prerelease](https://github.com/GopiB9119/event/releases/tag/v0.2.0-beta.1) is documented in the [repository release notes](docs/Release/0.2.0-beta.1.md). Verify SHA-256 before installation. Physical-device breadth and qualified legal review remain incomplete beta risks.
 
@@ -207,7 +207,7 @@ Next recommended test work:
 
 - Add more JVM-only parser tests for Amazon Pay, Paytm, BHIM, WhatsApp Pay, and noisier low-light receipts.
 - For image OCR checks, use real private receipt screenshots only. Do not commit them. The focused instrumentation test can read images from either `app/src/androidTest/assets/receipt-images-private/` or the app-specific device folder `Android/data/com.aistudio.communityledger.yrtqwx/files/receipt-images-private/`.
-- Obtain the first green hosted CI run and add physical-device coverage for image sharing, interruption, and restart behavior.
+- Add physical-device coverage for image sharing, interruption, and restart behavior.
 
 Run the private image OCR test on a connected device:
 
