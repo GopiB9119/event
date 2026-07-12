@@ -77,6 +77,17 @@ if (fs.existsSync(manifestPath)) {
   }
 }
 
+const joinScriptPath = path.join(root, "join", "join.js");
+if (fs.existsSync(joinScriptPath)) {
+  const joinScript = fs.readFileSync(joinScriptPath, "utf8");
+  if (!joinScript.includes('"eventKey"') || !joinScript.includes('"eventId"')) {
+    errors.push("join fallback must forward both eventKey and legacy eventId links");
+  }
+  if (!joinScript.includes('sourceParameters.has("eventKey") || sourceParameters.has("eventId")')) {
+    errors.push("join fallback must require eventKey or legacy eventId");
+  }
+}
+
 console.log(`SITE_ROOT=${root}`);
 console.log(`HTML_FILES=${htmlFiles.length}`);
 console.log(`VALIDATION_ERRORS=${errors.length}`);

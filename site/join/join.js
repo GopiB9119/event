@@ -1,4 +1,4 @@
-const allowedParameters = ["eventId", "expiry", "checksum", "signature", "title", "creatorEmail", "private"];
+const allowedParameters = ["eventKey", "eventId", "expiry", "checksum", "signature", "title", "creatorEmail", "private"];
 const sourceParameters = new URLSearchParams(window.location.search);
 const appParameters = new URLSearchParams();
 
@@ -10,7 +10,8 @@ allowedParameters.forEach((name) => {
 const title = sourceParameters.get("title")?.trim() || "Shared event";
 const organizer = sourceParameters.get("creatorEmail")?.trim();
 const expiry = Number(sourceParameters.get("expiry"));
-const required = ["eventId", "expiry"].every((name) => sourceParameters.has(name)) &&
+const required = (sourceParameters.has("eventKey") || sourceParameters.has("eventId")) &&
+  sourceParameters.has("expiry") &&
   (sourceParameters.has("checksum") || sourceParameters.has("signature"));
 const expired = Number.isFinite(expiry) && expiry > 0 && Date.now() > expiry;
 

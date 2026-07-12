@@ -29,15 +29,15 @@ Each installation owns an independent ledger. Event-copy links copy metadata but
 - Public/private event visibility is a local marker; event-copy links are convenience links, not real authorization.
 - A valid normalized local identity label is required for event ownership and receipt uploader writes; it is not authentication.
 - Persisted transaction amounts are finite, positive, and use a supported ledger type.
-- Event-copy link ID conflicts cannot replace an existing local ledger.
+- Opaque event-copy keys cannot replace an existing local ledger; Room integer IDs remain device-local.
 
 ## Current Milestone
 
-**Beta Reliability Validation**
+**Event-Copy Reliability And Shared-Ledger Decision**
 
 The signed `0.2.0-beta.1` limited prerelease, HTTPS website, release manifest, Privacy, Terms, Contact, hosted CI, and permanent update lineage are live and verified. Broader reliance still requires physical-device breadth, qualified legal review, and user-value evidence.
 
-Current decision state: limited public prerelease published with explicit beta limits; `DEFER` broader public-distribution/reliability claims. Signing, emulator, hosted CI, Pages, release, and public-download integrity are `VERIFIED`; complete physical-device and legal evidence remain `UNKNOWN`. See the [Mission Brief](MISSION_BRIEF.md).
+Current decision state: limited public prerelease published with explicit beta limits; `BUILD` collision-safe event-copy identity; `TEST` the first account/server-identity shared-ledger slice after owner inputs; `DEFER` Play production and synchronized-ledger claims. Signing, emulator, hosted CI, Pages, release, and public-download integrity are `VERIFIED`; complete physical-device, legal, backend ownership, and market-demand evidence remain incomplete. See the [Mission Brief](MISSION_BRIEF.md).
 
 Current decision and priority records:
 

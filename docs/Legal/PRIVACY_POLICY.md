@@ -31,13 +31,17 @@ The app does not send receipt images to a Community Ledger server. It stores rev
 
 ## Network Use
 
-The beta has no account, synchronization, analytics, advertising, crash-reporting, or transaction server.
+The beta has no account, synchronization, advertising, crash-reporting, or transaction server.
+
+Google's ML Kit Android SDK disclosure states that all ML Kit features collect device and application information, bundled per-installation identifiers, performance metrics, API configuration such as image format and resolution, input/output sizes, feature versions, event types, and error codes for diagnostics and usage analytics. Google states that this data is encrypted in transit with HTTPS and is not transferred to third parties. The disclosure does not list receipt image contents or recognized text as collected data for bundled text recognition; OCR execution remains on-device.
 
 The manual update checker contacts a static HTTPS release manifest only when the user taps **Check for updates**. That request can expose ordinary connection metadata such as IP address, request time, and user agent to GitHub Pages and its infrastructure. There is no automatic background update check or silent installation.
 
+ML Kit disclosure source, checked 12 July 2026: https://developers.google.com/ml-kit/android-data-disclosure
+
 ## Sharing And Event-Copy Links
 
-Android share actions send only content selected by the user. An event-copy link can contain the event title, expiry, visibility marker, and the organizer's self-declared local email label. A recipient can forward that link.
+Android share actions send only content selected by the user. An event-copy link can contain an opaque copy key, event title, expiry, visibility marker, and the organizer's self-declared local email label. A recipient can forward that link.
 
 An event-copy link does not authenticate the organizer, enforce private access, or connect devices to one synchronized ledger. Each device receives an independent local event shell.
 

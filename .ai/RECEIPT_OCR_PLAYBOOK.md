@@ -23,7 +23,7 @@ Do not add cloud OCR or LLM extraction without an explicit product/security deci
 6. Score confidence.
 7. Generate warnings.
 8. Check duplicate receipt risk.
-9. Render JSON review.
+9. Render a compact human-readable review; keep full JSON as private evidence rather than UI.
 10. Save only if the result passes gates.
 
 ## Image OCR Evidence
@@ -92,9 +92,12 @@ Receiver:
 Receipt save is blocked when:
 
 - amount is missing or zero
-- confidence is below threshold
+- amount evidence is only an unlabelled number and the user has not explicitly checked it against the receipt
+- payment receipt context is not detected
 - duplicate check detects a likely duplicate
 - OCR output is not receipt-like
+
+Missing optional app, reference, date, or counterparty fields must stay missing and be shown as such; they do not independently block a reliably labelled, reviewed amount.
 
 ## No-Dummy Guarantee
 

@@ -10,7 +10,7 @@ Community Ledger uses receipt screenshots as proof for event financial transacti
 
 ## Decision
 
-Receipt OCR must not directly mutate ledger totals. OCR output must pass through parsing, confidence scoring, duplicate detection, JSON review, member linking, and app-private JSON storage before it affects Room transactions.
+Receipt OCR must not directly mutate ledger totals. OCR output must pass through parsing, amount-evidence evaluation, duplicate detection, compact human review, member linking, and app-private JSON storage before it affects Room transactions.
 
 ## Consequences
 

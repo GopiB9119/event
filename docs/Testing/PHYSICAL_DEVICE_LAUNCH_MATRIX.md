@@ -109,7 +109,9 @@ Use `PASS`, `FAIL`, `BLOCKED`, or `NOT APPLICABLE`. Attach redacted evidence loc
 | Permission denial/cancel returns safely with no mutation | | | |
 | Large/rotated/cropped image fails safely or reaches review without crash | | | |
 | Event-copy link adds an independent shell on Device B | | | |
-| Event-copy collision cannot replace an unrelated local event | | | |
+| Device B can open a link whose source Room ID matches an unrelated local event; both ledgers remain intact | | | |
+| Opening the same opaque-key link again reopens one local shell instead of creating a duplicate | | | |
+| Share icon/copy explains that opening the link does not add a live member | | | |
 | Device A transaction does not appear on Device B; both devices state no sync | | | |
 | Public/private remains a local marker, not access control | | | |
 | Delete/correction authority uses the local identity rules visibly | | | |

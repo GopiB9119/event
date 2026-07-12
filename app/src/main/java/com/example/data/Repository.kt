@@ -10,6 +10,9 @@ class EventRepository(private val eventDao: EventDao) {
 
     suspend fun getEventByIdOnce(id: Int): EventEntity? = eventDao.getEventByIdOnce(id)
 
+    suspend fun getEventByEventKeyOnce(eventKey: String): EventEntity? =
+        eventDao.getEventByEventKeyOnce(eventKey)
+
     suspend fun insertEvent(event: EventEntity): Long = eventDao.insertEvent(event)
 
     suspend fun insertEventIfAbsent(event: EventEntity): Long = eventDao.insertEventIfAbsent(event)

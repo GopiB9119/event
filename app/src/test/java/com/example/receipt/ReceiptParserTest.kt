@@ -18,6 +18,8 @@ class ReceiptParserTest {
 
         assertEquals("Google Pay", parsed.paymentApp)
         assertEquals(1500.0, parsed.amount, 0.01)
+        assertEquals(AmountEvidenceSource.CURRENCY_MARKED, parsed.amountEvidenceSource)
+        assertEquals(100, parsed.amountEvidenceConfidence)
         assertEquals("310725987654", parsed.transactionId)
         assertEquals("25 Jun 2026", parsed.date)
         assertTrue(parsed.confidence >= 80)
@@ -186,5 +188,76 @@ class ReceiptParserTest {
         assertEquals(1000.0, parsed.amount, 0.01)
         assertEquals("123456789013", parsed.transactionId)
         assertEquals("1234567890@naviaxis", parsed.upiId)
+    }
+
+    @Test
+    fun `split balance value is ignored in favor of paid amount`() {
+        val parsed = ReceiptParser.parse(
+            """
+            Google Pay
+            Available balance
+            ₹65,653
+            Paid ₹750.00
+            UPI Ref No: 310725987654
+            25 Jun 2026
+            """.trimIndent()
+        )
+
+        assertEquals(750.0, parsed.amount, 0.01)
+        assertEquals(AmountEvidenceSource.CURRENCY_MARKED, parsed.amountEvidenceSource)
+    }
+
+    @Test
+    fun `amount-like suffix is removed from counterparty`() {
+        val parsed = ReceiptParser.parse(
+            """
+            PhonePe
+            Paid to
+            SAMPLE MERCHANT 750,000
+            Paid ₹500.00
+            """.trimIndent()
+        )
+
+        assertEquals("SAMPLE MERCHANT", parsed.counterpartyName)
+    }
+
+    @Test
+    fun `large paid amount beats later available balance`() {
+        val parsed = ReceiptParser.parse(
+            """
+            Google Pay
+            Paid to
+            KALYAN KUMAR BHUKYA ₹750,000
+            Available balance
+            ₹65,653
+            UPI transaction ID
+            260623113858702247
+            23 Jun 2026
+            """.trimIndent()
+        )
+
+        assertEquals(750000.0, parsed.amount, 0.01)
+        assertEquals("KALYAN KUMAR BHUKYA", parsed.counterpartyName)
+        assertEquals(AmountEvidenceSource.CURRENCY_MARKED, parsed.amountEvidenceSource)
+    }
+
+    @Test
+    fun `grouped amount beside counterparty beats later balance when currency symbol is missing`() {
+        val parsed = ReceiptParser.parse(
+            """
+            Google Pay
+            Paid to
+            KALYAN KUMAR BHUKYA 750,000
+            Available balance
+            ₹65,653
+            UPI transaction ID
+            260623113858702247
+            23 Jun 2026
+            """.trimIndent()
+        )
+
+        assertEquals(750000.0, parsed.amount, 0.01)
+        assertEquals("KALYAN KUMAR BHUKYA", parsed.counterpartyName)
+        assertEquals(AmountEvidenceSource.PARTY_LINE_AMOUNT, parsed.amountEvidenceSource)
     }
 }

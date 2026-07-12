@@ -58,9 +58,11 @@ The user must be able to tell:
 - why save is blocked
 - how the amount affects totals
 - whether a duplicate was found
-- the structured receipt JSON and exact ledger impact
+- a compact human-readable review and exact ledger impact
 
 Unsafe save remains disabled and the UI explains the blocking reason.
+
+The full structured JSON remains app-private evidence and must be persisted before the Room transaction. Raw JSON and terminal-like processing logs are not user-facing review UI.
 
 ## State And Performance Gate
 

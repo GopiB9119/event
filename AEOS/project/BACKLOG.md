@@ -76,6 +76,7 @@ This backlog is ordered by current constraint, not feature excitement. Evidence 
 - Assumption: users understand that event-copy links do not synchronize or verify organizers.
 - Test: task-based comprehension check using exact in-app/site copy.
 - Failure threshold: any participant expects shared balances, private access control, organizer verification, or automatic updates across phones.
+- New evidence (12 July 2026): the owner expected joined events to show later members, receipts, contributor counts, totals, utilization, and event details. The current copy-only behavior failed this comprehension gate.
 
 ### 9. OCR breadth and poor-image conditions
 
@@ -83,19 +84,23 @@ This backlog is ordered by current constraint, not feature excitement. Evidence 
 - Test: consented private fixtures covering low light, crop, rotation, large image, missing fields, and supported app families.
 - Gate: never lower confidence or duplicate protections merely to raise extraction rate.
 
-## LATER
+## NEXT DISTRIBUTION MILESTONE
 
 ### 10. Google Play distribution
 
-- Dependency: public-beta evidence, permanent signing, privacy URL, data-safety declarations, store assets, and current testing-policy compliance.
-- Reason later: direct trusted beta can validate the product before adding store process cost.
+- Decision state: `BUILD` internal/closed-testing preparation; `DEFER` production rollout until signing continuity, physical-device, legal, and Play policy gates pass.
+- Verified prerequisites: public-beta evidence, permanent signing, privacy URL, hosted CI, and HTTPS release infrastructure.
+- Remaining dependencies: preserve the existing app-signing certificate through PEPK, create a separate upload key, add a Play-specific update channel, build version-code-4+ AAB, complete Data safety/App content, create store graphics, and follow the account-specific testing path.
+- Runbook: [Google Play Launch Plan](../../docs/Release/GOOGLE_PLAY_LAUNCH_PLAN.md).
 
 ### 11. Synchronized shared events
 
-- Decision state: `DEFER`.
-- Reason: no recorded demand evidence justifies authentication, server IDs, authorization, sync, conflict resolution, audit operations, and moderation cost.
-- Revisit trigger: repeated observed need for concurrent multi-device use after local beta, with willingness to adopt account-based workflows.
+- Decision state: `TEST` the architecture and operating choices; `BUILD` only the first independently verifiable account/server-identity slice after owner inputs are approved. Production remains `DEFER`.
+- Evidence: the owner reported that joined events need live members, receipt submissions, contributor activity, totals, utilization, details, and custom information. This verifies one product requirement, not broader market demand.
+- Blocking owner inputs: backend/billing owner, data region, sign-in/recovery method, role workflow, receipt-image transfer policy, retention/deletion/export, and incident-response ownership.
+- Acceptance evidence: two clean devices converge on server-confirmed event metadata, membership, idempotent receipt submissions, contributor counts, transactions, totals, and audit history; unauthorized/revoked users fail closed; offline conflicts remain explicit.
 - Required architecture: [Future Shared Events](../../docs/Architecture/SHARED_EVENTS_FUTURE.md).
+- Proposed bounded delivery design: [Shared Ledger Implementation Plan](../../docs/Architecture/SHARED_LEDGER_IMPLEMENTATION_PLAN.md).
 
 ### 12. Public event discovery/search
 

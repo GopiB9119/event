@@ -36,7 +36,7 @@ Android intents
 | `ReceiptParser` | Deterministic OCR-text parsing and confidence/warnings | Pure and JVM-testable |
 | `LedgerTransactionPolicy` | Positive finite amount, valid event, supported type | Pure and JVM-testable |
 | `Repository` / `EventDao` | Room access and conflict-safe event insertion | Thin persistence boundary |
-| Room entities | Events, members, transactions and foreign-key ownership | Version 4 with explicit migrations |
+| Room entities | Events, members, transactions and foreign-key ownership | Version 5 with explicit migrations |
 
 ## State Flow
 
@@ -78,17 +78,19 @@ No Gemini, cloud OCR, random data, filename extraction, or unlabelled arbitrary 
 ```text
 Create event
   -> Room auto-generated local integer ID
-  -> share link carries ID, title, creator, expiry, visibility marker, checksum
+  -> opaque event-copy key independent of the Room ID
+  -> share link carries key, title, creator, expiry, visibility marker, checksum
 
 Open invite on another installation
   -> validate link shape/checksum/expiry
-  -> query Room directly for local ID
-  -> reject conflicting local ledger identity
-  -> insert metadata shell only when ID is absent
+  -> find an existing shell by opaque event key
+  -> otherwise insert a metadata shell with a new local Room ID
   -> open independent local event
 ```
 
-`insertEventIfAbsent` uses conflict-ignore semantics. It prevents an invite collision from replacing a local event and cascading deletion to members/transactions. A real shared ledger requires a server-issued stable event identifier and synchronization protocol.
+Legacy links with numeric source IDs remain accepted through a deterministic compatibility identity, but never match an existing row by the ambiguous numeric ID/title/organizer label. A pre-v5 imported shell can therefore gain one additional empty shell when its old link is reopened after upgrade. `insertEventIfAbsent` uses conflict-ignore semantics, regular event insertion aborts on conflict, and the unique event-key index prevents later duplicates without replacing a local event or cascading deletion to members/transactions. See [ADR-0002](../Decisions/ADR-0002-EVENT-IDENTITY-AND-SHARED-LEDGER-BOUNDARY.md).
+
+A real shared ledger still requires a server-issued identifier, verified accounts, authorization, synchronization, conflict handling, and audit protocol. Opaque local-copy keys fix collisions; they are not server identity or access tokens.
 
 ## Data Model
 
@@ -126,13 +128,13 @@ MemberEntity 1 --* TransactionEntity (nullable memberId)
 - Transaction type is one of `Donated`, `Credit`, `Debit`, or `Expense`.
 - Receipt saves require positive amount, confidence threshold, and no duplicate match.
 - A receipt transaction links to a persisted member when possible.
-- Invite ID conflicts must never replace an existing local ledger.
+- Event-copy identity conflicts must never replace an existing local ledger.
 - Saved ledger calculations must be explainable from Room and receipt JSON.
 
 ## Known Architecture Risks
 
 1. No shared source of truth: installations diverge immediately.
-2. Local integer IDs are unsuitable as global event identities; conflicts now fail safely.
+2. Opaque event-copy keys prevent local Room-ID collisions but do not create synchronized identity.
 3. `Screens.kt` and `EventViewModel` own too many responsibilities.
 4. Active navigation is not restored after process death; interrupted OCR/review is detected but must be restarted by the user.
 5. Unit-test infrastructure can stall before executing tests.

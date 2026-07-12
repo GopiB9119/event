@@ -133,7 +133,7 @@ private fun AboutContent(viewModel: EventViewModel) {
         TrustSection(
             icon = Icons.Default.Devices,
             title = "Event links create local copies",
-            body = "An event-copy link adds event details to another device. It does not connect people to one live ledger, verify the organizer, or sync members, transactions, balances, and receipts."
+            body = "An event-copy link carries only the event title, organizer label, and visibility marker to another device. It does not connect people to one live ledger, verify the organizer, or sync custom fields, members, transactions, balances, and receipts."
         )
         TrustSection(
             icon = Icons.Default.CloudOff,
@@ -263,12 +263,12 @@ private fun PrivacyContent() {
             body = "Selected or shared receipt images are read on the device with Google ML Kit Latin and Devanagari text recognition. The app stores reviewed JSON evidence, not a cloud OCR result. OCR can be wrong, so review is required."
         )
         TrustSection(
-            title = "No analytics or advertising",
-            body = "This beta has no advertising SDK, analytics SDK, crash-reporting service, account service, or transaction server. It does not sell personal information. A release request is made only when you tap Check for Updates."
+            title = "SDK diagnostics and no advertising",
+            body = "This beta has no ads, account service, crash-reporting service, or transaction server. Google states that ML Kit sends limited device/app information, a per-installation identifier, performance, API configuration, input/output size, feature-event, and error metadata for diagnostics and usage analytics. Receipt images and recognized text are processed on-device. Manual release checks run only when you tap Check for Updates."
         )
         TrustSection(
             title = "Sharing you control",
-            body = "Android share actions send only the content you choose. Event-copy links can contain event details and a local organizer label; anyone receiving a link may forward it. Public/private is not access control."
+            body = "Android share actions send only the content you choose. Event-copy links can contain an opaque copy key, title, expiry, visibility marker, and local organizer label; anyone receiving a link may forward it. Public/private is not access control."
         )
         TrustSection(
             title = "Permissions",
