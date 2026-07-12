@@ -46,6 +46,7 @@ Do not claim:
 - Debug APK build passed after the integrity audit
 - Rebuilt candidate passed the complete API 36 Android suite: 6 classes / 8 tests / zero failures
 - Signed `0.2.0-beta.1` APK installed on a clean API 36 emulator, launched successfully, and cold-relaunched after force-stop with no crash/ANR record
+- Installed public APK manual update check reached the live manifest only after an explicit tap and reported `0.2.0-beta.1` current
 
 ## Current Signed Public Beta
 

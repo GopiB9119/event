@@ -24,6 +24,7 @@
 | `ExampleInstrumentedTest` | Passed with the real application ID |
 | Complete Android instrumentation suite | Passed together: 6 classes / 8 tests / zero failures |
 | Signed release APK emulator smoke | Exact `0.2.0-beta.1` asset installed on a clean API 36 emulator; first launch and force-stop/cold relaunch passed with no crash/ANR exit record |
+| Installed-app live update check | Public APK on API 36 reached the deployed HTTPS manifest after an explicit Trust Center tap and reported `0.2.0-beta.1` current; no automatic check or silent install was observed |
 | Full Robolectric/unit suite | Passed: 8 suites, 39 tests, zero failures/errors/skips |
 | Screenshot test | Included in the passing full suite |
 | First-use disclosure runtime check | Rendered, gated, accepted, and persisted after force-stop/relaunch on API 36 emulator |
