@@ -606,7 +606,7 @@ if ($SelfTest) {
         $timedProcess = Invoke-BoundedProcess `
             -FilePath $powerShellPath `
             -Arguments @("-NoProfile", "-NonInteractive", "-Command", 'while ($true) { }') `
-            -TimeoutMilliseconds 500 ` `
+            -TimeoutMilliseconds 500 `
             -WorkingDirectory $temporaryDirectory `
             -TemporaryDirectory $temporaryDirectory `
             -Label "timed-process"
