@@ -204,7 +204,7 @@ The complete debug unit/Robolectric suite currently passes 54 tests across nine 
 
 The static launch package lives in [site](site). It includes the product page, real privacy-safe app screenshots, Privacy, Terms, Contact, event-copy fallback, and a release manifest used by the manual in-app update check. `.github/workflows/pages.yml` requires an explicit deployment; publishing a GitHub prerelease alone does not silently change the in-app update channel.
 
-The signed [0.2.0-beta.1 limited public prerelease](https://github.com/GopiB9119/event/releases/tag/v0.2.0-beta.1) is documented in the [repository release notes](docs/Release/0.2.0-beta.1.md). Verify SHA-256 before installation. Physical-device breadth and qualified legal review remain incomplete beta risks.
+The current signed [0.2.0-beta.2 limited public prerelease](https://github.com/GopiB9119/event/releases/tag/v0.2.0-beta.2) is documented in the [repository release notes](docs/Release/0.2.0-beta.2.md). Verify SHA-256 before installation. Physical-device breadth and qualified legal review remain incomplete beta risks.
 
 Next recommended test work:
 

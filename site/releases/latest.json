@@ -1,16 +1,17 @@
 {
   "schemaVersion": 1,
   "available": true,
-  "versionCode": 3,
-  "versionName": "0.2.0-beta.1",
+  "versionCode": 4,
+  "versionName": "0.2.0-beta.2",
   "minimumSdk": 24,
   "minimumAndroid": "7.0+",
-  "downloadUrl": "https://github.com/GopiB9119/event/releases/download/v0.2.0-beta.1/community-ledger-0.2.0-beta.1.apk",
-  "releasePageUrl": "https://github.com/GopiB9119/event/releases/tag/v0.2.0-beta.1",
-  "sha256": "742BEF49CBA3DA6E4D958880698D5DEF82097E39CC6AA16358B9AA44E946A068",
-  "publishedAt": "2026-07-12T10:23:44Z",
+  "downloadUrl": "https://github.com/GopiB9119/event/releases/download/v0.2.0-beta.2/community-ledger-0.2.0-beta.2.apk",
+  "releasePageUrl": "https://github.com/GopiB9119/event/releases/tag/v0.2.0-beta.2",
+  "sha256": "1E007E7045A4A909CC0202F90AFCFB3C27D53CDDAF1428F1FEFAC0241EFA3685",
+  "publishedAt": "2026-07-12T20:34:06Z",
   "releaseNotes": [
     "Limited public beta for voluntary testing. Do not use it as your only record for important money data.",
+    "Fixes event-link ID conflicts and receipt amount/review problems.",
     "Local-only: no account, sync, cloud backup, export, restore, or recovery.",
     "Review every OCR result before saving; OCR can be wrong.",
     "Physical-device coverage and qualified legal review remain incomplete."

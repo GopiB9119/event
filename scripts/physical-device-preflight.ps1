@@ -1,8 +1,8 @@
 [CmdletBinding()]
 param(
     [string]$Serial,
-    [string]$ApkPath = ".\community-ledger-0.2.0-beta.1.apk",
-    [string]$ExpectedSha256 = "742BEF49CBA3DA6E4D958880698D5DEF82097E39CC6AA16358B9AA44E946A068",
+    [string]$ApkPath = ".\community-ledger-0.2.0-beta.2.apk",
+    [string]$ExpectedSha256 = "1E007E7045A4A909CC0202F90AFCFB3C27D53CDDAF1428F1FEFAC0241EFA3685",
     [string]$OutputPath = ".\build\physical-device-preflight.json",
     [switch]$Install
 )

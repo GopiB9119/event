@@ -15,16 +15,16 @@ Use this matrix with the exact candidate recorded in [Friend Beta Readiness](../
 
 ```text
 Package: com.aistudio.communityledger.yrtqwx
-Version: 0.2.0-beta.1 (3)
-Release asset: community-ledger-0.2.0-beta.1.apk
+Version: 0.2.0-beta.2 (4)
+Release asset: community-ledger-0.2.0-beta.2.apk
 Size: 56,257,295 bytes
-SHA-256: 742BEF49CBA3DA6E4D958880698D5DEF82097E39CC6AA16358B9AA44E946A068
+SHA-256: 1E007E7045A4A909CC0202F90AFCFB3C27D53CDDAF1428F1FEFAC0241EFA3685
 Signing certificate SHA-256: BC1415F8C2236009109CBDA483F351AB9F2C379B7E9A7661599D369E2FACA3CF
 Signature: permanent Community Ledger release certificate, APK Signature Scheme v2
-Scope: public beta candidate; release remains blocked until this matrix and hosted gates pass
+Scope: current limited public prerelease; broader-reliance claims remain blocked until this matrix and other open gates pass
 ```
 
-Clean-emulator evidence for this exact candidate is complete: all 8 Android tests passed on API 36, the signed APK installed, and first launch plus force-stop/cold relaunch succeeded with no crash/ANR. Emulator evidence does not satisfy the physical-device rows below.
+Clean-emulator evidence for this exact candidate is complete: all 14 Android tests passed on API 36, the signed APK verified and installed over beta.1 with `-r`, a synthetic beta.1 event survived migration 4 to 5 and cold relaunch, and Android recorded no Community Ledger crash/ANR. Emulator evidence does not satisfy the physical-device rows below.
 
 ## Preflight
 
@@ -41,11 +41,11 @@ Current execution status (11 July 2026): `BLOCKED` after a partial Galaxy A54 ru
 - At 19:48:16 Samsung Package Installer displayed its uninstall UI (`UninstallLaunch`). At 19:48:23 Android broadcast that `com.aistudio.communityledger.yrtqwx` was fully removed. The initiator is `UNKNOWN`; no shell uninstall command was issued, so this evidence must not be attributed to the app or test runner without further proof.
 - Full removal deleted the disposable local ledger as documented. The app was not reinstalled automatically after the removal.
 
-Device A verdict: `BLOCKED`. The partial evidence above applies to the superseded `83F237...B468FE` candidate. Repeat the complete matrix with the current signed `742BEF...A068` candidate, explicit coordination, disposable data, and no concurrent device interaction; confirm whether the previous uninstall was intentional before reinstalling.
+Device A verdict: `BLOCKED`. The partial evidence above applies to the superseded `83F237...B468FE` candidate. Repeat the complete matrix with the current signed `1E007E...A3685` candidate, explicit coordination, disposable data, and no concurrent device interaction; confirm whether the previous uninstall was intentional before reinstalling.
 
 Connect one unlocked phone with USB debugging enabled and accept the RSA prompt.
 
-Download or copy the official `community-ledger-0.2.0-beta.1.apk` asset into the repository root before using the default commands below. The APK is ignored by Git. Alternatively, pass `-ApkPath` with its absolute location; the script still requires the exact SHA-256 recorded above.
+Download or copy the official `community-ledger-0.2.0-beta.2.apk` asset into the repository root before using the default commands below. The APK is ignored by Git. Alternatively, pass `-ApkPath` with its absolute location; the script still requires the exact SHA-256 recorded above.
 
 Inspect only:
 
