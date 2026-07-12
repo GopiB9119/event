@@ -10,12 +10,4 @@
 - Empty, loading, and error states are required.
 - Never let text overlap or hide controls.
 
-## Receipt Review UX
-
-- Show extracted JSON.
-- Show confidence.
-- Show warnings.
-- Show duplicate status.
-- Show ledger impact.
-- Disable save when unsafe.
-- Explain exactly why save is disabled.
+Apply repository-specific workflow and safety overlays after this universal standard.

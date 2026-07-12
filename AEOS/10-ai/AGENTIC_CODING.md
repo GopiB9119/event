@@ -6,7 +6,7 @@ The agent is expected to understand the mission, act once informed, avoid unnece
 
 ## Definition
 
-Agentic coding is autonomous, goal-driven execution of an engineering mission. The agent continuously reasons, plans, uses tools, validates outcomes, learns from evidence, and iterates until the agreed definition of done is satisfied.
+Agentic coding is autonomous, goal-driven execution of an engineering mission inside an explicit authority and loop contract. The agent reasons, plans, uses tools, validates outcomes, learns from evidence, and iterates only while the agreed budget and stop rules permit it.
 
 The goal is not to produce code. The goal is to deliver a verified engineering outcome.
 
@@ -41,6 +41,12 @@ Mission
 ```
 
 The lifecycle is not bureaucracy. It prevents blind coding and endless exploration at the same time.
+
+## Runtime Contract
+
+Turn-based work uses the lifecycle directly. Repeated or unattended work must also select a trigger type, success predicate, budgets, permitted mutations, approval gates, checkpoint, and terminal states from [Loop Engineering](LOOP_ENGINEERING.md).
+
+Capability assignments and disagreements follow the [Operating Model](../00-foundation/OPERATING_MODEL.md). Repository summaries, project memory, and code indexes follow [Context And Memory](CONTEXT_AND_MEMORY.md); they accelerate discovery but do not replace current source or executable evidence.
 
 ## Eighteen Phases
 
@@ -203,7 +209,7 @@ Memory tiers:
 - Project: architecture, build commands, risks, decisions.
 - Session: temporary plan and task state.
 
-Update memory when reality changes. Remove stale memory when it becomes false.
+Update memory when reality changes. Remove stale memory when it becomes false. Record provenance and invalidation triggers for material facts.
 
 ### 5. Delegate When Useful
 
@@ -262,8 +268,8 @@ High effort is required for:
 
 - security
 - data migrations
-- money or ledger logic
-- OCR correctness
+- domain logic that can affect money, health, safety, identity, or legal rights
+- machine extraction that can mutate durable state
 - authentication
 - authorization
 - persistence
@@ -271,16 +277,14 @@ High effort is required for:
 
 ### 8. Protect Domain Invariants
 
-Every project has domain invariants. The agent must identify them before modifying stateful code.
-
-For Community Ledger, any change touching receipts, members, transactions, event totals, JSON storage, OCR, share import, or migrations is high-risk by default.
+Every project has domain invariants. The agent must identify them from repository instructions and project evidence before modifying stateful code.
 
 The agent must:
 
 - preserve traceability
 - avoid guessed data
-- block uncertain saves
-- validate with compile
+- block uncertain mutations
+- run the repository-required validation
 - name remaining risks
 
 ### 9. Stop At The Right Time
@@ -309,6 +313,9 @@ Only durable lessons belong in memory or AEOS. Temporary observations stay in th
 ## Related Documents
 
 - [AI_BEHAVIOR_MODES.md](AI_BEHAVIOR_MODES.md)
+- [LOOP_ENGINEERING.md](LOOP_ENGINEERING.md)
+- [CONTEXT_AND_MEMORY.md](CONTEXT_AND_MEMORY.md)
+- [../00-foundation/OPERATING_MODEL.md](../00-foundation/OPERATING_MODEL.md)
 - [../00-foundation/THINKING_FRAMEWORK.md](../00-foundation/THINKING_FRAMEWORK.md)
 - [../13-review/QUALITY_GATES.md](../13-review/QUALITY_GATES.md)
 - [../14-playbooks/FEATURE_DELIVERY_PLAYBOOK.md](../14-playbooks/FEATURE_DELIVERY_PLAYBOOK.md)

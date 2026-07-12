@@ -1,8 +1,8 @@
 {
   "schemaVersion": 1,
   "available": false,
-  "versionCode": 2,
-  "versionName": "0.2.0-beta",
+  "versionCode": 3,
+  "versionName": "0.2.0-beta.1",
   "minimumSdk": 24,
   "minimumAndroid": "7.0+",
   "downloadUrl": "https://github.com/GopiB9119/event/releases",
@@ -10,6 +10,6 @@
   "sha256": "",
   "publishedAt": null,
   "releaseNotes": [
-    "Public release signing and physical-device launch checks are not complete."
+    "The signed beta candidate is prepared, but device and hosted launch checks are not complete."
   ]
 }

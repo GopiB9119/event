@@ -20,14 +20,17 @@
 | `EventDaoIntegrityInstrumentedTest` | Passed on API 36 emulator; collision cannot replace event or delete transaction |
 | `DatabaseRestartInstrumentedTest` | Passed; event and transaction survive file-backed Room close/reopen |
 | `SharedReceiptIntentInstrumentedTest` | Passed; shared text/image remain pending until explicit clear |
+| `LedgerSafetyInstrumentedTest` | Passed; Money out stores the OCR counterparty without inheriting uploader identity, and deletion requires acknowledgement while cancel preserves the entry |
 | `ExampleInstrumentedTest` | Passed with the real application ID |
-| Complete Android instrumentation suite | Passed together: 5 classes / 6 tests / zero failures |
-| Full Robolectric/unit suite | Passed: 7 suites, 35 tests, zero failures/errors/skips |
+| Complete Android instrumentation suite | Passed together: 6 classes / 8 tests / zero failures |
+| Signed release APK emulator smoke | Exact `0.2.0-beta.1` asset installed on a clean API 36 emulator; first launch and force-stop/cold relaunch passed with no crash/ANR exit record |
+| Full Robolectric/unit suite | Passed: 8 suites, 39 tests, zero failures/errors/skips |
 | Screenshot test | Included in the passing full suite |
 | First-use disclosure runtime check | Rendered, gated, accepted, and persisted after force-stop/relaunch on API 36 emulator |
 | Local identity runtime check | Invalid email rejected; valid email normalized/persisted; guarded Create Event opened afterward; Cancel returned safely to Dashboard |
 | Receipt process-death runtime check | SIGKILL during real-image OCR produced an interruption notice after cold relaunch; ledger remained at zero; acknowledgement persisted |
 | Update manifest validation | Passed 11 focused cases covering unpublished/current/new releases, schema/hash validation, and deceptive URL rejection |
+| Receipt attribution policy | Passed; uploader-derived default, confirmed uploader email, another-person isolation, and blank-person rejection |
 | Website rendering | Five pages, three real privacy-safe screenshots, zero missing local targets; measured without horizontal overflow at 390x844 and 1440x1000 |
 | Bounded GitHub Actions workflow | Added with a 30-minute timeout; YAML and exact release command validated locally; first hosted run pending |
 
@@ -44,6 +47,8 @@
 | Persistence | app restart, process death, upgrade, uninstall warning | Device/manual |
 | Accessibility | TalkBack, text scaling, touch targets, long content | Manual/device |
 | Local identity | malformed email, normalization, persistence, guarded create/invite/receipt actions | JVM/UI/device |
+| Receipt attribution | OCR counterparty differs from contributor, another person does not inherit uploader email, Money in/out totals | JVM/UI/device |
+| Transaction deletion | cancel, disabled confirm, acknowledged permanent delete, totals after delete, restart | UI/device |
 
 ## Release Gates
 

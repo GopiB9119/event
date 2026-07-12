@@ -28,6 +28,22 @@
 - Claims are backed by compile, tests, diagnostics, file reads, search evidence, or explicit limitation.
 - Effort matched task risk.
 
+## Loop Runtime Gates
+
+- The simplest suitable trigger type was selected.
+- Success predicate, permitted mutations, budgets, checkpoints, and terminal states were explicit.
+- Every retry followed new evidence and a changed hypothesis; no flaky pass was manufactured.
+- Scheduled/event-driven runs were isolated, deduplicated, observable, and owner-disableable.
+- Failed safety, invariant, approval, and budget gates ended the run rather than being waived by the implementer.
+
+## Authority And Context Gates
+
+- One accountable owner and clear capability assignments existed.
+- Decision, mutation, approval, and escalation boundaries were explicit.
+- Material implementation and high-risk final approval remained independent.
+- Project memory and indexes carried provenance/freshness and were checked against current source.
+- Sensitive data, secrets, and untrusted repository content were not copied into persistent context without governance.
+
 ## Code Gates
 
 - Smallest useful change.

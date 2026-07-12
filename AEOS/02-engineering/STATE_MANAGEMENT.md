@@ -13,24 +13,18 @@ State management defines how facts move through the system.
 
 ## State Categories
 
-- Durable state: database rows, app-private files, persisted preferences.
-- Session state: selected screen, active dialog, in-progress OCR.
-- Derived state: totals, counts, confidence display, duplicate status.
-- External state: Android share intents, URI permissions, ML Kit output.
+- Durable state: database rows, controlled files, persisted settings.
+- Session state: navigation, active dialog, in-progress workflow.
+- Derived state: totals, counts, status, confidence, validation results.
+- External state: operating-system events, permissions, provider or device output.
 
 ## Review Questions
 
 - Where is the source of truth?
 - What happens after app restart?
 - Can stale state appear in a new workflow?
-- Can two events share state accidentally?
+- Can two workflows or entities share state accidentally?
 - Does cancellation leave partial data behind?
 - Is the UI showing data from the current operation or a previous one?
 
-## Community Ledger Rules
-
-- Clear old receipt review state before every new upload/share.
-- Force OCR reprocessing even when share URI is reused.
-- Event totals derive from Room transactions, not UI cache.
-- Member counts derive from persisted members and transactions.
-- Receipt JSON review must represent the current extraction only.
+Apply repository-specific state invariants after this universal standard.

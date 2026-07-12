@@ -121,8 +121,8 @@ Every saved receipt JSON should follow this shape:
   "calculationAmount": 5000.0,
   "calculationBucket": "Total Collected",
   "calculationOperation": "add",
-  "paidTo": "ALLI RAMARAO",
-  "upiId": "alliramarao@ybl",
+  "paidTo": "SAMPLE MERCHANT",
+  "upiId": "sample.merchant@ybl",
   "upiReferenceOrTransactionId": null,
   "paymentApp": "PhonePe",
   "date": "18 June 2026",
@@ -142,7 +142,7 @@ Every saved receipt JSON should follow this shape:
   },
   "eventId": 12,
   "storedAt": 1780000000000,
-  "receiptFilePath": ".../files/receipts/event_12/person_alli_ramarao/uploader_user_example.com/receipt_1780000000000.json"
+  "receiptFilePath": ".../files/receipts/event_12/person_sample_merchant/uploader_user_example.com/receipt_1780000000000.json"
 }
 ```
 
@@ -372,6 +372,6 @@ When editing this project:
 ## Current Highest Priority Remaining Work
 
 1. Run Room invite-collision, receipt OCR, share-intent, cancellation, and restart checks on real devices.
-2. Push the bounded Android CI workflow and record a green hosted run of the full 35-test unit suite.
+2. Push the bounded Android CI workflow and record a green hosted run of the full 39-test unit suite.
 3. Design and implement user-controlled export/restore before broader beta distribution.
 4. If multi-device sharing is the product goal, complete authentication, server-issued event identity, authorization, sync, and conflict-resolution design before implementation.

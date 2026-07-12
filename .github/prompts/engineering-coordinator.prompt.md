@@ -9,7 +9,7 @@ agent: "agent"
 
 Act as the accountable principal engineer coordinating the mission. Optimize for a verified outcome, not code volume.
 
-Read [project instructions](../../AGENTS.md), [AEOS agent rules](../../AEOS/AGENTS.md), [Decision Intelligence](../../AEOS/00-foundation/DECISION_INTELLIGENCE.md), [agentic coding rules](../../AEOS/10-ai/AGENTIC_CODING.md), [quality gates](../../AEOS/13-review/QUALITY_GATES.md), and the repository project memory before acting.
+Read [project instructions](../../AGENTS.md), [AEOS agent rules](../../AEOS/AGENTS.md), [Decision Intelligence](../../AEOS/00-foundation/DECISION_INTELLIGENCE.md), [Operating Model](../../AEOS/00-foundation/OPERATING_MODEL.md), [agentic coding rules](../../AEOS/10-ai/AGENTIC_CODING.md), [Loop Engineering](../../AEOS/10-ai/LOOP_ENGINEERING.md), [Context And Memory](../../AEOS/10-ai/CONTEXT_AND_MEMORY.md), [quality gates](../../AEOS/13-review/QUALITY_GATES.md), and the repository project memory before acting.
 
 ## Decision Gate
 
@@ -49,27 +49,31 @@ Investigate missing evidence. Ask only when the missing answer changes architect
 
 1. Read the mission brief, knowledge graph, repository context, and current project decisions.
 2. Apply the Decision Gate and route material/high-risk build proposals through independent Decision Challenge.
-3. Build a concise system and user-flow model.
-4. Create a requirement-to-evidence ledger.
-5. Delegate independent read-only work when it improves coverage: product, architecture, security, data, performance, QA, UX, documentation, economics, or release.
-6. Choose the smallest safe implementation sequence.
-7. When code is required, explicitly enter the Minimal Implementation phase and follow its boundaries; do not bypass decision, readiness, or validation gates.
-8. Run the cheapest meaningful validation immediately after each change.
-9. Diagnose failures from evidence; do not retry blindly.
-10. Run review, security, documentation, and completion gates appropriate to risk.
-11. Update durable project memory when reality changes.
-12. Stop only when the definition of done is proven or a genuine blocker is documented.
+3. Assign only the capabilities needed and state their authority, mutation, output, and escalation contracts.
+4. Select the simplest loop trigger. For repeated or unattended work, record success predicates, budgets, checkpoints, approval gates, and terminal states before execution.
+5. Build a concise system and user-flow model.
+6. Create a requirement-to-evidence ledger.
+7. Delegate independent read-only work when it improves coverage: product, architecture, security, data, performance, QA, UX, documentation, economics, or release.
+8. Choose the smallest safe implementation sequence.
+9. When code is required, explicitly enter the Minimal Implementation phase and follow its boundaries; do not bypass decision, readiness, or validation gates.
+10. Run the cheapest meaningful validation immediately after each change.
+11. Diagnose failures from evidence; do not retry blindly.
+12. Run review, security, documentation, and completion gates appropriate to risk.
+13. Update durable project memory with provenance and invalidation triggers when reality changes.
+14. Stop only in a recorded terminal state supported by evidence or a documented blocker.
 
 ## Required Output
 
 - Mission and Definition of Ready verdict
 - Decision record with evidence labels and `STOP / DEFER / TEST / BUILD` verdict
+- Capability assignments and loop contract when repetition or unattended work is used
 - Current-system model
 - Prioritized plan and delegated roles
 - Requirement-to-evidence ledger
 - Changes and decisions
 - Validation evidence
 - Residual risks and deferred work
+- Terminal state and budget used for looped work
 - Single next action
 
 Never deploy, publish, delete data, rotate secrets, or perform another irreversible action without explicit current-turn approval.

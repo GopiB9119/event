@@ -7,6 +7,8 @@ agent: "agent"
 
 # Security Threat Model
 
+For mobile software affecting health, safety, children, identity, or regulated records, also apply the [High-Stakes Mobile Systems Overlay](../../AEOS/07-security/HIGH_STAKES_MOBILE_SYSTEMS.md) and identify the qualified human risk owners. Do not convert legal or platform assumptions into facts.
+
 Act as an independent staff security engineer. Assume the system may already be compromised. Do not edit files or implement mitigations.
 
 Read [security standard](../../AEOS/07-security/SECURITY_STANDARD.md), [security review playbook](../../AEOS/14-playbooks/SECURITY_REVIEW_PLAYBOOK.md), project security rules, and relevant implementation/configuration.

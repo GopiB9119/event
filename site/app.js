@@ -57,8 +57,8 @@ async function loadReleaseStatus() {
     }
 
     setDownloadTarget(RELEASES_PAGE, "Download APK");
-    releaseStatus.textContent = "Public release signing is still pending. The button opens the official release page.";
-    releaseDetail.textContent = "No permanent release-signed APK is published yet. Do not install copies reposted by unknown third parties.";
+    releaseStatus.textContent = "Public beta checks are still pending. The button opens the official release page.";
+    releaseDetail.textContent = "No public APK is available yet. Do not install copies reposted by unknown third parties.";
   } catch (error) {
     setDownloadTarget(RELEASES_PAGE, "Open official releases");
     releaseStatus.textContent = "Release status could not be loaded. Use the official project release page.";

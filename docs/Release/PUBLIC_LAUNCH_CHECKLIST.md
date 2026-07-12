@@ -33,9 +33,9 @@
 
 ## Distribution
 
-- [ ] Create and securely back up the Android release keystore.
-- [ ] Increase version code for every public update.
-- [ ] Build and verify a release-signed APK.
+- [x] Create and securely back up the Android release keystore.
+- [x] Increase version code for every public update.
+- [x] Build and verify a release-signed APK.
 - [ ] Create a GitHub Release with APK, checksum, certificate fingerprint, notes, and limitations.
 - [ ] Enable and manually deploy the static GitHub Pages site.
 - [ ] Point the website's Download APK button and update manifest to the signed release.

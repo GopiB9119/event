@@ -5,11 +5,11 @@ An API is any boundary where another system, user, app, or module sends input.
 ## Boundary Types
 
 - HTTP API
-- Android intent
-- shared file URI
-- database DAO
-- repository function
-- ViewModel public function
+- operating-system intent or deep link
+- shared file or resource identifier
+- persistence access boundary
+- repository or service function
+- public application-state coordinator
 - parser function
 - file storage function
 
@@ -33,11 +33,4 @@ An API is any boundary where another system, user, app, or module sends input.
 - What happens on malformed input?
 - What evidence proves this boundary behaves correctly?
 
-## Community Ledger Boundary Rules
-
-- Android share intents are untrusted input.
-- Receipt images are untrusted input.
-- OCR text is untrusted evidence, not truth.
-- Parser output must pass confidence and duplicate checks.
-- DAO writes must preserve event/member ownership.
-- Invite links are convenience inputs, not authorization.
+Apply repository-specific boundary overlays after this universal standard.

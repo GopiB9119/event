@@ -7,7 +7,7 @@ data class ParsedReceipt(
     val transactionId: String = "",
     val phone: String = "",
     val email: String = "",
-    val payeeName: String = "",
+    val counterpartyName: String = "",
     val upiId: String = "",
     val date: String = "",
     val paymentApp: String = "Unknown UPI",
@@ -23,7 +23,7 @@ object ReceiptParser {
         var transactionId = ""
         var phone = ""
         var email = ""
-        var payeeName = ""
+        var counterpartyName = ""
         var upiId = ""
         var dateStr = ""
         var paymentApp = "Unknown UPI"
@@ -294,8 +294,8 @@ object ReceiptParser {
                 val nearbyCandidate = lines.drop(index + 1)
                     .take(3)
                     .firstNotNullOfOrNull { candidate -> cleanPartyCandidate(candidate) }
-                payeeName = sameLineCandidate ?: nearbyCandidate.orEmpty()
-                if (payeeName.isNotBlank()) break
+                counterpartyName = sameLineCandidate ?: nearbyCandidate.orEmpty()
+                if (counterpartyName.isNotBlank()) break
             }
         }
 
@@ -317,7 +317,7 @@ object ReceiptParser {
         if (amountConfidence in 1..69) warnings += "Amount was detected with low OCR confidence."
         if (paymentApp == "Unknown UPI") warnings += "Payment app not detected."
         if (transactionId.isBlank()) warnings += "UPI reference or transaction ID not detected."
-        if (payeeName.isBlank() && upiId.isBlank()) warnings += "Receiver name or UPI ID not detected."
+        if (counterpartyName.isBlank() && upiId.isBlank()) warnings += "Counterparty name or UPI ID not detected."
 
         val confidence = listOf(
             if (amount > 0.0) when {
@@ -329,7 +329,7 @@ object ReceiptParser {
             if (paymentApp != "Unknown UPI") 15 else 0,
             if (transactionId.isNotBlank()) 20 else 0,
             if (upiId.isNotBlank()) 10 else 0,
-            if (payeeName.isNotBlank()) 5 else 0,
+            if (counterpartyName.isNotBlank()) 5 else 0,
             if (dateStr.isNotBlank()) 5 else 0
         ).sum().coerceIn(0, 100)
 
@@ -338,7 +338,7 @@ object ReceiptParser {
             transactionId = transactionId,
             phone = phone,
             email = email,
-            payeeName = payeeName,
+            counterpartyName = counterpartyName,
             upiId = upiId,
             date = dateStr,
             paymentApp = paymentApp,

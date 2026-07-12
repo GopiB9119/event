@@ -35,7 +35,15 @@ Use this before shipping a meaningful release or enabling a feature for real use
 - Secrets are not stored in source.
 - Auth/authz claims match implementation.
 - Sensitive actions require appropriate checks.
-- Logs do not expose secrets or private receipt data.
+- Logs do not expose secrets or private user data.
+
+## High-Stakes Domain Readiness When Applicable
+
+- Intended use, safety boundary, qualified domain owner, jurisdictions, and supported platforms are explicit.
+- Degraded/offline/permission/reboot/time-change behavior is visible and tested without guarantee language.
+- Sensitive-data purpose, access, retention, withdrawal, deletion, backup, processor, and incident paths have owners.
+- Platform, store-policy, cryptographic, security-standard, and legal claims cite current applicable evidence.
+- Independent domain, security/privacy, physical-device, and recovery gates pass before human risk acceptance.
 
 ## Performance Readiness
 
@@ -44,16 +52,7 @@ Use this before shipping a meaningful release or enabling a feature for real use
 - Database queries are indexed where needed.
 - Slow paths have user-visible progress.
 
-## Community Ledger Release Checks
-
-- Receipt extraction is ML Kit only.
-- No dummy, random, filename, or cloud fallback receipt data.
-- Receipt save requires valid amount, confidence, and duplicate clearance.
-- Receipt JSON is persisted in app-private storage.
-- Event/member/transaction schema compiles with Room.
-- Event deletion cascades correctly.
-- Member upload counts use persisted members where possible.
-- Invite links are described as convenience links, not security boundaries.
+Apply repository-specific release overlays after this universal checklist.
 
 ## Release Decision
 

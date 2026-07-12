@@ -21,6 +21,8 @@ The current product serves one organizer or one shared physical device used by a
 | Extract receipt | On-device ML Kit Latin + Devanagari |
 | Review and save | JSON review, confidence warning, duplicate block |
 | View ledger | Collected, spent, balance, members, transactions |
+| Attribute receipt | User confirms the ledger contributor/payer or vendor separately from OCR Paid to evidence |
+| Delete transaction | Authorized user must acknowledge permanent total/balance impact before deletion |
 | Share event copy | Expiring convenience link with checksum |
 | Add event copy | Creates or opens an independent event metadata shell on that device |
 | Delete event | Creator-email comparison plus confirmation flow |
@@ -37,6 +39,9 @@ The current product serves one organizer or one shared physical device used by a
 - APK installation and offline use after ML Kit availability is confirmed
 - Event creation, event-copy sharing, receipt scans/shares, and receipt replacement require a valid local identity label
 - If the app process dies during OCR or review, no receipt is saved and the next launch tells the user to rescan
+- Receipt OCR counterparty (`Paid to`) is evidence only; it no longer silently becomes the member/contributor name
+- New receipt review explicitly chooses Money in or Money out and the ledger person used in member totals
+- Event member cards and profiles show each person's credited/debited counts, totals, and linked transactions on the local device
 
 ### What does not exist
 
@@ -46,6 +51,8 @@ The current product serves one organizer or one shared physical device used by a
 - Event-copy revocation or membership authorization
 - Cloud backup, export, restore, or conflict resolution
 - Payment processing
+- Investment/loan/equity accounting semantics
+- PDF/CSV/JSON export and restore
 
 ## Public And Private
 
@@ -70,3 +77,13 @@ Choose one direction before expanding features:
 2. **Shared multi-device ledger:** design authentication, server-issued event IDs, authorization, synchronization, conflict resolution, and privacy before writing sync code.
 
 Trying to imply multi-device sharing without that architecture will damage trust.
+
+## Money And Identity Vocabulary
+
+- **Ledger person:** person or vendor whose local member totals include the entry.
+- **Uploader:** local identity that imported and confirmed the receipt; this is an audit label, not authentication.
+- **Paid to / counterparty:** OCR evidence from the receipt. It does not identify the uploader or contributor automatically.
+- **Money in:** adds to Total Collected. Use for confirmed contributions/donations received by the event.
+- **Money out:** adds to Total Spent. Use for confirmed event expenses paid to a vendor/recipient.
+
+Do not call a contribution an investment until the product defines ownership, repayment/return, valuation, legal responsibility, and reporting semantics. The current ledger records money movement only; it does not offer or manage investments.
