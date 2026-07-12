@@ -47,7 +47,7 @@ Do not claim:
 - Rebuilt candidate passed the complete API 36 Android suite: 6 classes / 8 tests / zero failures
 - Signed `0.2.0-beta.1` APK installed on a clean API 36 emulator, launched successfully, and cold-relaunched after force-stop with no crash/ANR record
 
-## Current Signed Beta Candidate
+## Current Signed Public Beta
 
 ```text
 Release asset: community-ledger-0.2.0-beta.1.apk
@@ -62,14 +62,14 @@ Signature: APK Signature Scheme v2, permanent Community Ledger release certifica
 Alignment: verified with Android build-tools zipalign
 ```
 
-This is a release-signed beta candidate. It is not public until hosted and physical-device gates pass and the GitHub prerelease is explicitly published.
+This release-signed artifact is published as a limited GitHub prerelease for voluntary testing. It is not production-ready, and incomplete physical-device coverage remains an explicit beta risk.
 
-## Remaining Gates Before Broader Sharing
+## Remaining Gates Before Broader Reliance
 
 1. Repeat the complete physical-phone matrix with the signed `742BEF...A068` candidate; partial evidence from superseded candidates is documented separately.
 2. Share a real image from an external payment/gallery app and verify review/save/cancel/navigation behavior.
 3. Repeat the final APK smoke flow on a second physical device and record Android versions.
-4. Push `.github/workflows/android-ci.yml` and record its first green hosted run; the bounded command already passes locally.
+4. Obtain qualified legal review for intended launch jurisdictions; do not claim regulatory compliance before that review.
 
 ## Rollback
 

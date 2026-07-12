@@ -1,15 +1,18 @@
 {
   "schemaVersion": 1,
-  "available": false,
+  "available": true,
   "versionCode": 3,
   "versionName": "0.2.0-beta.1",
   "minimumSdk": 24,
   "minimumAndroid": "7.0+",
-  "downloadUrl": "https://github.com/GopiB9119/event/releases",
-  "releasePageUrl": "https://github.com/GopiB9119/event/releases",
-  "sha256": "",
-  "publishedAt": null,
+  "downloadUrl": "https://github.com/GopiB9119/event/releases/download/v0.2.0-beta.1/community-ledger-0.2.0-beta.1.apk",
+  "releasePageUrl": "https://github.com/GopiB9119/event/releases/tag/v0.2.0-beta.1",
+  "sha256": "742BEF49CBA3DA6E4D958880698D5DEF82097E39CC6AA16358B9AA44E946A068",
+  "publishedAt": "2026-07-12T10:23:44Z",
   "releaseNotes": [
-    "The signed beta candidate is prepared, but device and hosted launch checks are not complete."
+    "Limited public beta for voluntary testing. Do not use it as your only record for important money data.",
+    "Local-only: no account, sync, cloud backup, export, restore, or recovery.",
+    "Review every OCR result before saving; OCR can be wrong.",
+    "Physical-device coverage and qualified legal review remain incomplete."
   ]
 }
