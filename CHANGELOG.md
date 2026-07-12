@@ -2,7 +2,7 @@
 
 All notable public release changes will be recorded here. This file does not make an artifact publicly released; GitHub Releases and the signed release manifest are authoritative for distribution.
 
-## Unreleased - 0.2.0-beta.1 Candidate
+## 0.2.0-beta.1 - 2026-07-12
 
 ### Added
 
@@ -28,14 +28,15 @@ All notable public release changes will be recorded here. This file does not mak
 
 - App-private database, receipt evidence, and preferences remain excluded from Android backup/device transfer.
 - Runtime paths contain no dummy/random/filename-derived receipt values or cloud OCR fallback.
-- Permanent release signing and an independently backed-up key lineage are established; public download remains disabled until hosted and device gates pass.
+- Permanent release signing and an independently backed-up key lineage are established.
+- The official GitHub prerelease and HTTPS launch site provide the APK, checksum, Privacy, Terms, Contact, and fail-closed release metadata.
 
 ### Known Limits
 
 - No account, authentication, authorization, cross-device synchronization, export, restore, or recovery.
 - OCR can be wrong and requires review.
-- The current candidate is release-signed but remains unpublished until hosted and physical-device gates pass.
+- Physical-device breadth and qualified legal review remain incomplete; this release is a limited beta, not a production-readiness claim.
 
 ## Releases
 
-No GitHub Release has been published yet.
+- [0.2.0-beta.1](https://github.com/GopiB9119/event/releases/tag/v0.2.0-beta.1) - limited public beta prerelease

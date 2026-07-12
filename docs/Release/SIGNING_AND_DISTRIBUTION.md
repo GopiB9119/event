@@ -2,7 +2,7 @@
 
 ## Current State
 
-The verified friend-beta artifact is debug-signed. It is suitable only for a small trusted beta and must not be presented as the permanent public release channel.
+`0.2.0-beta.1` establishes the permanent Community Ledger release-certificate lineage and is published as a limited GitHub prerelease. Future Android updates must use the same signing lineage. Debug APKs remain development artifacts and must not be presented as the public release channel.
 
 ## Release Key Rule
 
