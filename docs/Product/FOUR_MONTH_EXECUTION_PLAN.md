@@ -308,5 +308,7 @@ Stop the affected slice on:
 - Local visibility labels changed to `Public marker` and `Private marker`.
 - Added a pure one-pass ledger presentation summary shared by Event Details member cards and profiles.
 - Added matching/correctness coverage including a synthetic 10,000-transaction fixture.
+- Verified 11 JVM/Robolectric suites / 61 tests with zero failures, errors, or skips and assembled the debug APK.
+- Recorded and visually reviewed a deterministic Pixel 8/API 36 EventCard screenshot with long-title, private, public, duration, and ongoing states.
 
 These changes are implementation progress, not a release or performance-capacity claim.

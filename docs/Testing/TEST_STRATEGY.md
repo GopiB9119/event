@@ -25,15 +25,17 @@
 | Complete Android instrumentation suite | Passed together on isolated API 36 AVD: 6 classes / 14 tests / zero failures |
 | Signed release APK emulator smoke | Exact `0.2.0-beta.2` asset installed fresh and over beta.1 on API 36; launch, migration-preserving cold relaunch, and post-update-check health checks passed with no app crash/ANR exit record |
 | Installed-app live update check | Public beta.2 APK on API 36 reached the deployed HTTPS manifest after an explicit Trust Center tap and reported `0.2.0-beta.2` current; no automatic check or silent install was observed |
-| Full Robolectric/unit suite | Passed: 9 suites, 54 tests, zero failures/errors/skips |
-| Screenshot test | Included in the passing full suite |
+| Full Robolectric/unit suite | Passed after the first post-beta.2 UI/performance slice: 11 suites, 61 tests, zero failures/errors/skips |
+| Ledger presentation summary | Passed linked/fallback matching, exact event/member totals, duplicate-assignment prevention, and a synthetic 100-member / 10,000-transaction correctness fixture; no frame-time claim is inferred |
+| Event-card UI contract | Passed independent open/delete callbacks, 48dp delete target, event-specific accessibility text, truthful public/private marker wording, and deterministic Pixel 8/API 36 screenshot capture |
+| Screenshot tests | Greeting and privacy-safe EventCard images are included in the passing full suite; `recordRoborazziDebug` generated the EventCard baseline |
 | First-use disclosure runtime check | Rendered, gated, accepted, and persisted after force-stop/relaunch on API 36 emulator |
 | Local identity runtime check | Invalid email rejected; valid email normalized/persisted; guarded Create Event opened afterward; Cancel returned safely to Dashboard |
 | Receipt process-death runtime check | SIGKILL during real-image OCR produced an interruption notice after cold relaunch; ledger remained at zero; acknowledgement persisted |
 | Update manifest validation | Passed 11 focused cases covering unpublished/current/new releases, schema/hash validation, and deceptive URL rejection |
 | Receipt attribution policy | Passed; uploader-derived default, confirmed uploader email, another-person isolation, and blank-person rejection |
 | Website rendering | Five pages, three real privacy-safe screenshots, zero missing local targets; measured without horizontal overflow at 390x844 and 1440x1000 |
-| Bounded GitHub Actions workflow | Required Android gate has a 30-minute timeout; both push and PR runs passed for the beta.2 channel commit, alongside both Site CI runs |
+| Bounded GitHub Actions workflow | Required Android gate has a 30-minute timeout; both push and PR runs passed for the beta.2 channel commit, alongside both Site CI runs. The current uncommitted post-beta.2 slice has local full-suite/APK evidence only. |
 
 ## Required Test Matrix
 
