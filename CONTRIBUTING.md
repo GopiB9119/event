@@ -4,9 +4,11 @@ Thank you for helping improve Community Ledger. This project protects local even
 
 ## Contribution Status And License
 
-The repository is public, but no open-source license has been granted yet. Public visibility does not grant permission to copy, redistribute, or create derivative versions.
+Community Ledger is dual-licensed under the [MIT License](LICENSE-MIT) or the [Apache License 2.0](LICENSE-APACHE), at your option. See [LICENSE](LICENSE) for the combined terms.
 
-Until the publisher chooses explicit license and contribution terms, external code contributions are **not accepted for merging**. You may still open non-sensitive bug reports, propose ideas, or suggest documentation corrections. Open an issue before preparing substantial work.
+External code contributions may be reviewed but are not guaranteed acceptance. Open an issue before preparing substantial work so product fit, data-integrity risk, and verification expectations are clear.
+
+Unless explicitly stated otherwise, any contribution intentionally submitted for inclusion is licensed under both MIT and Apache-2.0 so recipients retain the option to use the project under either license, without additional terms or conditions.
 
 ## Before Opening An Issue
 
@@ -45,6 +47,6 @@ High-risk Room/share/OCR work also requires the applicable Android instrumentati
 
 ## Pull Requests
 
-Pull Requests are currently for publisher/authorized collaborator work while licensing is unresolved. A PR must link its issue/decision, explain scope and non-goals, include validation evidence, and disclose security/privacy/data impact.
+A Pull Request must link its issue/decision, explain scope and non-goals, include validation evidence, and disclose security/privacy/data impact. Merge acceptance remains at the publisher's discretion.
 
 By participating, you agree to follow [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md). Do not place secrets or personal financial data in commits, branches, CI logs, Issues, or Pull Requests.

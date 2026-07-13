@@ -64,8 +64,8 @@ Image URI / shared text
   -> ReceiptParser
   -> amount/reference/app/receiver/date + confidence + warnings
   -> duplicate check against selected event
-  -> JSON-only user review
-  -> positive/confidence/duplicate save gates
+  -> compact amount/details review and explicit confirmation when needed
+  -> positive amount/evidence/duplicate save gates
   -> app-private JSON evidence file
   -> validated Room transaction + member link
   -> collected/spent/balance calculations

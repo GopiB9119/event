@@ -1,6 +1,7 @@
 {
   "name": "Community Ledger",
   "description": "A local-first Android ledger for recording community event donations and expenses with reviewed on-device receipt OCR evidence.",
+  "license": "MIT OR Apache-2.0",
   "requestFramePermissions": [],
   "majorCapabilities": ["LOCAL_LEDGER", "ON_DEVICE_ML_KIT_OCR", "RECEIPT_REVIEW"]
 }

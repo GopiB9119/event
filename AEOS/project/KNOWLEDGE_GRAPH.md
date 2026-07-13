@@ -1,6 +1,6 @@
 # Community Ledger Knowledge Graph
 
-Last evidence sync: 12 July 2026
+Last evidence sync: 13 July 2026
 
 This is a routing map, not a substitute for source inspection. Update it only when verified behavior or ownership changes. Preserve unknowns as unknowns.
 
@@ -179,7 +179,7 @@ Ownership:
 - Receipt/database/preferences are app-private and excluded from Android backup/device transfer.
 - Manual update checks are user-triggered and accept only official GitHub Release APK asset URLs.
 - Website and update manifest accept only the published release-signed GitHub APK asset.
-- The public repository has no open-source license; external code merging remains closed until the publisher chooses explicit terms.
+- Source is dual-licensed under `MIT OR Apache-2.0`; external changes remain review-based and merge acceptance is discretionary.
 
 See [Security Playbook](../../.ai/SECURITY_PLAYBOOK.md) and [Data And Permissions](../../docs/Legal/DATA_AND_PERMISSIONS.md).
 
@@ -201,7 +201,7 @@ Current verified evidence is recorded in [Test Strategy](../../docs/Testing/TEST
 
 - `UNKNOWN`: demand and retention evidence beyond the current trusted beta.
 - Permanent signing lineage, hosted CI, Pages, GitHub prerelease, ruleset, and security-alert evidence are recorded.
-- Project fields/views and license selection require owner action.
+- Optional GitHub Project fields/views still require owner action; source licensing is resolved as `MIT OR Apache-2.0`.
 - Final flows still require a physical phone and a second device.
 - Legal text has not been reviewed for target launch jurisdictions.
 - Export/restore, authentication, authorization, sync, revocation, and conflict resolution do not exist.

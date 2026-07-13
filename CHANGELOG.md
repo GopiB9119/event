@@ -2,6 +2,16 @@
 
 All notable public release changes will be recorded here. This file does not make an artifact publicly released; GitHub Releases and the signed release manifest are authoritative for distribution.
 
+## Unreleased
+
+### Added
+
+- Dual source licensing under `MIT OR Apache-2.0`, including canonical MIT and Apache 2.0 texts and explicit contribution terms.
+
+### Documentation
+
+- Added an evidence-gated post-beta.2 program for multilingual UX, accessibility, device verification, and future authenticated shared events. This records planned work; it does not claim those features are implemented.
+
 ## 0.2.0-beta.2 - 2026-07-13
 
 ### Changed

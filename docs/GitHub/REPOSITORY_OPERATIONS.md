@@ -57,14 +57,11 @@ GitHub does not own user ledgers, receipt images, member data, signing secrets, 
 
 ## License State
 
-No open-source license is currently granted. Public visibility does not grant permission to copy, modify, redistribute, or create derivative works. External code contributions remain closed until Gopi Banoth chooses explicit license and contribution terms.
+Community Ledger is dual-licensed under the MIT License or Apache License 2.0, at the recipient's option. The root `LICENSE` selects the two canonical texts in `LICENSE-MIT` and `LICENSE-APACHE`; `metadata.json` uses SPDX expression `MIT OR Apache-2.0`.
 
-Owner decision required before adding `LICENSE`:
+External contributions may be reviewed, but merge acceptance remains at the publisher's discretion. Unless explicitly stated otherwise, contributions intentionally submitted for inclusion use the same dual-license terms without additional conditions.
 
-- keep source-available/all rights reserved
-- Apache-2.0
-- MIT
-- GPL-3.0 or another reviewed license
+License changes are owner-gated release decisions. Do not silently replace, narrow, or expand these terms from dependency headers or generated metadata.
 
 Do not infer the app's license from Gradle wrapper headers or dependency licenses.
 

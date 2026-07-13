@@ -152,13 +152,18 @@ Never post receipt images, personal or financial data, passwords, signing keys, 
 - [Changelog](CHANGELOG.md)
 - [GitHub repository operations](docs/GitHub/REPOSITORY_OPERATIONS.md)
 
-The source repository is public, but no open-source license is currently granted. Public visibility does not grant permission to copy, modify, redistribute, or create derivative versions. External code contributions remain closed until explicit license and contribution terms are chosen.
+## License
+
+Community Ledger is dual-licensed under the [MIT License](LICENSE-MIT) or the [Apache License 2.0](LICENSE-APACHE), at your option. See [LICENSE](LICENSE) for the combined terms and contribution notice.
+
+External contributions remain subject to review and acceptance by the publisher. Contributions intentionally submitted for inclusion are licensed under the same `MIT OR Apache-2.0` terms unless explicitly stated otherwise.
 
 ## Project Documentation
 
 - [Architecture overview](docs/Architecture/OVERVIEW.md)
 - [Future shared-event architecture](docs/Architecture/SHARED_EVENTS_FUTURE.md)
 - [Product overview](docs/Product/PRODUCT_OVERVIEW.md)
+- [Post-beta.2 product program](docs/Product/POST_BETA2_PROGRAM.md)
 - [Test strategy](docs/Testing/TEST_STRATEGY.md)
 - [Physical-device launch matrix](docs/Testing/PHYSICAL_DEVICE_LAUNCH_MATRIX.md)
 - [Friend beta readiness](docs/Release/FRIEND_BETA_READINESS.md)

@@ -1,8 +1,10 @@
 # Community Ledger Evidence-Based Backlog
 
-Last review: 12 July 2026
+Last review: 13 July 2026
 
 This backlog is ordered by current constraint, not feature excitement. Evidence labels follow [Decision Intelligence](../00-foundation/DECISION_INTELLIGENCE.md). Reorder only when new evidence changes user value, risk, dependencies, or opportunity cost.
+
+The proposed quality, localization, UI, website, and shared-event sequence is in the [Post-Beta.2 Product Program](../../docs/Product/POST_BETA2_PROGRAM.md). Durations there are planning assumptions; the physical-device, owner-decision, security, legal, and release gates in this backlog remain authoritative.
 
 ## PRIMARY OPEN GATE
 
@@ -36,10 +38,17 @@ This backlog is ordered by current constraint, not feature excitement. Evidence 
 
 ### License and contribution terms
 
-- Problem: `VERIFIED` the repository is public but grants no open-source license; external code merging is intentionally closed.
-- Decision state: `DEFER` license selection to Gopi Banoth; do not infer a license from Gradle/dependency headers.
-- Smallest action: choose source-available/all-rights-reserved, Apache-2.0, MIT, GPL-3.0, or another reviewed license before accepting external code contributions or describing the project as open source.
-- Acceptance evidence: root `LICENSE` when applicable, README/Contributing text matches it, and contribution rights are explicit.
+- Problem: `RESOLVED` the public repository previously granted no open-source license.
+- Decision state: `BUILD` completed; Gopi Banoth selected `MIT OR Apache-2.0` dual licensing.
+- Acceptance evidence: root `LICENSE`, `LICENSE-MIT`, and `LICENSE-APACHE`; metadata, README, Contributing, repository operations, and launch checklist use the same terms.
+- Contribution boundary: external changes may be reviewed but merge acceptance remains discretionary; submitted contributions use the same dual-license terms unless explicitly stated otherwise.
+
+### UI ownership pressure
+
+- Problem: `VERIFIED` `Screens.kt` owns most screens/dialogs and some receipt/deep-link presentation logic, while `EventViewModel` coordinates navigation, intents, OCR, and persistence. Broad UI, accessibility, and localization work can increase coupling if implemented as one rewrite.
+- Decision state: `BUILD` only extraction proven by the current vertical slice; `STOP` a speculative full UI architecture rewrite.
+- Smallest action: when a milestone touches one screen family, move only reusable presentation/state boundaries required for that slice and preserve public behavior.
+- Acceptance evidence: focused UI/runtime check plus full compile/unit gates; no domain invariant moves into a less testable layer and no unrelated screen is reformatted.
 
 ### 4. Export/restore decision before wider reliance
 

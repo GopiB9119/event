@@ -17,7 +17,7 @@
 - [x] Add a monitored private support email and final legal publisher identity.
 - [x] Prepare a security and data-integrity incident-response runbook.
 - [ ] Have final public legal text reviewed for target launch jurisdictions.
-- [ ] Choose and document the repository's source-code license before accepting external code contributions.
+- [x] Choose and document the `MIT OR Apache-2.0` source-code license and contribution terms.
 
 ## GitHub Repository
 

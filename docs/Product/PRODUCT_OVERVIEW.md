@@ -78,6 +78,8 @@ Choose one direction before expanding features:
 
 Trying to imply multi-device sharing without that architecture will damage trust.
 
+The bounded quality, localization, UI, website, verification, and shared-event sequence is recorded in the [Post-Beta.2 Product Program](POST_BETA2_PROGRAM.md). The first 20-week horizon improves the local product; authenticated synchronization remains a separately gated architecture program.
+
 The reported expectation is now concrete: after joining, users expect members, receipt submissions, contributor activity, collected/spent/balance totals, utilization, event details, and custom information to converge across devices. That is evidence for evaluating the shared-ledger direction, not evidence that the current copy link already provides it. Play production should not market this beta as collaboration while that gap remains.
 
 ## Money And Identity Vocabulary
