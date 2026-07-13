@@ -165,6 +165,7 @@ External contributions remain subject to review and acceptance by the publisher.
 - [Product overview](docs/Product/PRODUCT_OVERVIEW.md)
 - [Post-beta.2 product program](docs/Product/POST_BETA2_PROGRAM.md)
 - [Four-month execution plan](docs/Product/FOUR_MONTH_EXECUTION_PLAN.md)
+
 - [Test strategy](docs/Testing/TEST_STRATEGY.md)
 - [Physical-device launch matrix](docs/Testing/PHYSICAL_DEVICE_LAUNCH_MATRIX.md)
 - [Friend beta readiness](docs/Release/FRIEND_BETA_READINESS.md)
@@ -204,7 +205,7 @@ adb shell monkey -p com.aistudio.communityledger.yrtqwx 1
 
 ## Testing Notes
 
-The complete debug unit/Robolectric suite currently passes 61 tests across 11 suites. This includes a synthetic 10,000-transaction correctness fixture for the one-pass ledger presentation summary and focused EventCard interaction/accessibility/screenshot coverage. The fixture proves exact aggregation and matching behavior, not frame time or 10,000-user concurrency. The last complete API 36 Android instrumentation suite remains 14 tests across six classes, covering compact receipt review, detected/edited amount confirmation, private evidence persistence, Room 4-to-5 migration, fail-closed numeric-ID and opaque-key collision safety, file-backed database reopen, shared receipt state, app context, six private real-image OCR fixtures, receipt attribution, and acknowledged deletion. First-use disclosure, local identity gating, Trust Center navigation, and an honest receipt-interruption notice after process death have also been verified through runtime interaction. The bounded workflow at `.github/workflows/android-ci.yml` runs compile, unit tests, and APK assembly with a 30-minute timeout; its exact command passes locally and on hosted GitHub runners.
+The complete debug unit/Robolectric suite currently passes 65 tests across 11 suites. This includes a synthetic 10,000-transaction correctness fixture for the one-pass ledger presentation summary and focused EventCard interaction/accessibility/screenshot coverage. The fixture proves exact aggregation and matching behavior, not frame time or 10,000-user concurrency. The last complete API 36 Android instrumentation suite remains 14 tests across six classes, covering compact receipt review, detected/edited amount confirmation, private evidence persistence, Room 4-to-5 migration, fail-closed numeric-ID and opaque-key collision safety, file-backed database reopen, shared receipt state, app context, six private real-image OCR fixtures, receipt attribution, and acknowledged deletion. First-use disclosure, local identity gating, Trust Center navigation, and an honest receipt-interruption notice after process death have also been verified through runtime interaction. The bounded workflow at `.github/workflows/android-ci.yml` runs compile, unit tests, and APK assembly with a 30-minute timeout; its exact command passes locally and on hosted GitHub runners.
 
 ## Launch Website
 

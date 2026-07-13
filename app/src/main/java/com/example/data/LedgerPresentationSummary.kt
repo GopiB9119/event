@@ -24,9 +24,17 @@ fun calculateLedgerPresentationSummary(
     transactions: List<TransactionEntity>
 ): EventLedgerSummary {
     val builders = members.associate { it.id to MutableMemberLedgerSummary() }.toMutableMap()
-    val memberIdsByName = members.groupBy { it.name.caseInsensitiveKey() }.mapValues { entry -> entry.value.map { it.id } }
-    val memberIdsByPhone = members.filter { it.phone.isNotBlank() }.groupBy { it.phone }.mapValues { entry -> entry.value.map { it.id } }
-    val memberIdsByEmail = members.filter { it.email.isNotBlank() }.groupBy { it.email }.mapValues { entry -> entry.value.map { it.id } }
+    val memberIdByName = members
+        .groupBy { it.normalizedName.ifBlank { it.name }.normalizedMemberKey() }
+        .mapValues { entry -> entry.value.minOf { it.id } }
+    val memberIdByPhone = members
+        .filter { it.phone.isNotBlank() }
+        .groupBy { it.phone }
+        .mapValues { entry -> entry.value.minOf { it.id } }
+    val memberIdByEmail = members
+        .filter { it.email.isNotBlank() }
+        .groupBy { it.email }
+        .mapValues { entry -> entry.value.minOf { it.id } }
 
     var totalCollected = 0.0
     var totalSpent = 0.0
@@ -37,23 +45,15 @@ fun calculateLedgerPresentationSummary(
             "Debit", "Expense" -> totalSpent += transaction.amount
         }
 
-        val matchingMemberIds = if (transaction.memberId != null) {
-            listOf(transaction.memberId)
+        val matchingMemberId = if (transaction.memberId != null) {
+            transaction.memberId
         } else {
-            buildSet {
-                addAll(memberIdsByName[transaction.personName.caseInsensitiveKey()].orEmpty())
-                if (transaction.personPhone.isNotBlank()) {
-                    addAll(memberIdsByPhone[transaction.personPhone].orEmpty())
-                }
-                if (transaction.personEmail.isNotBlank()) {
-                    addAll(memberIdsByEmail[transaction.personEmail].orEmpty())
-                }
-            }
+            transaction.personPhone.takeIf { it.isNotBlank() }?.let(memberIdByPhone::get)
+                ?: transaction.personEmail.takeIf { it.isNotBlank() }?.let(memberIdByEmail::get)
+                ?: memberIdByName[transaction.personName.normalizedMemberKey()]
         }
 
-        matchingMemberIds.forEach { memberId ->
-            builders[memberId]?.add(transaction)
-        }
+        matchingMemberId?.let { builders[it]?.add(transaction) }
     }
 
     return EventLedgerSummary(
@@ -83,7 +83,7 @@ private class MutableMemberLedgerSummary {
                 totalDebited += transaction.amount
             }
         }
-        if (transaction.notes?.trim()?.startsWith("{") == true) {
+        if (transaction.notes.hasPersistedReceiptEvidence()) {
             receiptUploadCount++
         }
     }
@@ -98,4 +98,13 @@ private class MutableMemberLedgerSummary {
     )
 }
 
-private fun String.caseInsensitiveKey(): String = lowercase(Locale.ROOT)
+private val receiptFilePathPattern = Regex("\"receiptFilePath\"\\s*:\\s*\"[^\"]+\"")
+
+private fun String?.hasPersistedReceiptEvidence(): Boolean {
+    val value = this?.trim() ?: return false
+    return value.startsWith("{") && value.endsWith("}") && receiptFilePathPattern.containsMatchIn(value)
+}
+
+private fun String.normalizedMemberKey(): String = trim()
+    .lowercase(Locale.ROOT)
+    .replace(Regex("\\s+"), " ")

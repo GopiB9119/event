@@ -25,7 +25,7 @@
 | Complete Android instrumentation suite | Passed together on isolated API 36 AVD: 6 classes / 14 tests / zero failures |
 | Signed release APK emulator smoke | Exact `0.2.0-beta.2` asset installed fresh and over beta.1 on API 36; launch, migration-preserving cold relaunch, and post-update-check health checks passed with no app crash/ANR exit record |
 | Installed-app live update check | Public beta.2 APK on API 36 reached the deployed HTTPS manifest after an explicit Trust Center tap and reported `0.2.0-beta.2` current; no automatic check or silent install was observed |
-| Full Robolectric/unit suite | Passed after the first post-beta.2 UI/performance slice: 11 suites, 61 tests, zero failures/errors/skips |
+| Full Robolectric/unit suite | Passed after the first post-beta.2 UI/performance slice: 11 suites, 65 tests, zero failures/errors/skips |
 | Ledger presentation summary | Passed linked/fallback matching, exact event/member totals, duplicate-assignment prevention, and a synthetic 100-member / 10,000-transaction correctness fixture; no frame-time claim is inferred |
 | Event-card UI contract | Passed independent open/delete callbacks, 48dp delete target, event-specific accessibility text, truthful public/private marker wording, and deterministic Pixel 8/API 36 screenshot capture |
 | Screenshot tests | Greeting and privacy-safe EventCard images are included in the passing full suite; `recordRoborazziDebug` generated the EventCard baseline |

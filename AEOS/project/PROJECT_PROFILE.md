@@ -36,6 +36,7 @@ Each installation owns an independent ledger. Event-copy links copy metadata but
 **Post-Beta.2 Professional Local Product - Horizon A**
 
 The signed `0.2.0-beta.2` limited GitHub prerelease, HTTPS website, and manual update channel are public and verified. Source licensing is now `MIT OR Apache-2.0`. The next proposed horizon improves the local app's UX, accessibility, English/Telugu/Hindi support, help, site, and device evidence before any synchronized-ledger claim. Broader reliance still requires physical-device breadth, qualified legal review, and user-value evidence.
+The signed `0.2.0-beta.2` limited GitHub prerelease, HTTPS website, and manual update channel are public and verified. Source licensing is now `MIT OR Apache-2.0`. The next proposed horizon improves the local app's UX, accessibility, English/Telugu/Hindi support, help, site, and device evidence before any synchronized-ledger claim. Broader reliance still requires physical-device breadth, qualified legal review, and user-value evidence.
 
 Current decision state: `BUILD` bounded local-product quality slices; `TEST` the first account/server-identity slice in local emulators only after owner inputs and independent security review; `DEFER` cloud creation, Play production, and synchronized-ledger claims. Signing, emulator, hosted CI, Pages, release, public-download integrity, and dual-license consistency are `VERIFIED`; complete physical-device, legal, backend ownership, translation review, and market-demand evidence remain incomplete. See the [Mission Brief](MISSION_BRIEF.md) and [Post-Beta.2 Product Program](../../docs/Product/POST_BETA2_PROGRAM.md).
 
@@ -44,8 +45,6 @@ Current decision and priority records:
 - [Mission Brief](MISSION_BRIEF.md)
 - [Evidence-Based Backlog](BACKLOG.md)
 - [Knowledge Graph](KNOWLEDGE_GRAPH.md)
-- [Post-Beta.2 Product Program](../../docs/Product/POST_BETA2_PROGRAM.md)
-- [Four-Month Execution Plan](../../docs/Product/FOUR_MONTH_EXECUTION_PLAN.md)
 
 ## Validation
 

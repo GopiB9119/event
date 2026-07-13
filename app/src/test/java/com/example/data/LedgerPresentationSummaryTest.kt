@@ -9,7 +9,13 @@ class LedgerPresentationSummaryTest {
     fun calculatesEventAndMemberTotalsInOneSummary() {
         val member = member(id = 1, name = "Asha")
         val transactions = listOf(
-            transaction(id = 1, memberId = 1, type = "Donated", amount = 500.0, notes = "{}"),
+            transaction(
+                id = 1,
+                memberId = 1,
+                type = "Donated",
+                amount = 500.0,
+                notes = """{"receiptFilePath":"/private/receipt.json"}"""
+            ),
             transaction(id = 2, memberId = 1, type = "Expense", amount = 120.0),
             transaction(id = 3, memberId = null, personName = "Unmatched", type = "Credit", amount = 80.0)
         )
@@ -61,6 +67,73 @@ class LedgerPresentationSummaryTest {
         assertEquals(1, summary.memberSummaries.getValue(1).transactions.size)
         assertEquals(1, summary.memberSummaries.getValue(1).creditedCount)
         assertEquals(0, summary.memberSummaries.getValue(2).transactions.size)
+    }
+
+    @Test
+    fun phoneMatchWinsWhenMultipleMembersShareAName() {
+        val members = listOf(
+            member(id = 1, name = "Asha", phone = "111"),
+            member(id = 2, name = "Asha", phone = "222")
+        )
+        val transaction = transaction(
+            id = 1,
+            memberId = null,
+            personName = "Asha",
+            personPhone = "222"
+        )
+
+        val summary = calculateLedgerPresentationSummary(members, listOf(transaction))
+
+        assertEquals(0, summary.memberSummaries.getValue(1).transactions.size)
+        assertEquals(1, summary.memberSummaries.getValue(2).transactions.size)
+    }
+
+    @Test
+    fun phoneMatchTakesPriorityWhenEmailMatchesAnotherMember() {
+        val members = listOf(
+            member(id = 1, name = "Asha", phone = "111", email = "first@example.com"),
+            member(id = 2, name = "Bina", phone = "222", email = "second@example.com")
+        )
+        val transaction = transaction(
+            id = 1,
+            memberId = null,
+            personName = "Unknown",
+            personPhone = "222",
+            personEmail = "first@example.com"
+        )
+
+        val summary = calculateLedgerPresentationSummary(members, listOf(transaction))
+
+        assertEquals(0, summary.memberSummaries.getValue(1).transactions.size)
+        assertEquals(1, summary.memberSummaries.getValue(2).transactions.size)
+    }
+
+    @Test
+    fun duplicateFallbackIdentitySelectsLowestMemberId() {
+        val members = listOf(
+            member(id = 5, name = "Asha", phone = "111"),
+            member(id = 2, name = "Other", phone = "111")
+        )
+        val transaction = transaction(id = 1, memberId = null, personName = "Unknown", personPhone = "111")
+
+        val summary = calculateLedgerPresentationSummary(members, listOf(transaction))
+
+        assertEquals(0, summary.memberSummaries.getValue(5).transactions.size)
+        assertEquals(1, summary.memberSummaries.getValue(2).transactions.size)
+    }
+
+    @Test
+    fun receiptCountRequiresPersistedReceiptPath() {
+        val member = member(id = 1, name = "Asha")
+        val transactions = listOf(
+            transaction(id = 1, memberId = 1, notes = "{}"),
+            transaction(id = 2, memberId = 1, notes = "{ invalid json"),
+            transaction(id = 3, memberId = 1, notes = """{"receiptFilePath":"/private/receipt.json"}""")
+        )
+
+        val summary = calculateLedgerPresentationSummary(listOf(member), transactions)
+
+        assertEquals(1, summary.memberSummaries.getValue(1).receiptUploadCount)
     }
 
     @Test

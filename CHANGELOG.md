@@ -7,11 +7,13 @@ All notable public release changes will be recorded here. This file does not mak
 ### Added
 
 - Dual source licensing under `MIT OR Apache-2.0`, including canonical MIT and Apache 2.0 texts and explicit contribution terms.
+
 - A one-pass ledger presentation summary that avoids rescanning every transaction for every member card and profile.
 
 ### Changed
 
 - Event cards use a restrained outlined layout, a 48dp delete target, two-line titles, and truthful local visibility-marker labels.
+
 
 ### Documentation
 
