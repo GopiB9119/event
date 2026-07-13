@@ -6,6 +6,8 @@ Last reviewed: 13 July 2026
 
 This is the proposed execution program after `0.2.0-beta.2`. It is not a production-release approval, cloud-resource approval, legal opinion, or delivery guarantee.
 
+The active first-horizon weekly sequence and performance targets are detailed in the [Four-Month Execution Plan](FOUR_MONTH_EXECUTION_PLAN.md).
+
 Planning durations are `ASSUMPTION` estimates for sequencing. They must be recalibrated from completed-slice evidence. Quality gates, not elapsed time, decide when a milestone is done.
 
 Decision state:

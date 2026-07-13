@@ -164,6 +164,7 @@ External contributions remain subject to review and acceptance by the publisher.
 - [Future shared-event architecture](docs/Architecture/SHARED_EVENTS_FUTURE.md)
 - [Product overview](docs/Product/PRODUCT_OVERVIEW.md)
 - [Post-beta.2 product program](docs/Product/POST_BETA2_PROGRAM.md)
+- [Four-month execution plan](docs/Product/FOUR_MONTH_EXECUTION_PLAN.md)
 - [Test strategy](docs/Testing/TEST_STRATEGY.md)
 - [Physical-device launch matrix](docs/Testing/PHYSICAL_DEVICE_LAUNCH_MATRIX.md)
 - [Friend beta readiness](docs/Release/FRIEND_BETA_READINESS.md)

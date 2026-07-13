@@ -45,6 +45,7 @@ Current decision and priority records:
 - [Evidence-Based Backlog](BACKLOG.md)
 - [Knowledge Graph](KNOWLEDGE_GRAPH.md)
 - [Post-Beta.2 Product Program](../../docs/Product/POST_BETA2_PROGRAM.md)
+- [Four-Month Execution Plan](../../docs/Product/FOUR_MONTH_EXECUTION_PLAN.md)
 
 ## Validation
 

@@ -47,8 +47,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.data.EventEntity
+import com.example.data.MemberLedgerSummary
 import com.example.data.MemberEntity
 import com.example.data.TransactionEntity
+import com.example.data.calculateLedgerPresentationSummary
 import com.example.data.normalizeLocalIdentity
 import com.example.receipt.ParsedReceipt
 import com.example.receipt.AmountEvidenceSource
@@ -383,20 +385,11 @@ fun DashboardScreen(viewModel: EventViewModel) {
         CenterAlignedTopAppBar(
             title = {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    /*
-                    Icon(
-                        imageVector = Icons.Default.AccountBalanceWallet,
-                        contentDescription = "Ledger Icon",
-                        tint = MaterialTheme.colorScheme.primary, // Vibrant Blue
-                        modifier = Modifier.padding(end = 8.dp)
-                    )
-                    */
                     Text(
                         text = "Dashboard",
-                        fontWeight = FontWeight.ExtraBold,
+                        fontWeight = FontWeight.Bold,
                         style = MaterialTheme.typography.titleLarge,
-                        color = MaterialTheme.colorScheme.onSurface, // Slate-900
-                        letterSpacing = (-0.5).sp
+                        color = MaterialTheme.colorScheme.onSurface
                     )
                 }
             },
@@ -432,90 +425,50 @@ fun DashboardScreen(viewModel: EventViewModel) {
             )
         )
 
-        // Visual Banner Card for Premium Visual Appeal
         Card(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 24.dp, vertical = 12.dp),
-            shape = RoundedCornerShape(24.dp),
-            colors = CardDefaults.cardColors(
-                containerColor = Color.Transparent
-            ),
-            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+                .padding(horizontal = 24.dp, vertical = 8.dp),
+            shape = RoundedCornerShape(8.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
         ) {
-            Box(
+            Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(
-                        Brush.verticalGradient(
-                            colors = listOf(Color(0xFF0F1E36), Color(0xFF1E293B))
-                        )
-                    )
-                    .padding(24.dp)
+                    .padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                // Technical grid circle overlays matching high-fidelity design
-                Canvas(modifier = Modifier.matchParentSize()) {
-                    drawCircle(
-                        color = Color(0xFF38BDF8).copy(alpha = 0.12f),
-                        radius = size.minDimension * 0.5f,
-                        center = Offset(size.width * 0.85f, size.height * 0.2f)
-                    )
-                    drawCircle(
-                        color = Color(0xFF38BDF8).copy(alpha = 0.06f),
-                        radius = size.minDimension * 0.75f,
-                        center = Offset(size.width * 0.15f, size.height * 0.8f)
-                    )
-                }
-
-                Column(
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                    modifier = Modifier.fillMaxWidth()
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(6.dp),
-                        modifier = Modifier
-                            .background(
-                                color = Color(0xFF38BDF8).copy(alpha = 0.15f),
-                                shape = RoundedCornerShape(100.dp)
-                            )
-                            .padding(horizontal = 12.dp, vertical = 6.dp)
-                    ) {
-                        /*
-                        Icon(
-                            imageVector = Icons.Default.VerifiedUser,
-                            contentDescription = "Shield",
-                            tint = Color(0xFF38BDF8),
-                            modifier = Modifier.size(14.dp)
-                        )
-                        Text(
-                            text = "",
-                            style = MaterialTheme.typography.labelSmall.copy(
-                                fontWeight = FontWeight.Bold,
-                                letterSpacing = 1.sp
-                            ),
-                            color = Color(0xFF38BDF8)
-                        )
-                        */
-                    }
-
-                    Text(
-                        text = "Your Local Event Ledger",
-                        style = MaterialTheme.typography.titleMedium.copy(
-                            fontWeight = FontWeight.ExtraBold,
-                            letterSpacing = (-0.5).sp
-                        ),
-                        color = Color.White,
-                        lineHeight = 22.sp
+                    Icon(
+                        imageVector = Icons.Default.PhoneAndroid,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(18.dp)
                     )
-
                     Text(
-                        text = "Data stays on this device. Event-copy links carry only the title, organizer label, and visibility marker; they do not sync custom fields, balances, transactions, members, or receipts.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = Color.White.copy(alpha = 0.85f),
-                        lineHeight = 16.sp
+                        text = "Local ledger",
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.primary
                     )
                 }
+
+                Text(
+                    text = "Events and totals stay on this device",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Text(
+                    text = "Shared copies carry limited event details and do not stay in sync.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
         }
 
@@ -526,7 +479,6 @@ fun DashboardScreen(viewModel: EventViewModel) {
                 .fillMaxWidth()
         ) {
             if (events.isEmpty()) {
-                // Friendly Empty State
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
@@ -536,20 +488,20 @@ fun DashboardScreen(viewModel: EventViewModel) {
                 ) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.EventNote,
-                        contentDescription = "No Events Icon",
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
-                        modifier = Modifier.size(80.dp)
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(48.dp)
                     )
                     Spacer(modifier = Modifier.height(16.dp))
                     Text(
-                        text = "No Active Events",
+                        text = "No events yet",
                         style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
+                        fontWeight = FontWeight.SemiBold,
                         color = MaterialTheme.colorScheme.onSurface
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        text = "You haven't created any events yet. Tap the 'Create Event' button below to start tracking your festival or event activities.",
+                        text = "Create an event to start recording money in, money out, and reviewed receipt evidence.",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         textAlign = TextAlign.Center
@@ -1034,197 +986,103 @@ fun EventCardItem(
         sdf.format(Date(event.createdDate))
     }
 
-    val accentColor = if (event.isPrivate) MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f) else MaterialTheme.colorScheme.primary // Slate grey for private, Vibrant Blue for public
-
     Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .testTag("event_card_${event.id}")
-            .clickable(onClick = onClick),
-        shape = RoundedCornerShape(18.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface
-        ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(8.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
     ) {
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(IntrinsicSize.Min)
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.Top
         ) {
-            // Asymmetric Left Accent Status Bar
-            Box(
-                modifier = Modifier
-                    .width(6.dp)
-                    .fillMaxHeight()
-                    .background(accentColor)
-            )
-
             Column(
                 modifier = Modifier
                     .weight(1f)
-                    .padding(20.dp)
+                    .clickable(onClick = onClick)
+                    .testTag("event_card_${event.id}")
+                    .padding(start = 16.dp, top = 16.dp, bottom = 16.dp, end = 8.dp)
             ) {
+                Text(
+                    text = event.title,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Spacer(modifier = Modifier.height(6.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Default.DateRange,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = "Created $dateString",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+
+                HorizontalDivider(
+                    modifier = Modifier.padding(vertical = 12.dp),
+                    color = MaterialTheme.colorScheme.outlineVariant
+                )
+
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Column(modifier = Modifier.weight(1f)) {
+                    Row(
+                        modifier = Modifier.weight(1f),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = if (event.isPrivate) Icons.Default.Lock else Icons.Default.Public,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
                         Text(
-                            text = event.title,
-                            style = MaterialTheme.typography.titleMedium.copy(
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onSurface
-                            ),
+                            text = if (event.isPrivate) "Private marker" else "Public marker",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
                         )
-                        Spacer(modifier = Modifier.height(6.dp))
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.DateRange,
-                                contentDescription = "Created Date",
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
-                                modifier = Modifier.size(14.dp)
-                            )
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text(
-                                text = "Created: $dateString",
-                                style = MaterialTheme.typography.bodySmall.copy(
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            )
-                        }
                     }
-
-                    IconButton(
-                        onClick = onDelete,
-                        modifier = Modifier
-                            .size(36.dp)
-                            .background(MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.2f), CircleShape)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.DeleteOutline,
-                            contentDescription = "Delete Event",
-                            tint = MaterialTheme.colorScheme.error,
-                            modifier = Modifier.size(18.dp)
-                        )
-                    }
+                    Text(
+                        text = event.duration?.let { "Duration $it" } ?: "Ongoing",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.padding(start = 12.dp)
+                    )
                 }
+            }
 
-                Spacer(modifier = Modifier.height(16.dp))
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    // Duration Badge if present
-                    if (event.duration != null) {
-                        Row(
-                            modifier = Modifier
-                                .background(
-                                    MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f), // soft blue
-                                    RoundedCornerShape(20.dp)
-                                )
-                                .border(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.3f), RoundedCornerShape(20.dp))
-                                .padding(horizontal = 12.dp, vertical = 6.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Timelapse,
-                                contentDescription = "Duration Icon",
-                                tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(14.dp)
-                            )
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text(
-                                text = "Duration: ${event.duration}",
-                                style = MaterialTheme.typography.labelSmall.copy(
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.primary
-                                )
-                            )
-                        }
-                    } else {
-                        Row(
-                            modifier = Modifier
-                                .background(
-                                    MaterialTheme.colorScheme.surfaceVariant, // soft slate
-                                    RoundedCornerShape(20.dp)
-                                )
-                                .border(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f), RoundedCornerShape(20.dp))
-                                .padding(horizontal = 12.dp, vertical = 6.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.HourglassEmpty,
-                                contentDescription = "Ongoing",
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.size(14.dp)
-                            )
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text(
-                                text = "Ongoing Event",
-                                style = MaterialTheme.typography.labelSmall.copy(
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            )
-                        }
-                    }
-
-                    // Privacy Indicator
-                    if (event.isPrivate) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier
-                                .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(12.dp))
-                                .padding(horizontal = 8.dp, vertical = 4.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Lock,
-                                contentDescription = "Private Event",
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.size(14.dp)
-                            )
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text(
-                                text = "Invite Only",
-                                style = MaterialTheme.typography.bodySmall.copy(
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            )
-                        }
-                    } else {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier
-                                .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f), RoundedCornerShape(12.dp))
-                                .padding(horizontal = 8.dp, vertical = 4.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Public,
-                                contentDescription = "Public Event",
-                                tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(14.dp)
-                            )
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text(
-                                text = "Public Event",
-                                style = MaterialTheme.typography.bodySmall.copy(
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.primary
-                                )
-                            )
-                        }
-                    }
-                }
+            IconButton(
+                onClick = onDelete,
+                modifier = Modifier
+                    .padding(top = 4.dp, end = 4.dp)
+                    .size(48.dp)
+                    .testTag("delete_event_${event.id}")
+            ) {
+                Icon(
+                    imageVector = Icons.Default.DeleteOutline,
+                    contentDescription = "Delete ${event.title}",
+                    tint = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.size(20.dp)
+                )
             }
         }
     }
@@ -1875,10 +1733,12 @@ fun EventDetailsScreen(eventId: Int, viewModel: EventViewModel) {
 
     val currentEvent = event!!
 
-    // Calculations
-    val creditAmount = transactions.filter { it.type == "Donated" || it.type == "Credit" }.sumOf { it.amount }
-    val debitAmount = transactions.filter { it.type == "Debit" || it.type == "Expense" }.sumOf { it.amount }
-    val balance = creditAmount - debitAmount
+    val ledgerSummary = remember(invitedList, transactions) {
+        calculateLedgerPresentationSummary(invitedList, transactions)
+    }
+    val creditAmount = ledgerSummary.totalCollected
+    val debitAmount = ledgerSummary.totalSpent
+    val balance = ledgerSummary.availableBalance
     // Custom Fields parsing
     val customFieldsMap = remember(currentEvent.customFieldsJson) {
         val json = currentEvent.customFieldsJson
@@ -2373,25 +2233,7 @@ fun EventDetailsScreen(eventId: Int, viewModel: EventViewModel) {
                         Spacer(modifier = Modifier.height(8.dp))
                         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                             invitedList.forEach { member ->
-                                // Transaction calculations for this person
-                                val memberTx = transactions.filter { tx ->
-                                    tx.memberId == member.id ||
-                                        (tx.memberId == null && (
-                                            tx.personName.equals(member.name, ignoreCase = true) ||
-                                                (member.phone.isNotBlank() && tx.personPhone == member.phone) ||
-                                                (member.email.isNotBlank() && tx.personEmail == member.email)
-                                        ))
-                                }
-                                val credits = memberTx.filter { it.type == "Donated" || it.type == "Credit" }
-                                val debits = memberTx.filter { it.type == "Debit" || it.type == "Expense" }
-
-                                val creditTimes = credits.size
-                                val debitTimes = debits.size
-                                val totalCredit = credits.sumOf { it.amount }
-                                val totalDebit = debits.sumOf { it.amount }
-                                val receiptUploadCount = memberTx.count { tx ->
-                                    tx.notes?.trim()?.startsWith("{") == true
-                                }
+                                val memberSummary = ledgerSummary.memberSummaries[member.id] ?: MemberLedgerSummary()
 
                                 Card(
                                     onClick = { selectedMemberForProfile = member },
@@ -2445,7 +2287,7 @@ fun EventDetailsScreen(eventId: Int, viewModel: EventViewModel) {
                                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                                     )
                                                     Text(
-                                                        text = "Receipt uploads: $receiptUploadCount",
+                                                        text = "Receipt uploads: ${memberSummary.receiptUploadCount}",
                                                         style = MaterialTheme.typography.labelSmall,
                                                         fontWeight = FontWeight.Bold,
                                                         color = MaterialTheme.colorScheme.primary
@@ -2480,7 +2322,7 @@ fun EventDetailsScreen(eventId: Int, viewModel: EventViewModel) {
                                                 )
                                                 Spacer(modifier = Modifier.width(4.dp))
                                                 Text(
-                                                    text = "Credited: $creditTimes times (₹${String.format(Locale.getDefault(), "%,.0f", totalCredit)})",
+                                                    text = "Credited: ${memberSummary.creditedCount} times (₹${String.format(Locale.getDefault(), "%,.0f", memberSummary.totalCredited)})",
                                                     style = MaterialTheme.typography.labelMedium,
                                                     fontWeight = FontWeight.SemiBold,
                                                     color = Color(0xFF10B981)
@@ -2496,7 +2338,7 @@ fun EventDetailsScreen(eventId: Int, viewModel: EventViewModel) {
                                                 )
                                                 Spacer(modifier = Modifier.width(4.dp))
                                                 Text(
-                                                    text = "Debited: $debitTimes times (₹${String.format(Locale.getDefault(), "%,.0f", totalDebit)})",
+                                                    text = "Debited: ${memberSummary.debitedCount} times (₹${String.format(Locale.getDefault(), "%,.0f", memberSummary.totalDebited)})",
                                                     style = MaterialTheme.typography.labelMedium,
                                                     fontWeight = FontWeight.SemiBold,
                                                     color = Color(0xFFEF4444)
@@ -2905,22 +2747,8 @@ fun EventDetailsScreen(eventId: Int, viewModel: EventViewModel) {
     // 2. Member Payment & Contribution Profile Dialog
     if (selectedMemberForProfile != null) {
         val member = selectedMemberForProfile!!
-        // Filter transactions associated with this member's details
-        val memberTx = transactions.filter { tx ->
-            tx.memberId == member.id ||
-                (tx.memberId == null && (
-                    tx.personName.equals(member.name, ignoreCase = true) ||
-                        (member.phone.isNotBlank() && tx.personPhone == member.phone) ||
-                        (member.email.isNotBlank() && tx.personEmail == member.email)
-                ))
-        }
-        val credits = memberTx.filter { it.type == "Donated" || it.type == "Credit" }
-        val debits = memberTx.filter { it.type == "Debit" || it.type == "Expense" }
-
-        val creditTimes = credits.size
-        val debitTimes = debits.size
-        val totalCredit = credits.sumOf { it.amount }
-        val totalDebit = debits.sumOf { it.amount }
+        val memberSummary = ledgerSummary.memberSummaries[member.id] ?: MemberLedgerSummary()
+        val memberTx = memberSummary.transactions
 
         AlertDialog(
             onDismissRequest = { selectedMemberForProfile = null },
@@ -3018,12 +2846,12 @@ fun EventDetailsScreen(eventId: Int, viewModel: EventViewModel) {
                                 Spacer(modifier = Modifier.height(4.dp))
                                 Text("Credited Money", style = MaterialTheme.typography.labelSmall)
                                 Text(
-                                    text = "$creditTimes times", 
+                                    text = "${memberSummary.creditedCount} times", 
                                     fontWeight = FontWeight.Bold, 
                                     style = MaterialTheme.typography.bodyMedium
                                 )
                                 Text(
-                                    text = "₹${String.format(Locale.getDefault(), "%,.0f", totalCredit)}", 
+                                    text = "₹${String.format(Locale.getDefault(), "%,.0f", memberSummary.totalCredited)}", 
                                     fontWeight = FontWeight.Bold, 
                                     style = MaterialTheme.typography.bodyLarge, 
                                     color = MaterialTheme.colorScheme.primary
@@ -3050,12 +2878,12 @@ fun EventDetailsScreen(eventId: Int, viewModel: EventViewModel) {
                                 Spacer(modifier = Modifier.height(4.dp))
                                 Text("Debited Money", style = MaterialTheme.typography.labelSmall)
                                 Text(
-                                    text = "$debitTimes times", 
+                                    text = "${memberSummary.debitedCount} times", 
                                     fontWeight = FontWeight.Bold, 
                                     style = MaterialTheme.typography.bodyMedium
                                 )
                                 Text(
-                                    text = "₹${String.format(Locale.getDefault(), "%,.0f", totalDebit)}", 
+                                    text = "₹${String.format(Locale.getDefault(), "%,.0f", memberSummary.totalDebited)}", 
                                     fontWeight = FontWeight.Bold, 
                                     style = MaterialTheme.typography.bodyLarge, 
                                     color = MaterialTheme.colorScheme.error
