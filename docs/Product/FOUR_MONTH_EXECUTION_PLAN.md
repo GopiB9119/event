@@ -211,16 +211,19 @@ Month 2 gate:
 - Keep raw JSON private and terminal-style progress absent.
 - Verify labelled, unlabelled, edited, duplicate, missing-amount, and non-receipt inputs.
 
-### Week 12: Lifecycle And Offline Reliability
+### Week 12: Lifecycle, Offline Reliability, And Recovery Contract
 
 - Preserve the current fail-closed interruption guarantee.
 - Decide from threat/reliability evidence whether resuming URI/review state is safe; otherwise improve restart guidance without persisting sensitive URI/text.
 - Test force-stop, process death, rotation, no network, permission denial, full storage, and database/file failure.
+- Freeze the versioned encrypted-backup codec and the Storage Access Framework export/restore contract before wiring either flow to live data.
+- Require `EncryptedBackupCodec.isSupported()` gating and executable evidence on the lowest supported Android runtime; do not introduce a weaker compatibility fallback.
 
 Month 3 gate:
 
 - No receipt path may save partial evidence or silently change a confirmed total.
 - Private fixtures remain ignored and outside reports/screenshots.
+- A tested codec alone is not user recovery. Uninstall remains destructive until export, temporary validated Room restore, rollback-capable reconciliation, and reinstall recovery pass the device matrix.
 
 ## Month 4: Trust, Website, Security, And Release Candidate
 
@@ -282,6 +285,7 @@ Use this order; do not optimize from intuition:
 | Dashboard handles large data | 1,000-event fixture, filter correctness, frame/interaction trace, no ANR |
 | Event Details handles 10,000 rows | Room/query timing, usable-content timing, scroll trace, exact total reconciliation |
 | OCR is smoother | Per-pass timing, peak-memory comparison, same private-fixture acceptance, failure/cancel test |
+| Backup foundation is safe | Versioned-format tests, wrong-password/tamper/truncation/size-limit checks, empty caller output on invalid input, private-stage cleanup, and lowest-supported-runtime provider check; this does not prove user recovery |
 | Three languages work | Critical-string inventory, fluent review, screenshots at 200% text, TalkBack journey |
 | Website is ready | Static validator, responsive screenshots, locale links, console/network errors, live checks after approval |
 | 10,000 concurrent users work | Production-like backend load test with defined workload, p95/p99/error/cost/reconciliation evidence; not part of this local release |
@@ -310,5 +314,6 @@ Stop the affected slice on:
 - Added matching/correctness coverage including a synthetic 10,000-transaction fixture.
 - Verified 11 JVM/Robolectric suites / 65 tests with zero failures, errors, or skips and assembled the debug APK.
 - Recorded and visually reviewed a deterministic Pixel 8/API 36 EventCard screenshot with long-title, private, public, duration, and ongoing states.
+- Added a version-1 encrypted backup codec foundation with 17 focused JVM tests and a passing API 36 Android provider/private-staging round-trip test. It is not connected to app data or UI, and API 24/25 provider support remains unverified in this workspace.
 
 These changes are implementation progress, not a release or performance-capacity claim.

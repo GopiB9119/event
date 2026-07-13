@@ -112,6 +112,7 @@ MemberEntity 1 --* TransactionEntity (nullable memberId)
 - Receipt evidence: `files/receipts/event_<id>/.../*.json`
 - Database, receipts, and preferences are excluded from Android backup and device transfer.
 - No export/restore exists. Uninstalling the app loses the ledger.
+- An [encrypted backup codec foundation](ENCRYPTED_BACKUP_FOUNDATION.md) exists internally, but no payload bundle, Storage Access Framework flow, restore coordinator, or recovery UI uses it yet.
 
 ## Trust Boundaries
 

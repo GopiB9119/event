@@ -96,6 +96,8 @@ files/receipts/event_<eventId>/person_<person>/uploader_<email>/receipt_<id>.jso
 
 These files are excluded from backup and device transfer rules.
 
+An internal [encrypted backup codec foundation](docs/Architecture/ENCRYPTED_BACKUP_FOUNDATION.md) is under test, but the app does not yet expose export or restore. Uninstalling the current app still deletes the local ledger.
+
 ## Database
 
 The app uses Room with:
