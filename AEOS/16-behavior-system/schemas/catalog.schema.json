@@ -1,0 +1,361 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aeos.local/schemas/behavior-catalog-v1.json",
+  "title": "AEOS Behavior Catalog",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "catalogVersion",
+    "kernelCompatibility",
+    "countFloors",
+    "domains",
+    "collaborationScopes",
+    "items",
+    "routing"
+  ],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "catalogVersion": { "type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$" },
+    "kernelCompatibility": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["minimum", "maximumExclusive"],
+      "properties": {
+        "minimum": { "type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$" },
+        "maximumExclusive": { "type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$" }
+      }
+    },
+    "countFloors": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["domain", "behavior", "failure", "signal", "recovery", "decision", "mental-model", "collaboration", "governance"],
+      "properties": {
+        "domain": { "type": "integer", "const": 50 },
+        "behavior": { "type": "integer", "minimum": 500, "maximum": 1000 },
+        "failure": { "type": "integer", "minimum": 300, "maximum": 500 },
+        "signal": { "type": "integer", "minimum": 200 },
+        "recovery": { "type": "integer", "minimum": 150 },
+        "decision": { "type": "integer", "minimum": 100 },
+        "mental-model": { "type": "integer", "minimum": 100 },
+        "collaboration": { "type": "integer", "minimum": 75 },
+        "governance": { "type": "integer", "minimum": 50 }
+      }
+    },
+    "domains": {
+      "type": "array",
+      "minItems": 50,
+      "items": { "$ref": "#/$defs/domain" }
+    },
+    "collaborationScopes": {
+      "type": "array",
+      "minItems": 25,
+      "items": { "$ref": "#/$defs/collaborationScope" }
+    },
+    "items": {
+      "type": "array",
+      "items": {
+        "oneOf": [
+          { "$ref": "#/$defs/behavior" },
+          { "$ref": "#/$defs/failure" },
+          { "$ref": "#/$defs/signal" },
+          { "$ref": "#/$defs/recovery" },
+          { "$ref": "#/$defs/decision" },
+          { "$ref": "#/$defs/mentalModel" },
+          { "$ref": "#/$defs/collaboration" },
+          { "$ref": "#/$defs/governance" }
+        ]
+      }
+    },
+    "routing": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["maximumDomains", "maximumItems", "minimumConfidence", "rules", "goldenCases"],
+      "properties": {
+        "maximumDomains": { "const": 2 },
+        "maximumItems": { "const": 12 },
+        "minimumConfidence": { "type": "number", "minimum": 0, "maximum": 1 },
+        "rules": { "type": "array", "items": { "$ref": "#/$defs/routingRule" } },
+        "goldenCases": { "type": "array", "items": { "$ref": "#/$defs/goldenCase" } }
+      }
+    }
+  },
+  "$defs": {
+    "id": { "type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$" },
+    "nonEmpty": { "type": "string", "minLength": 3, "maxLength": 600 },
+    "stringArray": { "type": "array", "items": { "type": "string", "minLength": 1 }, "uniqueItems": true },
+    "status": { "enum": ["draft", "active", "deprecated", "superseded", "withdrawn"] },
+    "evidenceLabel": { "enum": ["VERIFIED", "SUPPORTED", "ASSUMPTION", "UNKNOWN"] },
+    "terminalState": { "enum": ["BLOCKED", "PASSED", "FAILED", "EXHAUSTED", "CANCELLED"] },
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["derivationMethod", "evidenceLabel", "sources", "owner", "reviewer", "reviewedOn", "invalidationTriggers"],
+      "properties": {
+        "derivationMethod": { "$ref": "#/$defs/nonEmpty" },
+        "evidenceLabel": { "$ref": "#/$defs/evidenceLabel" },
+        "sources": { "$ref": "#/$defs/stringArray" },
+        "owner": { "$ref": "#/$defs/nonEmpty" },
+        "reviewer": { "$ref": "#/$defs/nonEmpty" },
+        "reviewedOn": { "type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$" },
+        "invalidationTriggers": { "$ref": "#/$defs/stringArray" }
+      }
+    },
+    "authority": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["mutationCeiling", "forbiddenMutations", "approvalRequired", "independentReviewRequired"],
+      "properties": {
+        "mutationCeiling": { "enum": ["read-only", "bounded-local", "approval-gated"] },
+        "forbiddenMutations": { "$ref": "#/$defs/stringArray" },
+        "approvalRequired": { "type": "boolean" },
+        "independentReviewRequired": { "type": "boolean" }
+      }
+    },
+    "activation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["allOfSignals", "anyOfSignals", "noneOfSignals", "phases", "riskClasses"],
+      "properties": {
+        "allOfSignals": { "$ref": "#/$defs/stringArray" },
+        "anyOfSignals": { "$ref": "#/$defs/stringArray" },
+        "noneOfSignals": { "$ref": "#/$defs/stringArray" },
+        "phases": { "$ref": "#/$defs/stringArray" },
+        "riskClasses": { "$ref": "#/$defs/stringArray" }
+      }
+    },
+    "domain": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "name", "status", "itemVersion", "purpose", "boundaries", "invariants", "positiveSignals", "negativeSignals", "riskClasses", "defaultEvidence", "relatedDomainIds", "provenance"],
+      "properties": {
+        "id": { "$ref": "#/$defs/id" },
+        "name": { "$ref": "#/$defs/nonEmpty" },
+        "status": { "$ref": "#/$defs/status" },
+        "itemVersion": { "type": "integer", "minimum": 1 },
+        "purpose": { "$ref": "#/$defs/nonEmpty" },
+        "boundaries": { "$ref": "#/$defs/stringArray" },
+        "invariants": { "$ref": "#/$defs/stringArray" },
+        "positiveSignals": { "$ref": "#/$defs/stringArray" },
+        "negativeSignals": { "$ref": "#/$defs/stringArray" },
+        "riskClasses": { "$ref": "#/$defs/stringArray" },
+        "defaultEvidence": { "$ref": "#/$defs/stringArray" },
+        "relatedDomainIds": { "$ref": "#/$defs/stringArray" },
+        "provenance": { "$ref": "#/$defs/provenance" }
+      }
+    },
+    "collaborationScope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "name", "purpose", "participants", "artifact", "provenance"],
+      "properties": {
+        "id": { "$ref": "#/$defs/id" },
+        "name": { "$ref": "#/$defs/nonEmpty" },
+        "purpose": { "$ref": "#/$defs/nonEmpty" },
+        "participants": { "$ref": "#/$defs/stringArray" },
+        "artifact": { "$ref": "#/$defs/nonEmpty" },
+        "provenance": { "$ref": "#/$defs/provenance" }
+      }
+    },
+    "itemBase": {
+      "type": "object",
+      "required": ["id", "kind", "status", "itemVersion", "title", "domainIds", "scopeIds", "statement", "domainDelta", "activation", "protectedInvariants", "requiredEvidence", "stopConditions", "authority", "dependencies", "conflicts", "provenance"],
+      "properties": {
+        "id": { "$ref": "#/$defs/id" },
+        "kind": { "enum": ["behavior", "failure", "signal", "recovery", "decision", "mental-model", "collaboration", "governance"] },
+        "status": { "$ref": "#/$defs/status" },
+        "itemVersion": { "type": "integer", "minimum": 1 },
+        "title": { "$ref": "#/$defs/nonEmpty" },
+        "domainIds": { "$ref": "#/$defs/stringArray" },
+        "scopeIds": { "$ref": "#/$defs/stringArray" },
+        "statement": { "$ref": "#/$defs/nonEmpty" },
+        "domainDelta": { "$ref": "#/$defs/nonEmpty" },
+        "activation": { "$ref": "#/$defs/activation" },
+        "protectedInvariants": { "$ref": "#/$defs/stringArray" },
+        "requiredEvidence": { "$ref": "#/$defs/stringArray" },
+        "stopConditions": { "$ref": "#/$defs/stringArray" },
+        "authority": { "$ref": "#/$defs/authority" },
+        "dependencies": { "$ref": "#/$defs/stringArray" },
+        "conflicts": { "$ref": "#/$defs/stringArray" },
+        "provenance": { "$ref": "#/$defs/provenance" },
+        "supersedes": { "$ref": "#/$defs/stringArray" },
+        "replacementIds": { "$ref": "#/$defs/stringArray" }
+      }
+    },
+    "behavior": {
+      "type": "object",
+      "unevaluatedProperties": false,
+      "allOf": [
+        { "$ref": "#/$defs/itemBase" },
+        {
+          "type": "object",
+          "required": ["trigger", "action", "successPredicate"],
+          "properties": {
+            "trigger": { "$ref": "#/$defs/nonEmpty" },
+            "action": { "$ref": "#/$defs/nonEmpty" },
+            "successPredicate": { "$ref": "#/$defs/nonEmpty" }
+          }
+        }
+      ]
+    },
+    "failure": {
+      "type": "object",
+      "unevaluatedProperties": false,
+      "allOf": [
+        { "$ref": "#/$defs/itemBase" },
+        {
+          "type": "object",
+          "required": ["cause", "mechanism", "symptoms", "impact", "detectorSignalIds", "recoveryIds"],
+          "properties": {
+            "cause": { "$ref": "#/$defs/nonEmpty" },
+            "mechanism": { "$ref": "#/$defs/nonEmpty" },
+            "symptoms": { "$ref": "#/$defs/stringArray" },
+            "impact": { "$ref": "#/$defs/nonEmpty" },
+            "detectorSignalIds": { "$ref": "#/$defs/stringArray" },
+            "recoveryIds": { "$ref": "#/$defs/stringArray" }
+          }
+        }
+      ]
+    },
+    "signal": {
+      "type": "object",
+      "unevaluatedProperties": false,
+      "allOf": [
+        { "$ref": "#/$defs/itemBase" },
+        {
+          "type": "object",
+          "required": ["sourceType", "predicate", "freshness", "minimumConfidence", "negativeMatch"],
+          "properties": {
+            "sourceType": { "enum": ["user", "repository", "runtime", "tool", "decision-record", "environment"] },
+            "predicate": { "$ref": "#/$defs/nonEmpty" },
+            "freshness": { "$ref": "#/$defs/nonEmpty" },
+            "minimumConfidence": { "type": "number", "minimum": 0, "maximum": 1 },
+            "negativeMatch": { "$ref": "#/$defs/nonEmpty" }
+          }
+        }
+      ]
+    },
+    "recovery": {
+      "type": "object",
+      "unevaluatedProperties": false,
+      "allOf": [
+        { "$ref": "#/$defs/itemBase" },
+        {
+          "type": "object",
+          "required": ["entryConditions", "steps", "rollback", "exitEvidence", "escalationOwner", "terminalState", "failureIds"],
+          "properties": {
+            "entryConditions": { "$ref": "#/$defs/stringArray" },
+            "steps": { "$ref": "#/$defs/stringArray" },
+            "rollback": { "$ref": "#/$defs/nonEmpty" },
+            "exitEvidence": { "$ref": "#/$defs/stringArray" },
+            "escalationOwner": { "$ref": "#/$defs/nonEmpty" },
+            "terminalState": { "$ref": "#/$defs/terminalState" },
+            "failureIds": { "$ref": "#/$defs/stringArray" }
+          }
+        }
+      ]
+    },
+    "decision": {
+      "type": "object",
+      "unevaluatedProperties": false,
+      "allOf": [
+        { "$ref": "#/$defs/itemBase" },
+        {
+          "type": "object",
+          "required": ["question", "inputs", "options", "decisionRule", "tradeoffs", "falsifier", "contraindications"],
+          "properties": {
+            "question": { "$ref": "#/$defs/nonEmpty" },
+            "inputs": { "$ref": "#/$defs/stringArray" },
+            "options": { "$ref": "#/$defs/stringArray" },
+            "decisionRule": { "$ref": "#/$defs/nonEmpty" },
+            "tradeoffs": { "$ref": "#/$defs/stringArray" },
+            "falsifier": { "$ref": "#/$defs/nonEmpty" },
+            "contraindications": { "$ref": "#/$defs/stringArray" }
+          }
+        }
+      ]
+    },
+    "mentalModel": {
+      "type": "object",
+      "unevaluatedProperties": false,
+      "allOf": [
+        { "$ref": "#/$defs/itemBase" },
+        {
+          "type": "object",
+          "required": ["mechanism", "domainMapping", "predictions", "counterexample", "misuseWarning"],
+          "properties": {
+            "mechanism": { "$ref": "#/$defs/nonEmpty" },
+            "domainMapping": { "$ref": "#/$defs/nonEmpty" },
+            "predictions": { "$ref": "#/$defs/stringArray" },
+            "counterexample": { "$ref": "#/$defs/nonEmpty" },
+            "misuseWarning": { "$ref": "#/$defs/nonEmpty" }
+          }
+        }
+      ]
+    },
+    "collaboration": {
+      "type": "object",
+      "unevaluatedProperties": false,
+      "allOf": [
+        { "$ref": "#/$defs/itemBase" },
+        {
+          "type": "object",
+          "required": ["participants", "sharedArtifact", "authoritySplit", "handoff", "conflictRoute", "completionEvidence"],
+          "properties": {
+            "participants": { "$ref": "#/$defs/stringArray" },
+            "sharedArtifact": { "$ref": "#/$defs/nonEmpty" },
+            "authoritySplit": { "$ref": "#/$defs/nonEmpty" },
+            "handoff": { "$ref": "#/$defs/nonEmpty" },
+            "conflictRoute": { "$ref": "#/$defs/nonEmpty" },
+            "completionEvidence": { "$ref": "#/$defs/stringArray" }
+          }
+        }
+      ]
+    },
+    "governance": {
+      "type": "object",
+      "unevaluatedProperties": false,
+      "allOf": [
+        { "$ref": "#/$defs/itemBase" },
+        {
+          "type": "object",
+          "required": ["obligation", "prohibition", "enforcement", "exceptionAuthority", "auditEvidence"],
+          "properties": {
+            "obligation": { "$ref": "#/$defs/nonEmpty" },
+            "prohibition": { "$ref": "#/$defs/nonEmpty" },
+            "enforcement": { "$ref": "#/$defs/nonEmpty" },
+            "exceptionAuthority": { "$ref": "#/$defs/nonEmpty" },
+            "auditEvidence": { "$ref": "#/$defs/stringArray" }
+          }
+        }
+      ]
+    },
+    "routingRule": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "priority", "trustedSignalIds", "selectDomainIds", "excludeDomainIds", "rationale"],
+      "properties": {
+        "id": { "$ref": "#/$defs/id" },
+        "priority": { "type": "integer", "minimum": 1 },
+        "trustedSignalIds": { "$ref": "#/$defs/stringArray" },
+        "selectDomainIds": { "$ref": "#/$defs/stringArray" },
+        "excludeDomainIds": { "$ref": "#/$defs/stringArray" },
+        "rationale": { "$ref": "#/$defs/nonEmpty" }
+      }
+    },
+    "goldenCase": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "trusted", "phase", "signalIds", "expectedDomainIds", "expectedTerminalState", "reason"],
+      "properties": {
+        "id": { "$ref": "#/$defs/id" },
+        "trusted": { "type": "boolean" },
+        "phase": { "type": "string", "enum": ["understand", "plan", "implement", "debug", "review", "release"] },
+        "signalIds": { "$ref": "#/$defs/stringArray" },
+        "expectedDomainIds": { "$ref": "#/$defs/stringArray" },
+        "expectedTerminalState": { "enum": ["PASSED", "BLOCKED"] },
+        "reason": { "$ref": "#/$defs/nonEmpty" }
+      }
+    }
+  }
+}

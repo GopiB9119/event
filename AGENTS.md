@@ -25,7 +25,7 @@ Every receipt, member, transaction, JSON file, and calculation must be traceable
 2. Read the owning code path.
 3. State the failure mode or desired invariant.
 4. Make the smallest safe edit.
-5. Validate with `compileDebugKotlin` at minimum.
+5. Validate with both `compileDirectDebugKotlin` and `compilePlayDebugKotlin` at minimum.
 6. Report remaining risk honestly.
 
 For non-trivial missions, start with [AEOS/11-prompts/PROMPT_LIBRARY.md](AEOS/11-prompts/PROMPT_LIBRARY.md). Discovery and specialist audits remain read-only; implementation begins only after Definition of Ready.
@@ -42,5 +42,5 @@ For non-trivial missions, start with [AEOS/11-prompts/PROMPT_LIBRARY.md](AEOS/11
 ## Validation Command
 
 ```powershell
-.\gradlew.bat --no-daemon --no-configuration-cache :app:compileDebugKotlin
+.\gradlew.bat --no-daemon --no-configuration-cache :app:compileDirectDebugKotlin :app:compilePlayDebugKotlin
 ```

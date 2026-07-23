@@ -16,6 +16,7 @@ The app is built around receipt integrity: extract the receipt, validate the dat
 - Link transactions to persisted members.
 - Store receipt JSON in app-private event/person folders.
 - Calculate collected, spent, and available balance from saved transactions.
+- In debug development builds, create or join server-authoritative shared events against isolated local Firebase emulators.
 
 ## Receipt OCR
 
@@ -48,9 +49,9 @@ The receipt flow does not use:
 5. Receipt fields are parsed.
 6. Amount evidence and optional-detail completeness are evaluated separately.
 7. Duplicate detection runs.
-8. A compact human-readable review shows the amount, app, counterparty, date, and reference; users can correct or explicitly confirm the amount.
+8. A compact human-readable review shows the detected amount, payment mode, from, to, date, and reference; the amount is read-only.
 9. The app-private JSON proof file must be written successfully before save can continue.
-10. Save is allowed only when amount evidence or explicit user confirmation, receipt context, duplicate clearance, attribution, and evidence persistence pass.
+10. Save is allowed only when reliable receipt-derived amount evidence, receipt context, duplicate clearance, attribution, and evidence persistence pass.
 11. The Room transaction references the private JSON proof record.
 
 ## Saved Receipt JSON
@@ -96,7 +97,7 @@ files/receipts/event_<eventId>/person_<person>/uploader_<email>/receipt_<id>.jso
 
 These files are excluded from backup and device transfer rules.
 
-An internal [encrypted backup codec foundation](docs/Architecture/ENCRYPTED_BACKUP_FOUNDATION.md) is under test, but the app does not yet expose export or restore. Uninstalling the current app still deletes the local ledger.
+An internal [encrypted backup codec, transactional source snapshot, logical manifest, and canonical receipt package](docs/Architecture/ENCRYPTED_BACKUP_FOUNDATION.md) are under test, but no export coordinator, Storage Access Framework flow, restore coordinator, conflict handler, or recovery UI invokes them. Uninstalling the current app still deletes the local ledger.
 
 ## Database
 
@@ -122,6 +123,14 @@ Event-copy links use an opaque cross-device copy key plus checksum validation. R
 These links still create independent metadata shells. They are not cryptographic access control or synchronized membership, and they do not carry members, receipts, transactions, balances, or later changes.
 
 Do not describe event-copy links as secure, authenticated, or tamper-proof unless server-issued tokens are added later.
+
+## Shared Event Development Status
+
+Shared events are separate from event-copy links. Current debug builds use silent anonymous Firebase Auth, server-issued membership, Cloud Functions mutations, authorized Firestore projections, approximate Realtime Database presence, and Room-backed pending-operation replay. Receipt images remain on the originating phone; only reviewed structured evidence is submitted.
+
+The local backend contract passes 51 emulator tests. One API 36 convergence test passes for two isolated Android clients covering invite/join, joined members, presence, pending submissions, evidence review, confirmation, and equal final history/totals. The debug package is `com.communityledger.app.dev`, and the test runner refuses to install on physical-device serials.
+
+No production Firebase project, billing, managed secrets, permanent region, production App Check, recovery policy, or deployment is configured. Release builds keep shared mode disabled, and the published `0.2.0-beta.2` remains local-only.
 
 ## Public And Private Events
 
@@ -164,6 +173,7 @@ External contributions remain subject to review and acceptance by the publisher.
 
 - [Architecture overview](docs/Architecture/OVERVIEW.md)
 - [Future shared-event architecture](docs/Architecture/SHARED_EVENTS_FUTURE.md)
+- [Shared ledger implementation status](docs/Architecture/SHARED_LEDGER_IMPLEMENTATION_PLAN.md)
 - [Product overview](docs/Product/PRODUCT_OVERVIEW.md)
 - [Post-beta.2 product program](docs/Product/POST_BETA2_PROGRAM.md)
 - [Four-month execution plan](docs/Product/FOUR_MONTH_EXECUTION_PLAN.md)
@@ -184,47 +194,47 @@ External contributions remain subject to review and acceptance by the publisher.
 Run Kotlin/Room compile validation:
 
 ```powershell
-.\gradlew.bat --no-daemon --no-configuration-cache :app:compileDebugKotlin
+.\gradlew.bat --no-daemon --no-configuration-cache :app:compileDirectDebugKotlin :app:compilePlayDebugKotlin
 ```
 
 Build a debug APK:
 
 ```powershell
-.\gradlew.bat --no-daemon --no-configuration-cache :app:assembleDebug
+.\gradlew.bat --no-daemon --no-configuration-cache :app:assembleDirectDebug :app:assemblePlayDebug
 ```
 
 Install on a connected device:
 
 ```powershell
-adb install -r app\build\outputs\apk\debug\app-debug.apk
+adb install -r app\build\outputs\apk\direct\debug\app-direct-debug.apk
 ```
 
 Launch:
 
 ```powershell
-adb shell monkey -p com.aistudio.communityledger.yrtqwx 1
+adb shell monkey -p com.communityledger.app 1
 ```
 
 ## Testing Notes
 
-The complete debug unit/Robolectric suite currently passes 65 tests across 11 suites. This includes a synthetic 10,000-transaction correctness fixture for the one-pass ledger presentation summary and focused EventCard interaction/accessibility/screenshot coverage. The fixture proves exact aggregation and matching behavior, not frame time or 10,000-user concurrency. The last complete API 36 Android instrumentation suite remains 14 tests across six classes, covering compact receipt review, detected/edited amount confirmation, private evidence persistence, Room 4-to-5 migration, fail-closed numeric-ID and opaque-key collision safety, file-backed database reopen, shared receipt state, app context, six private real-image OCR fixtures, receipt attribution, and acknowledged deletion. First-use disclosure, local identity gating, Trust Center navigation, and an honest receipt-interruption notice after process death have also been verified through runtime interaction. The bounded workflow at `.github/workflows/android-ci.yml` runs compile, unit tests, and APK assembly with a 30-minute timeout; its exact command passes locally and on hosted GitHub runners.
+Both flavored debug unit/Robolectric suites pass 177 tests across 26 suites per flavor, with zero failures, errors, or skips. This includes a synthetic 10,000-transaction correctness fixture, constant-memory prospective-total guards, cross-event replacement rejection, transactional backup-source capture, strict bounded manifest encoding, canonical receipt packaging, encrypted private-cache staging, the original version-1/schema-5 package compatibility hash and schema-6 decoding, direct/Play update-channel UI coverage, and focused EventCard interaction/accessibility/screenshot coverage. The large fixture proves exact aggregation and matching behavior, not frame time or 10,000-user concurrency. The Firebase backend passes 51 emulator tests, and the focused API 36 shared convergence test passes exactly one end-to-end two-client scenario. The current seven non-Firebase instrumentation classes pass all 18 tests together on API 36, including Room migration 5 to 6, private-image OCR, encrypted backup, receipt intent, and ledger-safety UI behavior. Direct/Play debug app and instrumentation APKs build, align, and verify; the Play debug AAB builds; both release variants compile and pass lint with no error/fatal findings. Release manifests keep `com.communityledger.app`, disable shared mode, blank the emulator host, reject cleartext, and remove `INTERNET` from Play; Firebase Auth, Firestore, and RTDB SDKs are absent from release runtime classpaths. Signed release packaging remains owner-gated because signing inputs are intentionally absent. Current receipt tests enforce a compact read-only detected amount, block weak, manually sourced, and non-finite amounts, assert Money in/out endpoint direction, and retain private evidence persistence and acknowledged deletion coverage. First-use disclosure, local identity gating, Trust Center navigation, and an honest receipt-interruption notice after process death have also been verified through runtime interaction. The bounded workflow at `.github/workflows/android-ci.yml` compiles, tests, and assembles both flavors with a 30-minute timeout; current local gates pass, while the current source still needs its hosted run.
 
 ## Launch Website
 
-The static launch package lives in [site](site). It includes the product page, real privacy-safe app screenshots, Privacy, Terms, Contact, event-copy fallback, and a release manifest used by the manual in-app update check. `.github/workflows/pages.yml` requires an explicit deployment; publishing a GitHub prerelease alone does not silently change the in-app update channel.
+The static launch package lives in [site](site). It includes the product page, real privacy-safe app screenshots, Privacy, Terms, Contact, event-copy fallback, the historical old-package release manifest, and an independent initially-unpublished `com.communityledger.app` direct-update manifest. `.github/workflows/pages.yml` requires an explicit deployment; publishing a GitHub prerelease alone does not silently change either package-bound update channel.
 
 The current signed [0.2.0-beta.2 limited public prerelease](https://github.com/GopiB9119/event/releases/tag/v0.2.0-beta.2) is documented in the [repository release notes](docs/Release/0.2.0-beta.2.md). Verify SHA-256 before installation. Physical-device breadth and qualified legal review remain incomplete beta risks.
 
 Next recommended test work:
 
 - Add more JVM-only parser tests for Amazon Pay, Paytm, BHIM, WhatsApp Pay, and noisier low-light receipts.
-- For image OCR checks, use real private receipt screenshots only. Do not commit them. The focused instrumentation test can read images from either `app/src/androidTest/assets/receipt-images-private/` or the app-specific device folder `Android/data/com.aistudio.communityledger.yrtqwx/files/receipt-images-private/`.
+- For image OCR checks, use real private receipt screenshots only. Do not commit them. The focused instrumentation test can read images from either `app/src/androidTest/assets/receipt-images-private/` or the app-specific device folder `Android/data/com.communityledger.app/files/receipt-images-private/`.
 - Add physical-device coverage for image sharing, interruption, and restart behavior.
 
 Run the private image OCR test on a connected device:
 
 ```powershell
-.\gradlew.bat --no-daemon --no-configuration-cache :app:connectedDebugAndroidTest '-Pandroid.testInstrumentationRunnerArguments.class=com.example.receipt.ReceiptImageOcrInstrumentedTest'
+.\gradlew.bat --no-daemon --no-configuration-cache :app:connectedDirectDebugAndroidTest '-Pandroid.testInstrumentationRunnerArguments.class=com.communityledger.app.receipt.ReceiptImageOcrInstrumentedTest'
 ```
 
 The test writes OCR/parse JSON reports to the app-specific external files directory and prints the report path in the test output. If no private receipt images exist, the test is skipped instead of using dummy data. In PowerShell, keep the `-P...` argument quoted.

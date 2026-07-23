@@ -7,7 +7,7 @@ These are project-specific receipt gates layered under [AEOS universal quality g
 ## Build Gate
 
 ```powershell
-.\gradlew.bat --no-daemon --no-configuration-cache :app:compileDebugKotlin
+.\gradlew.bat --no-daemon --no-configuration-cache :app:compileDirectDebugKotlin :app:compilePlayDebugKotlin
 ```
 
 ## Search Gate

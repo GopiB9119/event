@@ -13,6 +13,8 @@ Use this matrix with the exact candidate recorded in [Friend Beta Readiness](../
 
 ## Candidate
 
+The candidate below is historical evidence for the published old-package beta. Current source uses `com.communityledger.app`, which is a separate app and requires a new candidate record, hash, signing record, and full matrix. Do not treat this old-package matrix as evidence for the new Play identity.
+
 ```text
 Package: com.aistudio.communityledger.yrtqwx
 Version: 0.2.0-beta.2 (4)
@@ -50,7 +52,10 @@ Download or copy the official `community-ledger-0.2.0-beta.2.apk` asset into the
 Inspect only:
 
 ```powershell
-.\scripts\physical-device-preflight.ps1
+.\scripts\physical-device-preflight.ps1 `
+	-PackageName com.aistudio.communityledger.yrtqwx `
+	-ApkPath .\community-ledger-0.2.0-beta.2.apk `
+	-ExpectedSha256 1E007E7045A4A909CC0202F90AFCFB3C27D53CDDAF1428F1FEFAC0241EFA3685
 ```
 
 Install/update while preserving existing app data:

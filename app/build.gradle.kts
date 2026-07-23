@@ -7,15 +7,15 @@ plugins {
 }
 
 android {
-  namespace = "com.example"
+  namespace = "com.communityledger.app"
   compileSdk = 36
 
   defaultConfig {
-    applicationId = "com.aistudio.communityledger.yrtqwx"
+    applicationId = "com.communityledger.app"
     minSdk = 24
     targetSdk = 36
-    versionCode = 4
-    versionName = "0.2.0-beta.2"
+    versionCode = 5
+    versionName = "0.3.0-alpha.1"
 
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
   }
@@ -36,9 +36,29 @@ android {
       isMinifyEnabled = false
       proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
       signingConfig = signingConfigs.getByName("release")
+      buildConfigField("boolean", "SHARED_BACKEND_ENABLED", "false")
+      buildConfigField("String", "SHARED_EMULATOR_HOST", "\"\"")
     }
     debug {
-      // Uses the default debug keystore automatically
+      applicationIdSuffix = ".dev"
+      versionNameSuffix = "-dev"
+      buildConfigField("boolean", "SHARED_BACKEND_ENABLED", "true")
+      buildConfigField(
+        "String",
+        "SHARED_EMULATOR_HOST",
+        "\"${providers.gradleProperty("sharedEmulatorHost").getOrElse("10.0.2.2")}\""
+      )
+    }
+  }
+  flavorDimensions += "distribution"
+  productFlavors {
+    create("direct") {
+      dimension = "distribution"
+      buildConfigField("boolean", "DIRECT_UPDATE_ENABLED", "true")
+    }
+    create("play") {
+      dimension = "distribution"
+      buildConfigField("boolean", "DIRECT_UPDATE_ENABLED", "false")
     }
   }
   compileOptions {
@@ -105,5 +125,9 @@ dependencies {
   androidTestImplementation(libs.androidx.runner)
   debugImplementation(libs.androidx.compose.ui.test.manifest)
   debugImplementation(libs.androidx.compose.ui.tooling)
+  debugImplementation(platform(libs.firebase.bom))
+  debugImplementation(libs.firebase.auth)
+  debugImplementation(libs.firebase.firestore)
+  debugImplementation(libs.firebase.database)
   "ksp"(libs.androidx.room.compiler)
 }

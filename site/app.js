@@ -19,6 +19,7 @@ function setDownloadTarget(url, label) {
 function isTrustedRelease(release) {
   if (
     release?.schemaVersion !== 1 ||
+    release?.applicationId !== "com.aistudio.communityledger.yrtqwx" ||
     release?.available !== true ||
     !Number.isInteger(release.versionCode) ||
     release.versionCode <= 0 ||
@@ -50,14 +51,14 @@ async function loadReleaseStatus() {
 
     const release = await response.json();
     if (isTrustedRelease(release)) {
-      setDownloadTarget(release.downloadUrl, `Download APK ${release.versionName}`);
-      releaseStatus.textContent = `Latest signed beta: ${release.versionName} · Android ${release.minimumAndroid || "7.0+"}`;
-      releaseDetail.textContent = `Version ${release.versionName}. Verify SHA-256 ${release.sha256} before installation.`;
+      setDownloadTarget(release.downloadUrl, `Historical beta APK ${release.versionName}`);
+      releaseStatus.textContent = `Historical signed beta for the previous Android app: ${release.versionName} · Android ${release.minimumAndroid || "7.0+"}`;
+      releaseDetail.textContent = `This APK is a separate app from com.communityledger.app and cannot update it or move its private data. Verify SHA-256 ${release.sha256} before installation.`;
       return;
     }
 
     setDownloadTarget(RELEASES_PAGE, "Download APK");
-    releaseStatus.textContent = "Public beta checks are still pending. The button opens the official release page.";
+    releaseStatus.textContent = "Historical beta checks are unavailable. The button opens the official release page.";
     releaseDetail.textContent = "No public APK is available yet. Do not install copies reposted by unknown third parties.";
   } catch (error) {
     setDownloadTarget(RELEASES_PAGE, "Open official releases");

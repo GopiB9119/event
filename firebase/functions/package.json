@@ -1,0 +1,27 @@
+{
+  "name": "community-ledger-shared-events",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "engines": {
+    "node": "22"
+  },
+  "main": "src/index.js",
+  "scripts": {
+    "check": "node --check src/index.js && node --check src/sharedEvents.js && node --check src/sharedMembership.js && node --check src/sharedEntries.js && node --check src/sharedPresence.js && node --check scripts/runEmulators.js && node --check scripts/runAndroidInstrumentation.js && node --check test/sharedEvents.emulator.test.js && node --check test/sharedEntries.emulator.test.js && node --check test/sharedPresence.emulator.test.js",
+    "test": "npm run check && node --test --test-concurrency=1 test/*.test.js",
+    "test:emulators": "node scripts/runEmulators.js",
+    "test:android-emulators": "..\\..\\gradlew.bat -p ..\\.. --no-daemon --no-configuration-cache :app:assembleDirectDebug :app:assembleDirectDebugAndroidTest && node scripts/runEmulators.js android"
+  },
+  "dependencies": {
+    "firebase-admin": "13.10.0",
+    "firebase-functions": "7.2.5"
+  },
+  "devDependencies": {
+    "@firebase/rules-unit-testing": "5.0.1",
+    "ajv": "8.20.0",
+    "firebase": "12.16.0",
+    "firebase-tools": "15.23.0",
+    "node": "22.23.1"
+  }
+}

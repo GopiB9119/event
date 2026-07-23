@@ -1,0 +1,107 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function membership(eventId) {
+      return get(/databases/$(database)/documents/events/$(eventId)/members/$(request.auth.uid));
+    }
+
+    function activeMember(eventId) {
+      return signedIn()
+        && membership(eventId).data.uid == request.auth.uid
+        && membership(eventId).data.status == 'active'
+        && membership(eventId).data.role in ['organizer', 'contributor', 'viewer'];
+    }
+
+    function activeOrganizer(eventId) {
+      return activeMember(eventId)
+        && membership(eventId).data.role == 'organizer';
+    }
+
+    match /publicEvents/{eventId} {
+      allow get: if resource.data.keys().hasOnly([
+          'eventId',
+          'title',
+          'duration',
+          'visibilityPolicy',
+          'status',
+          'activeMemberCount',
+          'createdAtServer',
+          'updatedAtServer'
+        ])
+        && resource.data.eventId == eventId
+        && resource.data.title is string
+        && (resource.data.duration == null || resource.data.duration is string)
+        && resource.data.visibilityPolicy == 'public'
+        && resource.data.status == 'active'
+        && resource.data.activeMemberCount is int
+        && resource.data.activeMemberCount >= 1
+        && resource.data.createdAtServer is timestamp
+        && resource.data.updatedAtServer is timestamp;
+      allow list: if resource.data.visibilityPolicy == 'public'
+        && resource.data.status == 'active'
+        && request.query.limit <= 100;
+      allow write: if false;
+    }
+
+    match /events/{eventId} {
+      allow read: if activeMember(eventId);
+      allow write: if false;
+
+      match /members/{uid} {
+        allow read: if activeMember(eventId);
+        allow write: if false;
+      }
+
+      match /entries/{entryId} {
+        allow read: if activeMember(eventId)
+          && (
+            resource.data.status == 'confirmed'
+            || activeOrganizer(eventId)
+            || resource.data.submittedByUid == request.auth.uid
+          );
+        allow write: if false;
+      }
+
+      match /activity/{activityId} {
+        allow read: if activeMember(eventId)
+          && (
+            resource.data.visibility == 'member'
+            || activeOrganizer(eventId)
+            || resource.data.submittedByUid == request.auth.uid
+          );
+        allow write: if false;
+      }
+
+      match /privateEvidence/{evidenceId} {
+        allow read: if activeMember(eventId)
+          && (activeOrganizer(eventId) || resource.data.submittedByUid == request.auth.uid);
+        allow write: if false;
+      }
+
+      match /audit/{auditId} {
+        allow read, write: if false;
+      }
+
+      match /invites/{inviteId} {
+        allow read, write: if false;
+      }
+
+      match /duplicateKeys/{duplicateKeyId} {
+        allow read, write: if false;
+      }
+    }
+
+    match /users/{uid}/operations/{operationId} {
+      allow read, write: if false;
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

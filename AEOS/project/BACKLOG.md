@@ -54,6 +54,7 @@ The proposed quality, localization, UI, website, and shared-event sequence is in
 
 - Problem: `VERIFIED` uninstall/device loss permanently removes financial records.
 - Decision state: `TEST`, not automatic implementation.
+- Current evidence (14 July 2026): an internal transactional Room snapshot, side-effect-free logical manifest, deterministic source mapper, and bounded canonical manifest codec reject tested ownership, identifier, financial, member-normalization, receipt-reference, malformed-input, and size defects. This is not a complete encrypted package, export, restore, or user workflow, so it does not change the `TEST` decision.
 - Smallest action: discover which organizer-controlled export format and restore workflow users understand; threat-model PII leakage, tampering, versioning, and duplicate restore.
 - Acceptance evidence: a reviewed `STOP / DEFER / TEST / BUILD` record and, only if `BUILD`, a minimal migration-safe plan.
 

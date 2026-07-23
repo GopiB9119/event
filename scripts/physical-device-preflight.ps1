@@ -1,14 +1,15 @@
 [CmdletBinding()]
 param(
     [string]$Serial,
-    [string]$ApkPath = ".\community-ledger-0.2.0-beta.2.apk",
-    [string]$ExpectedSha256 = "1E007E7045A4A909CC0202F90AFCFB3C27D53CDDAF1428F1FEFAC0241EFA3685",
+    [string]$ApkPath = ".\app\build\outputs\apk\direct\debug\app-direct-debug.apk",
+    [string]$ExpectedSha256 = "",
+    [string]$PackageName = "com.communityledger.app",
     [string]$OutputPath = ".\build\physical-device-preflight.json",
     [switch]$Install
 )
 
 $ErrorActionPreference = "Stop"
-$packageName = "com.aistudio.communityledger.yrtqwx"
+$packageName = $PackageName
 
 function Stop-Preflight {
     param(

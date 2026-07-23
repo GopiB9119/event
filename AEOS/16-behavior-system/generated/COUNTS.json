@@ -1,0 +1,17 @@
+{
+    "schemaVersion":  1,
+    "catalogVersion":  "1.0.0",
+    "catalogSha256":  "4f1b95ffbc83a225920624a2dfea59124d3e6a9391cc9bbbc20f302ad3c25072",
+    "counts":  {
+                   "domain":  50,
+                   "behavior":  500,
+                   "failure":  300,
+                   "signal":  200,
+                   "recovery":  150,
+                   "decision":  100,
+                   "mental-model":  100,
+                   "collaboration":  75,
+                   "governance":  50,
+                   "totalItems":  1475
+               }
+}

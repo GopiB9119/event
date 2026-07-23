@@ -35,7 +35,7 @@ The beta has no account, synchronization, advertising, crash-reporting, or trans
 
 Google's ML Kit Android SDK disclosure states that all ML Kit features collect device and application information, bundled per-installation identifiers, performance metrics, API configuration such as image format and resolution, input/output sizes, feature versions, event types, and error codes for diagnostics and usage analytics. Google states that this data is encrypted in transit with HTTPS and is not transferred to third parties. The disclosure does not list receipt image contents or recognized text as collected data for bundled text recognition; OCR execution remains on-device.
 
-The manual update checker contacts a static HTTPS release manifest only when the user taps **Check for updates**. That request can expose ordinary connection metadata such as IP address, request time, and user agent to GitHub Pages and its infrastructure. There is no automatic background update check or silent installation.
+The direct-distribution build contacts a static HTTPS release manifest only when the user taps **Check for updates**. That request can expose ordinary connection metadata such as IP address, request time, and user agent to GitHub Pages and its infrastructure. There is no automatic background update check or silent installation. The Google Play build removes this checker and directs users to Google Play for updates.
 
 ML Kit disclosure source, checked 12 July 2026: https://developers.google.com/ml-kit/android-data-disclosure
 

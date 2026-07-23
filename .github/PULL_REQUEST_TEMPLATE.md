@@ -21,9 +21,9 @@ Out of scope:
 ## Validation
 
 - [ ] Focused test for the changed behavior passed.
-- [ ] `:app:compileDebugKotlin` passed when Android source/config changed.
-- [ ] `:app:testDebugUnitTest` passed when behavior or tests changed.
-- [ ] `:app:assembleDebug` passed for release-affecting Android changes.
+- [ ] `:app:compileDirectDebugKotlin :app:compilePlayDebugKotlin` passed when Android source/config changed.
+- [ ] `:app:testDirectDebugUnitTest` passed when behavior or tests changed.
+- [ ] `:app:assembleDirectDebug :app:assemblePlayDebug` passed for release-affecting Android changes.
 - [ ] Applicable device, restart, permission, offline, duplicate, and time-boundary checks passed or are documented as blocked.
 - [ ] Documentation and project memory match verified behavior.
 

@@ -19,6 +19,7 @@ Foundation
 -> AI Agentic Coding
 -> Loop Engineering Runtime
 -> Context And Memory
+-> Behavior System And Context Routing
 -> Documentation
 -> Review
 -> Playbooks
@@ -51,6 +52,8 @@ Every AEOS document should answer:
 - [10-ai/AGENTIC_CODING.md](10-ai/AGENTIC_CODING.md)
 - [10-ai/LOOP_ENGINEERING.md](10-ai/LOOP_ENGINEERING.md)
 - [10-ai/CONTEXT_AND_MEMORY.md](10-ai/CONTEXT_AND_MEMORY.md)
+- [16-behavior-system/README.md](16-behavior-system/README.md)
+- [16-behavior-system/RUNTIME_AND_ACTIVATION.md](16-behavior-system/RUNTIME_AND_ACTIVATION.md)
 
 ## Core Operating Documents
 
@@ -80,6 +83,7 @@ Every AEOS document should answer:
 - [13-review/QUALITY_GATES.md](13-review/QUALITY_GATES.md)
 - [13-review/CODE_REVIEW_STANDARD.md](13-review/CODE_REVIEW_STANDARD.md)
 - [13-review/PRODUCTION_READINESS_CHECKLIST.md](13-review/PRODUCTION_READINESS_CHECKLIST.md)
+- [13-review/BEHAVIOR_SYSTEM_QUALITY_GATES.md](13-review/BEHAVIOR_SYSTEM_QUALITY_GATES.md)
 
 ## Core Recovery Documents
 

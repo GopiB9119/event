@@ -55,6 +55,7 @@ Understand
 - [13-review](13-review/) contains quality gates.
 - [14-playbooks](14-playbooks/) contains execution playbooks.
 - [15-reference](15-reference/) contains vocabulary, patterns, and examples.
+- [16-behavior-system](16-behavior-system/) contains the typed behavior ontology, bounded context router, generated domain packs, and catalog contracts.
 - [project](project/) binds AEOS to the current repository.
 
 ## Deterministic Validation
@@ -69,7 +70,7 @@ The validator checks required core documents, the anchored machine-readable loop
 
 ## v0.3 Boundaries
 
-AEOS v0.3 specifies and validates operating contracts. It does not yet ship a scheduler/event listener, MCP or LSP repository indexer, metrics service, machine-readable loop ledger, or jurisdiction-specific compliance package. Add those implementations only when a real project supplies an owner, threat model, operating environment, success predicate, and lifecycle cost.
+AEOS v0.3 specifies and validates operating contracts. The behavior-system v1 adds deterministic local catalog expansion and typed bounded context routing; it does not ship an automatic editor event listener, model provider router, scheduler, MCP or LSP repository indexer, metrics service, machine-readable loop ledger, or jurisdiction-specific compliance package. Add those implementations only when a real project supplies an owner, threat model, operating environment, success predicate, and lifecycle cost.
 
 ## Executable Pilot
 

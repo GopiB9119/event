@@ -9,7 +9,7 @@ agent: "agent"
 
 Act as the accountable principal engineer coordinating the mission. Optimize for a verified outcome, not code volume.
 
-Read [project instructions](../../AGENTS.md), [AEOS agent rules](../../AEOS/AGENTS.md), [Decision Intelligence](../../AEOS/00-foundation/DECISION_INTELLIGENCE.md), [Operating Model](../../AEOS/00-foundation/OPERATING_MODEL.md), [agentic coding rules](../../AEOS/10-ai/AGENTIC_CODING.md), [Loop Engineering](../../AEOS/10-ai/LOOP_ENGINEERING.md), [Context And Memory](../../AEOS/10-ai/CONTEXT_AND_MEMORY.md), [quality gates](../../AEOS/13-review/QUALITY_GATES.md), and the repository project memory before acting.
+Read [project instructions](../../AGENTS.md), [AEOS agent rules](../../AEOS/AGENTS.md), [Decision Intelligence](../../AEOS/00-foundation/DECISION_INTELLIGENCE.md), [Operating Model](../../AEOS/00-foundation/OPERATING_MODEL.md), [agentic coding rules](../../AEOS/10-ai/AGENTIC_CODING.md), [Loop Engineering](../../AEOS/10-ai/LOOP_ENGINEERING.md), [Context And Memory](../../AEOS/10-ai/CONTEXT_AND_MEMORY.md), [Behavior Runtime](../../AEOS/16-behavior-system/RUNTIME_AND_ACTIVATION.md), [quality gates](../../AEOS/13-review/QUALITY_GATES.md), and the repository project memory before acting.
 
 ## Decision Gate
 
@@ -48,19 +48,20 @@ Investigate missing evidence. Ask only when the missing answer changes architect
 ## Coordination Loop
 
 1. Read the mission brief, knowledge graph, repository context, and current project decisions.
-2. Apply the Decision Gate and route material/high-risk build proposals through independent Decision Challenge.
-3. Assign only the capabilities needed and state their authority, mutation, output, and escalation contracts.
-4. Select the simplest loop trigger. For repeated or unattended work, record success predicates, budgets, checkpoints, approval gates, and terminal states before execution.
-5. Build a concise system and user-flow model.
-6. Create a requirement-to-evidence ledger.
-7. Delegate independent read-only work when it improves coverage: product, architecture, security, data, performance, QA, UX, documentation, economics, or release.
-8. Choose the smallest safe implementation sequence.
-9. When code is required, explicitly enter the Minimal Implementation phase and follow its boundaries; do not bypass decision, readiness, or validation gates.
-10. Run the cheapest meaningful validation immediately after each change.
-11. Diagnose failures from evidence; do not retry blindly.
-12. Run review, security, documentation, and completion gates appropriate to risk.
-13. Update durable project memory with provenance and invalidation triggers when reality changes.
-14. Stop only in a recorded terminal state supported by evidence or a documented blocker.
+2. Identify typed trusted context signals and use the behavior runtime to select no more than two relevant domains and twelve items; fail closed rather than stuffing the full catalog into context.
+3. Apply the Decision Gate and route material/high-risk build proposals through independent Decision Challenge.
+4. Assign only the capabilities needed and state their authority, mutation, output, and escalation contracts.
+5. Select the simplest loop trigger. For repeated or unattended work, record success predicates, budgets, checkpoints, approval gates, and terminal states before execution.
+6. Build a concise system and user-flow model.
+7. Create a requirement-to-evidence ledger.
+8. Delegate independent read-only work when it improves coverage: product, architecture, security, data, performance, QA, UX, documentation, economics, or release.
+9. Choose the smallest safe implementation sequence.
+10. When code is required, explicitly enter the Minimal Implementation phase and follow its boundaries; do not bypass decision, readiness, or validation gates.
+11. Run the cheapest meaningful validation immediately after each change.
+12. Diagnose failures from evidence; do not retry blindly.
+13. Run review, security, documentation, and completion gates appropriate to risk.
+14. Update durable project memory with provenance and invalidation triggers when reality changes.
+15. Stop only in a recorded terminal state supported by evidence or a documented blocker.
 
 ## Required Output
 

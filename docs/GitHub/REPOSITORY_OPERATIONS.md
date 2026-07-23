@@ -182,10 +182,10 @@ Every PR links its issue/decision, states scope/non-goals, lists data/security i
 2. Confirm `Site CI` passes on GitHub.
 3. In repository Settings -> Pages, select **GitHub Actions** as the source.
 4. Run **Deploy launch website** manually.
-5. Verify Home, Privacy, Terms, Contact, event-copy fallback, screenshots, and `releases/latest.json` over HTTPS.
+5. Verify Home, Privacy, Terms, Contact, event-copy fallback, screenshots, `releases/latest.json`, and `releases/community-ledger-app.json` over HTTPS.
 6. Set repository website URL only after the checks pass.
 
-The release manifest must remain `available=false` until the permanent release-signed APK is uploaded and verified.
+Each package-specific release manifest must remain `available=false` until a permanent release-signed APK with that exact application ID is uploaded and verified. Never repoint the old-package `latest.json` to `com.communityledger.app`.
 
 ## Dependency Review
 
@@ -205,7 +205,7 @@ Do not create a public release from the debug APK.
 4. Prepare release notes and [CHANGELOG.md](../../CHANGELOG.md).
 5. Create a draft GitHub Release and upload the stable APK asset.
 6. Verify the final asset URL and checksum.
-7. Update `site/releases/latest.json` from `available=false` to the exact signed metadata.
+7. Update only the manifest assigned to the release package: `site/releases/latest.json` for the historical old package or `site/releases/community-ledger-app.json` for `com.communityledger.app`.
 8. Re-run Site CI and manually deploy Pages.
 9. Verify the in-app manual update check against the live manifest.
 

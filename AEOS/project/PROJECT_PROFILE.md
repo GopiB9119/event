@@ -6,7 +6,7 @@ Community Ledger is a local-first Android event finance ledger for shared commun
 
 Publisher: **Gopi Banoth**, publishing Community Ledger independently. Private support and privacy email: `banothgopikrishna19@gmail.com`.
 
-Each installation owns an independent ledger. Event-copy links copy metadata but do not synchronize transactions, members, balances, or receipts.
+The published beta remains local-only: each installation owns an independent ledger, and event-copy links copy metadata without synchronizing transactions, members, balances, or receipts. Current debug source also contains a separate Firebase-emulator shared-event mode; it is not enabled in release builds.
 
 ## Current Stack
 
@@ -17,12 +17,14 @@ Each installation owns an independent ledger. Event-copy links copy metadata but
 - Google ML Kit Latin OCR
 - Google ML Kit Devanagari OCR
 - Static GitHub Pages launch package
-- Manual HTTPS update manifest backed by GitHub Releases
+- Direct-build manual HTTPS update manifest backed by GitHub Releases
+- Google Play distribution flavor without the external APK checker
+- Debug-only Firebase Auth, Firestore, Functions transport, and Realtime Database integration against `demo-community-ledger` emulators
 
 ## Critical Invariants
 
 - No receipt data is invented.
-- Receipt amount must be positive before save.
+- Receipt amount must be positive, reliable, receipt-derived, and read-only during review.
 - Duplicate receipts cannot affect totals twice.
 - Receipt transactions link to events and persisted members.
 - Receipt JSON is stored in app-private storage.
@@ -33,12 +35,11 @@ Each installation owns an independent ledger. Event-copy links copy metadata but
 
 ## Current Milestone
 
-**Post-Beta.2 Professional Local Product - Horizon A**
+**Post-Beta.2 Shared-Event Emulator Acceptance**
 
-The signed `0.2.0-beta.2` limited GitHub prerelease, HTTPS website, and manual update channel are public and verified. Source licensing is now `MIT OR Apache-2.0`. The next proposed horizon improves the local app's UX, accessibility, English/Telugu/Hindi support, help, site, and device evidence before any synchronized-ledger claim. Broader reliance still requires physical-device breadth, qualified legal review, and user-value evidence.
-The signed `0.2.0-beta.2` limited GitHub prerelease, HTTPS website, and manual update channel are public and verified. Source licensing is now `MIT OR Apache-2.0`. The next proposed horizon improves the local app's UX, accessibility, English/Telugu/Hindi support, help, site, and device evidence before any synchronized-ledger claim. Broader reliance still requires physical-device breadth, qualified legal review, and user-value evidence.
+The signed `0.2.0-beta.2` limited GitHub prerelease remains local-only. In current unreleased source, the server-authority contract passes 51 emulator tests and the Android debug client passes API 36 two-client convergence for membership, presence, pending evidence review, history, and totals. Release shared mode remains disabled.
 
-Current decision state: `BUILD` bounded local-product quality slices; `TEST` the first account/server-identity slice in local emulators only after owner inputs and independent security review; `DEFER` cloud creation, Play production, and synchronized-ledger claims. Signing, emulator, hosted CI, Pages, release, public-download integrity, and dual-license consistency are `VERIFIED`; complete physical-device, legal, backend ownership, translation review, and market-demand evidence remain incomplete. See the [Mission Brief](MISSION_BRIEF.md) and [Post-Beta.2 Product Program](../../docs/Product/POST_BETA2_PROGRAM.md).
+Current decision state: debug/emulator shared integration is `VERIFIED`; `DEFER` cloud creation, billing, production deployment, Play production, and public synchronized-ledger claims. Physical two-phone acceptance, account recovery, legal/privacy updates, backend ownership, operations, and market-demand evidence remain incomplete. See the [Shared Ledger Implementation Plan](../../docs/Architecture/SHARED_LEDGER_IMPLEMENTATION_PLAN.md) and [ADR-0003](../../docs/Decisions/ADR-0003-SHARED-EVENT-AUTHORITY-AND-PRESENCE.md).
 
 Current decision and priority records:
 
@@ -49,14 +50,14 @@ Current decision and priority records:
 ## Validation
 
 ```powershell
-.\gradlew.bat --no-daemon --no-configuration-cache :app:compileDebugKotlin
+.\gradlew.bat --no-daemon --no-configuration-cache :app:compileDirectDebugKotlin :app:compilePlayDebugKotlin
 ```
 
 ## Current Risks
 
 - Receipt parser is now a plain Kotlin `ReceiptParser` with focused JVM tests and regressions from six real ML Kit OCR image outputs; coverage still needs more payment apps and edge cases.
-- Local identity is validated and required for owner/uploader actions, but remains self-declared and unauthenticated.
-- Private events need server-issued invites and real authentication for enforceable multi-device authorization.
+- Local-event identity remains self-declared and unauthenticated. Shared debug events use a separate silent anonymous Firebase identity and server-issued membership.
+- Anonymous shared identity is installation-scoped; uninstall/data clearing has no recovery unless the user can rejoin or a future account-linking flow exists.
 - The full unit/Robolectric suite and hosted Android CI pass; required Android CI is enforced on the default branch.
 - No export/restore exists; uninstall or device loss removes the ledger.
 - OCR/review does not resume after process death, but a persisted marker warns that no transaction was saved; active navigation is not restored.

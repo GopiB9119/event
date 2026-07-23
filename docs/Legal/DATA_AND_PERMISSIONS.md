@@ -12,13 +12,14 @@ This inventory is the source for privacy copy and future store data-safety decla
 | Local email label | Local ownership/uploader checks | SharedPreferences and event/transaction records | User enters or changes it |
 | Event-copy link fields | Add or reopen an independent event shell using an opaque copy key, metadata, expiry, and checksum | Shared through an app chosen by the user | User explicitly copies/shares link |
 | ML Kit SDK diagnostics | Diagnose and measure ML Kit feature use | Google documents device/app information, bundled per-installation identifiers, performance, API configuration, input/output sizes, feature versions/events, and errors sent with HTTPS | Occurs as part of using the bundled OCR SDK; the current app exposes no telemetry control |
-| Update request metadata | User-triggered version check | HTTPS request to GitHub Pages; normal network metadata may be logged by hosting infrastructure | Runs only when user taps check |
+| Update request metadata | Direct-build user-triggered version check | Direct build only: HTTPS request to GitHub Pages; normal network metadata may be logged by hosting infrastructure | Runs only when a direct-build user taps check; absent from the Play build |
 
 ## Android Permissions
 
 | Permission | Status | Reason |
 |---|---|---|
-| Internet | Used by ML Kit diagnostics/usage telemetry and the manual update check | No silent installation; update checks remain user-triggered |
+| Internet | Declared by the direct build for its manual update check; removed from the Play build | No silent installation; direct update checks remain user-triggered. Review ML Kit's separate SDK disclosure for the final artifact. |
+| Access network state | Declared transitively by Google Data Transport in both builds | Normal permission used by the ML Kit dependency stack; it does not itself authorize network traffic |
 | Camera | Not requested | Receipts come from Android picker/share flows |
 | Location | Not requested | Not needed |
 | Contacts | Not requested | Member details are entered manually |

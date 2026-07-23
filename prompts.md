@@ -339,7 +339,7 @@ Do not claim those protections exist.
 Run:
 
 ```powershell
-.\gradlew.bat --no-daemon --no-configuration-cache :app:compileDebugKotlin
+.\gradlew.bat --no-daemon --no-configuration-cache :app:compileDirectDebugKotlin :app:compilePlayDebugKotlin
 ```
 
 Check:

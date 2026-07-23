@@ -41,7 +41,7 @@ Severity may change as evidence changes. Record `VERIFIED`, `SUPPORTED`, `ASSUMP
 
 Choose the smallest reversible control that reduces harm:
 
-- keep `site/releases/latest.json` at `available=false` or point it only to a verified safe release
+- keep the affected package-specific manifest at `available=false` or point it only to a verified safe release with the same application ID
 - unpublish/mark a GitHub Release as draft when its asset is unsafe, with owner approval
 - pause Pages deployment when public copy or download metadata is wrong
 - disable a compromised workflow/secret in GitHub settings

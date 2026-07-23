@@ -18,11 +18,25 @@
 .cxx
 local.properties
 .env
+.env.*
+!.env.example
 debug.keystore
 *.jks
 *.keystore
 *.p12
 *.apk
+
+# Firebase Emulator Suite local artifacts and installed function dependencies.
+/firebase/functions/node_modules/
+/.firebase/
+firebase-debug.log
+firebase-debug.*.log
+firestore-debug.log
+firestore-debug.*.log
+database-debug.log
+database-debug.*.log
+ui-debug.log
+ui-debug.*.log
 
 # Private local OCR fixtures and reports. Real receipts can contain PII and must not be committed.
 /testimages/

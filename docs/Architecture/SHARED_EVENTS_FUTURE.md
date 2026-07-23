@@ -2,7 +2,9 @@
 
 ## Decision State
 
-`BUILD` the bounded architecture/authentication prototype after the accountable owner selects the backend owner, data region, sign-in method, and privacy scope. `DEFER` production synchronization and Play production claims until authorization, convergence, conflict, audit, recovery, and privacy gates pass.
+`BUILD` the bounded architecture/authentication prototype in local Firebase emulators under ADR-0003. `DEFER` production resources, synchronization, and Play production claims until the accountable owner selects backend/billing ownership, permanent data region, retention, recovery, support, and privacy scope, and authorization/convergence/conflict/audit gates pass.
+
+The emulator architecture choices are now recorded in [ADR-0003](../Decisions/ADR-0003-SHARED-EVENT-AUTHORITY-AND-PRESENCE.md). Firebase, Google Sign-In, structured-evidence-only sync, India-first planning, and privacy-bounded presence are provisional implementation choices for local testing. They do not approve a production project, billing, permanent region, deployment, or public sync claim.
 
 User-observed problem on 12 July 2026: a recipient can add an event shell, but later members, receipts, uploader activity, totals, utilization, and event changes do not appear on other devices. This is `VERIFIED` current behavior and a stated product requirement. Frequency and broader market demand remain `UNKNOWN`.
 
@@ -49,6 +51,7 @@ Community Ledger should still never collect, hold, transfer, or invest money. A 
    - Random, single-purpose, expiring invite tokens stored hashed on the server.
    - Tokens can be revoked and cannot encode private member or ledger data.
    - Accepting a token creates server-side membership; it does not copy a ledger.
+   - Public events still require an explicit authenticated join action before full event data is readable.
 
 5. **Synchronization and conflicts**
    - Server version numbers or append-only event revisions.
@@ -65,6 +68,11 @@ Community Ledger should still never collect, hold, transfer, or invest money. A 
    - Decide whether images ever leave the device before implementation.
    - Prefer uploading reviewed structured evidence, with the minimum personal data required.
    - Define retention, deletion, encryption, access logs, incident response, and export.
+
+8. **Presence and connection truth**
+   - Show approximate `Active now`, `Recently active`, or `Unavailable` only to active event members.
+   - Presence never grants access, changes totals, or replaces immutable activity history.
+   - A stale or disconnected client must not be represented as definitely online or definitely offline.
 
 ## Public Search
 

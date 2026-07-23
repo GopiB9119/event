@@ -207,9 +207,9 @@ Month 2 gate:
 
 ### Week 11: Receipt Review UX
 
-- Improve amount hierarchy, evidence source, missing details, Money in/out, ledger person, duplicate warning, confirmation, save, retry, and cancel.
+- Improve read-only amount hierarchy, evidence source, missing details, Money in/out, ledger person, duplicate warning, save, retry, and cancel.
 - Keep raw JSON private and terminal-style progress absent.
-- Verify labelled, unlabelled, edited, duplicate, missing-amount, and non-receipt inputs.
+- Verify reliable labelled, weak/unlabelled, manually sourced, duplicate, missing-amount, and non-receipt inputs.
 
 ### Week 12: Lifecycle, Offline Reliability, And Recovery Contract
 
@@ -315,5 +315,6 @@ Stop the affected slice on:
 - Verified 11 JVM/Robolectric suites / 65 tests with zero failures, errors, or skips and assembled the debug APK.
 - Recorded and visually reviewed a deterministic Pixel 8/API 36 EventCard screenshot with long-title, private, public, duration, and ongoing states.
 - Added a version-1 encrypted backup codec foundation with 17 focused JVM tests and a passing API 36 Android provider/private-staging round-trip test. It is not connected to app data or UI, and API 24/25 provider support remains unverified in this workspace.
+- Added a `TEST`-stage logical backup manifest, transactional Room snapshot, deterministic source mapper, and bounded canonical JSON codec. Receipt-file packaging, codec bridging, export, restore, and UI integration do not exist yet.
 
 These changes are implementation progress, not a release or performance-capacity claim.

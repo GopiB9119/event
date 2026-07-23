@@ -1,0 +1,32 @@
+{
+  "rules": {
+    ".read": false,
+    ".write": false,
+    "eventAccess": {
+      "$eventId": {
+        "$uid": {
+          ".read": false,
+          ".write": false
+        }
+      }
+    },
+    "presence": {
+      "$eventId": {
+        "$uid": {
+          ".read": "auth != null && root.child('eventAccess').child($eventId).child(auth.uid).child('expiresAt').val() > now && root.child('eventAccess').child($eventId).child($uid).child('expiresAt').val() > now && (!data.exists() || data.child('updatedAt').val() >= now - 120000)",
+          ".write": "auth != null && auth.uid === $uid && root.child('eventAccess').child($eventId).child(auth.uid).child('expiresAt').val() > now",
+          ".validate": "newData.hasChildren(['state', 'updatedAt'])",
+          "state": {
+            ".validate": "newData.isString() && (newData.val() === 'active' || newData.val() === 'recently_active' || newData.val() === 'unavailable')"
+          },
+          "updatedAt": {
+            ".validate": "newData.isNumber() && newData.val() >= now - 60000 && newData.val() <= now + 5000"
+          },
+          "$other": {
+            ".validate": false
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,6 +1,6 @@
 # Shared Ledger Implementation Plan
 
-Last reviewed: 12 July 2026
+Last reviewed: 17 July 2026
 
 ## Status And Provisional Decisions
 
@@ -9,18 +9,40 @@ User requirement: one joined event should show authorized users the same members
 Decision state:
 
 - `BUILD`: collision-safe local event identity, completed in the current unreleased source.
-- `TEST`: the first authenticated server-event slice in local emulators after backend ownership is approved.
-- `DEFER`: Play production and any live-shared-ledger claim until the complete two-device acceptance contract passes.
+- `BUILD`: the authenticated server-authority contract in local `demo-community-ledger` emulators.
+- `BUILD`: Android debug shared mode and API 36 two-client emulator convergence, completed in the current unreleased source.
+- `DEFER`: production Firebase resources, Play production, and public live-shared-ledger claims until owner-controlled cloud and physical-device gates pass.
 
 Provisional product choices made while owner input is unavailable:
 
-- Google Sign-In first.
+- Firebase is the emulator backend candidate, using the non-production `demo-community-ledger` project ID.
+- Silent anonymous Firebase Auth identifies each debug installation without a visible login. Production recovery/account-linking policy remains an owner decision.
+- India-first launch planning. No deployment region is pinned by the emulator code; permanent data region and cloud ownership remain production approval gates.
 - Sync reviewed structured evidence only. Receipt images are out of scope for v1: no server field, upload endpoint, or cloud-storage bucket is created for them. Any future image upload requires a new ADR, privacy review, retention/deletion design, and Play Data safety review.
 - Use Firebase Authentication, Cloud Firestore listeners, callable/HTTPS Cloud Functions, and Firebase App Check with Play Integrity as the first architecture candidate.
+- Use Firebase Realtime Database for member-only approximate presence after membership authorization is proven. Presence labels are `Active now`, `Recently active`, and `Unavailable`; exact online/offline and precise last-seen claims are forbidden.
 - Clients do not write confirmed events, membership, entries, totals, or audit records directly to Firestore.
 - Do not create a cloud project, choose a permanent data region, enable billing, or deploy until the accountable owner approves those irreversible/operational choices.
 
-No Firebase resource or account was created by this plan.
+No production Firebase resource or account was created. Local emulator configuration and tests now exist under `firebase/`.
+
+## Implemented Emulator Contract
+
+The current emulator-only source implements and tests:
+
+| Area | Implemented now | Still planned |
+|---|---|---|
+| Accounts | Silent anonymous Android Auth; Auth and App Check callable enforcement | Production App Check/Play Integrity, account recovery/linking, session/device revocation |
+| Events | Atomic server event + organizer membership; strict public profile; explicit public viewer join | Metadata edit, close event, existing-ledger upload |
+| Membership | Private contributor/viewer invite creation and acceptance; joined/role counts | Revoke membership callable, role changes, organizer transfer, invite revocation |
+| Entries | Structured evidence, reliable receipt-derived amount provenance, pending/confirmed/rejected states, organizer confirm/reject, minor-unit totals, member aggregates | Correction/void revisions, reconciliation job, event limits |
+| Duplicates | Strong normalized reference and amount-plus-fallback-pair reservations | Organizer fallback-review UI and operational dispute workflow |
+| Reads | Active-member event/member/entry projections; pending/rejected restricted to organizer/submitter; private evidence organizer/submitter only; Android role-aware listeners | Pagination and production reconciliation |
+| Presence | Member-only approximate states, own writes, server access leases, membership grant/revoke mirror, Android lifecycle heartbeat | Production metrics and reconciliation operations |
+| Offline | Server idempotency and expected-revision conflict rejection; Room pending queue; restart replay; bounded retry; revocation blocking and live-state cleanup | User-controlled failed-operation resolution and production conflict support |
+| Operations | Pinned emulator toolchain and deny-by-default rules | Production ownership, region, billing, rate limits, monitoring, retention, deletion/export, incident response |
+
+The backend emulator suite passes 51 tests. The Android API 36 convergence gate passes one end-to-end test covering two anonymous clients, invite/join, joined-member visibility, approximate presence, pending evidence review, confirmation, and equal final history/totals. This is a working debug/emulator integration, not a deployed production service.
 
 ## Why The Current Link Cannot Sync
 
@@ -131,6 +153,8 @@ createdAtServer
 supersedesEntryId
 ```
 
+The emulator prototype currently uses `pending | confirmed | rejected`. `corrected | voided` remain planned revision states.
+
 The OCR counterparty remains separate from the ledger person and authenticated uploader. Raw OCR text and receipt images are not synchronized in v1. Payment references are stored only in an organizer/submitter-authorized private entry document; other members receive a redacted entry summary. Optional identifiers require privacy review and minimization before launch.
 
 ### Audit Event
@@ -160,22 +184,25 @@ Firestore cannot redact individual fields from an otherwise readable document, s
 | Redacted confirmed entry summaries | Read | Read | Read | Deny |
 | Payment reference/private structured evidence | Read | Own submissions only | Deny | Deny |
 | Full membership administration and invite records | Read | Deny | Deny | Deny |
-| Full audit records | Read | Deny | Deny | Deny |
+| Full audit records | Server-only in current emulator prototype; organizer projection planned | Deny | Deny | Deny |
 | Redacted activity feed | Read | Read | Read | Deny |
 
 All protected client writes are denied. Organizer, contributor, and viewer mutations go only through the bounded function API. Contributors may submit reviewed evidence but cannot confirm their own role change, modify event policy, correct another person's entry, or change aggregates. Viewers have no mutation authority.
 
 ## Mutation API
 
-The first server API should expose bounded operations rather than generic document writes:
+The server API exposes bounded operations rather than generic document writes. Current emulator exports are marked **implemented**:
 
-- `createEvent`
+- `createSharedEvent` - implemented
 - `updateEventMetadata`
-- `createInvite`
-- `acceptInvite`
+- `createSharedInvite` - implemented
+- `acceptSharedInvite` - implemented
+- `joinPublicSharedEvent` - implemented
 - `revokeMembership`
 - `changeMemberRole`
-- `submitReviewedEntry`
+- `submitSharedEntry` - implemented
+- `reviewSharedEntry` - implemented
+- `refreshSharedPresence` - implemented
 - `correctEntry`
 - `voidEntry`
 - `closeEvent`
@@ -205,13 +232,24 @@ Idempotency prevents request retries; it does not detect two devices intentional
 
 ## Invites And Membership
 
-- The server creates a random invite ID and a separate 256-bit random secret encoded as unpadded base64url. The URL carries `inviteId.secret`, not ledger data or a Room ID.
+- The emulator derives pseudorandom invite IDs and 256-bit secrets from an HMAC key plus the organizer-scoped idempotency key. The URL carries `inviteId.secret`, not ledger data or a Room ID. Production must bind the HMAC key through managed secrets and preserve uniqueness/rotation policy.
 - Store the invite ID plus SHA-256 of the high-entropy secret, purpose, event ID, intended role, expiry, creator, use limit, use count, and revocation state. Verify the decoded secret hash with a constant-time comparison.
 - Validate expiry against server time and increment use count atomically with membership creation.
 - Acceptance creates server membership only after authentication.
 - Revoking an unused invite blocks future acceptance but does not revoke memberships already created from it. Membership revocation is a separate organizer operation that blocks future server reads/writes and is recorded in the audit history.
 - Do not reveal private event metadata until authentication, token validation, and successful membership creation.
+- Public events expose only a reviewed public profile before joining. A signed-in user must explicitly join before reading member or ledger projections.
 - Public/private becomes a server authorization policy, not a dashboard marker.
+
+## Presence And Joined Counts
+
+- Active membership documents are the authority for joined counts and role counts.
+- Presence is stored separately from ledger data and cannot create membership or authorize a read.
+- A client may write only its own presence after authentication and active-membership verification.
+- Active membership grants a two-minute server lease mirrored into Realtime Database. An authenticated/App Check refresh rechecks Firestore membership before extending it. Stale leases and stale presence records fail closed; Android disconnect handling is still planned.
+- Only active event members can read event presence. Public profiles never expose presence or precise activity history.
+- `Active now` means a recent authorized heartbeat, not guaranteed foreground use. `Recently active` is coarse and privacy bounded. `Unavailable` covers offline, hidden, stale, or unknown state.
+- Financial activity uses redacted audit events such as entry submitted, confirmed, corrected, role changed, or member revoked. It does not infer activity from presence.
 
 The existing event-copy links remain a separate local-only feature during migration and must keep their current truthful wording.
 
@@ -295,11 +333,13 @@ Required before external resource creation:
 
 ### 1. Local Emulator Contract
 
+- Status: server emulator contract complete for the currently implemented operations. Android auth/listener integration is not implemented.
 - Add Firebase Emulator Suite configuration without production credentials.
 - Implement Google-auth abstraction with a test identity provider.
 - Implement one server-created event, organizer membership, and authorized read listener.
 - Implement and test the read-projection/security-rules matrix with synthetic accounts and no production credentials.
 - Prove unauthenticated, non-member, revoked, and direct-write access fails.
+- Prove an idempotent create-event retry returns the original server event and cannot duplicate organizer membership or audit history.
 
 ### 2. Membership And Revocable Invites
 
@@ -334,8 +374,8 @@ Required before external resource creation:
 
 ## Definition Of Done
 
-Shared events are complete only when two clean authenticated devices converge on the same server-confirmed metadata, active members, receipt counts, entries, per-person activity, totals, utilization, and audit history; unauthorized/revoked server access fails closed; retries and two-device duplicates cannot double-count; totals and audit records cannot partially commit; offline work remains visibly pending; conflicts do not silently overwrite; stale status is visible; and receipt images remain local in v1.
+The debug/emulator milestone is complete when two isolated authenticated clients converge on the same server-confirmed membership, entries, and totals; pending evidence requires organizer review; retries remain idempotent; presence is approximate; and receipt images remain local. Production completion additionally requires physical-device, cloud ownership, recovery, privacy, operations, abuse, monitoring, reconciliation, and release evidence.
 
 ## Current Blocker
 
-Implementation stops before cloud integration because no approved backend owner, billing owner, permanent data region, retention/idempotency policy, recovery policy, abuse limits, incident owner, or production account exists. The security-rule matrix, offline conflict contract, invite contract, and atomic mutation contract above are proposal requirements, not verified implementation. The next safe engineering action is Slice 1 only after the owner inputs are recorded and an independent security review accepts the emulator test contract. Until then, Play production remains deferred and the app remains an explicitly local organizer ledger.
+Android debug shared mode is implemented and accepted against local emulators. Production resources remain blocked because no approved backend owner, billing owner, permanent data region, recovery policy, abuse limits, incident owner, or production account exists. Membership revoke/leave/role-change APIs, corrections/voids, production presence operations, pagination, monitoring, export/deletion, reconciliation, and physical two-phone acceptance remain incomplete. Play production remains deferred and the published beta remains an explicitly local organizer ledger.

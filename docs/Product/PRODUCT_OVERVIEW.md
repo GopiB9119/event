@@ -19,7 +19,7 @@ The current product serves one organizer or one shared physical device used by a
 | Add members | Persisted per event |
 | Import receipt | Picker or Android share intent |
 | Extract receipt | On-device ML Kit Latin + Devanagari |
-| Review and save | Compact amount/details review, explicit amount confirmation when needed, duplicate block |
+| Review and save | Compact six-field review, read-only receipt-derived amount, weak-evidence and duplicate block |
 | View ledger | Collected, spent, balance, members, transactions |
 | Attribute receipt | User confirms the ledger contributor/payer or vendor separately from OCR Paid to evidence |
 | Delete transaction | Authorized user must acknowledge permanent total/balance impact before deletion |

@@ -16,6 +16,7 @@ Workspace prompt files live in [../../.github/prompts](../../.github/prompts/). 
 - Project Memory Sync stores only durable verified facts.
 - Repeated or unattended work requires the Loop Engineering contract and terminal states.
 - Derived memory and repository indexes must preserve provenance and route agents back to current evidence.
+- Behavior-system routing selects at most two domains and twelve items from typed trusted signals; the full catalog is never an always-on prompt.
 
 ## Invocation
 
@@ -79,6 +80,7 @@ Self-review does not replace independent challenge. The author of a material dec
 ## Coordination
 
 - [Engineering Coordinator](../../.github/prompts/engineering-coordinator.prompt.md)
+- [Behavior System Audit](../../.github/prompts/behavior-system-audit.prompt.md)
 
 ## Understand And Plan
 
@@ -121,3 +123,4 @@ Core runtime contracts:
 - [Operating Model](../00-foundation/OPERATING_MODEL.md)
 - [Loop Engineering](../10-ai/LOOP_ENGINEERING.md)
 - [Context And Memory](../10-ai/CONTEXT_AND_MEMORY.md)
+- [Behavior Runtime And Activation](../16-behavior-system/RUNTIME_AND_ACTIVATION.md)

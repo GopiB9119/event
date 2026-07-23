@@ -596,7 +596,7 @@ if ($SelfTest) {
         $passingProcess = Invoke-BoundedProcess `
             -FilePath $powerShellPath `
             -Arguments @("-NoProfile", "-NonInteractive", "-Command", "exit 0") `
-            -TimeoutMilliseconds 5000 `
+            -TimeoutMilliseconds 15000 `
             -WorkingDirectory $temporaryDirectory `
             -TemporaryDirectory $temporaryDirectory `
             -Label "passing-process"

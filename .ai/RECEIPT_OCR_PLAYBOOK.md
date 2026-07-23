@@ -39,13 +39,13 @@ app/src/androidTest/assets/receipt-images-private/
 For receipt images that should never enter the repository, push them to the app-specific device folder instead:
 
 ```text
-Android/data/com.aistudio.communityledger.yrtqwx/files/receipt-images-private/
+Android/data/com.communityledger.app/files/receipt-images-private/
 ```
 
 Run only the focused instrumentation test when checking real image OCR output:
 
 ```powershell
-.\gradlew.bat --no-daemon --no-configuration-cache :app:connectedDebugAndroidTest '-Pandroid.testInstrumentationRunnerArguments.class=com.example.receipt.ReceiptImageOcrInstrumentedTest'
+.\gradlew.bat --no-daemon --no-configuration-cache :app:connectedDirectDebugAndroidTest '-Pandroid.testInstrumentationRunnerArguments.class=com.communityledger.app.receipt.ReceiptImageOcrInstrumentedTest'
 ```
 
 If no private images are present, the test must skip. It must never fall back to dummy receipt data.
@@ -92,7 +92,7 @@ Receiver:
 Receipt save is blocked when:
 
 - amount is missing or zero
-- amount evidence is only an unlabelled number and the user has not explicitly checked it against the receipt
+- amount evidence is weak, unlabelled, manually entered, or manually confirmed
 - payment receipt context is not detected
 - duplicate check detects a likely duplicate
 - OCR output is not receipt-like

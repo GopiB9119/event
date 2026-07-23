@@ -33,10 +33,10 @@ Android launch/share/event-copy intent
 
 Ownership:
 
-- Android entrypoint: [MainActivity](../../app/src/main/java/com/example/MainActivity.kt)
-- navigation, UI flows, and review dialogs: [Screens](../../app/src/main/java/com/example/ui/Screens.kt)
-- privacy/about/terms/update UI: [Trust Center](../../app/src/main/java/com/example/ui/TrustCenterScreen.kt)
-- application state and orchestration: [EventViewModel](../../app/src/main/java/com/example/ui/EventViewModel.kt)
+- Android entrypoint: [MainActivity](../../app/src/main/java/com/communityledger/app/MainActivity.kt)
+- navigation, UI flows, and review dialogs: [Screens](../../app/src/main/java/com/communityledger/app/ui/Screens.kt)
+- privacy/about/terms/update UI: [Trust Center](../../app/src/main/java/com/communityledger/app/ui/TrustCenterScreen.kt)
+- application state and orchestration: [EventViewModel](../../app/src/main/java/com/communityledger/app/ui/EventViewModel.kt)
 
 ## Data And State
 
@@ -61,10 +61,10 @@ App-private files
 
 Ownership:
 
-- entities, DAO, migrations, and constraints: [Database](../../app/src/main/java/com/example/data/Database.kt)
-- persistence boundary: [Repository](../../app/src/main/java/com/example/data/Repository.kt)
-- transaction write invariant: [Ledger Transaction Policy](../../app/src/main/java/com/example/data/LedgerTransactionPolicy.kt)
-- local identity invariant: [Local Identity Policy](../../app/src/main/java/com/example/data/LocalIdentityPolicy.kt)
+- entities, DAO, migrations, and constraints: [Database](../../app/src/main/java/com/communityledger/app/data/Database.kt)
+- persistence boundary: [Repository](../../app/src/main/java/com/communityledger/app/data/Repository.kt)
+- transaction write invariant: [Ledger Transaction Policy](../../app/src/main/java/com/communityledger/app/data/LedgerTransactionPolicy.kt)
+- local identity invariant: [Local Identity Policy](../../app/src/main/java/com/communityledger/app/data/LocalIdentityPolicy.kt)
 - architecture detail: [Architecture Overview](../../docs/Architecture/OVERVIEW.md)
 
 ## Critical Flows
@@ -88,8 +88,8 @@ picker or Android share intent
   -> ML Kit Latin + Devanagari OCR for images
   -> ReceiptParser
   -> amount/reference/receiver/date + confidence/warnings
-  -> duplicate and positive-amount gates
-  -> compact human review of amount and receipt details
+  -> reliable receipt-derived amount and duplicate gates
+  -> compact human review with a read-only amount
   -> app-private JSON evidence
   -> validated Room transaction
   -> collected/spent/balance totals
@@ -97,7 +97,7 @@ picker or Android share intent
 
 Ownership:
 
-- parser: [Receipt Parser](../../app/src/main/java/com/example/receipt/ReceiptParser.kt)
+- parser: [Receipt Parser](../../app/src/main/java/com/communityledger/app/receipt/ReceiptParser.kt)
 - OCR rules: [Receipt OCR Playbook](../../.ai/RECEIPT_OCR_PLAYBOOK.md)
 - decision record: [Receipt Integrity ADR](../../docs/Decisions/ADR-0001-RECEIPT-INTEGRITY.md)
 
@@ -113,20 +113,25 @@ organizer shares expiring checksum link
 
 The link does not authenticate people or synchronize members, receipts, transactions, or balances. Future shared-event requirements are in [Future Shared Events](../../docs/Architecture/SHARED_EVENTS_FUTURE.md).
 
-### Manual Update Check
+### Distribution Updates
 
 ```text
-Trust Center button
-  -> HTTPS GitHub Pages release manifest
-  -> schema/version/hash/official GitHub Release APK URL validation
+Direct build Trust Center button
+  -> package-specific HTTPS GitHub Pages release manifest
+  -> application ID/schema/version/hash/official GitHub Release APK URL validation
   -> show unpublished/current/available/failure state
   -> browser opens official release only after user action
+
+Play build
+  -> no GitHub release check or APK action
+  -> updates delivered by Google Play
 ```
 
 Ownership:
 
-- update contract: [Update Checker](../../app/src/main/java/com/example/update/UpdateChecker.kt)
-- static manifest: [Latest Release Manifest](../../site/releases/latest.json)
+- update contract: [Update Checker](../../app/src/main/java/com/communityledger/app/update/UpdateChecker.kt)
+- new-package direct manifest: [Community Ledger App Manifest](../../site/releases/community-ledger-app.json)
+- historical old-package manifest: [Legacy Beta Manifest](../../site/releases/latest.json)
 - distribution rules: [Signing And Distribution](../../docs/Release/SIGNING_AND_DISTRIBUTION.md)
 
 ## Website And Release
@@ -177,7 +182,7 @@ Ownership:
 - Local email is a self-declared label, not authentication.
 - Public/private is a local marker, not access control.
 - Receipt/database/preferences are app-private and excluded from Android backup/device transfer.
-- Manual update checks are user-triggered and accept only official GitHub Release APK asset URLs.
+- Direct-build manual update checks are user-triggered and accept only official GitHub Release APK asset URLs; the Play build removes that path.
 - Website and update manifest accept only the published release-signed GitHub APK asset.
 - Source is dual-licensed under `MIT OR Apache-2.0`; external changes remain review-based and merge acceptance is discretionary.
 
@@ -187,9 +192,9 @@ See [Security Playbook](../../.ai/SECURITY_PLAYBOOK.md) and [Data And Permission
 
 ```text
 source change
-  -> compileDebugKotlin
-  -> testDebugUnitTest
-  -> assembleDebug + assembleDebugAndroidTest
+  -> compileDirectDebugKotlin + compilePlayDebugKotlin
+  -> testDirectDebugUnitTest + testPlayDebugUnitTest
+  -> assemble both flavored APKs and Android-test APKs
   -> API 36 instrumentation for Room/share/OCR
   -> APK hash/signature/alignment
   -> docs and project memory sync

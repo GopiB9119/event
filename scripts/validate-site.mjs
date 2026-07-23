@@ -39,7 +39,8 @@ const requiredFiles = [
   "assets/screenshots/dashboard.png",
   "assets/screenshots/create-event.png",
   "assets/screenshots/trust-center.png",
-  "releases/latest.json"
+  "releases/latest.json",
+  "releases/community-ledger-app.json"
 ];
 
 for (const required of requiredFiles) {
@@ -48,34 +49,42 @@ for (const required of requiredFiles) {
   }
 }
 
-const manifestPath = path.join(root, "releases", "latest.json");
-if (fs.existsSync(manifestPath)) {
+function validateReleaseManifest(relativePath, expectedApplicationId) {
+  const manifestPath = path.join(root, relativePath);
+  if (!fs.existsSync(manifestPath)) return;
+
   try {
     const release = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
-    if (release.schemaVersion !== 1) errors.push("release schemaVersion must be 1");
-    if (typeof release.available !== "boolean") errors.push("release available must be boolean");
+    if (release.schemaVersion !== 1) errors.push(`${relativePath} schemaVersion must be 1`);
+    if (release.applicationId !== expectedApplicationId) {
+      errors.push(`${relativePath} applicationId must be ${expectedApplicationId}`);
+    }
+    if (typeof release.available !== "boolean") errors.push(`${relativePath} available must be boolean`);
 
     if (release.available) {
       const trustedAsset = /^https:\/\/github\.com\/GopiB9119\/event\/releases\/download\/[A-Za-z0-9._-]+\/[A-Za-z0-9._-]+\.apk$/;
       if (!Number.isInteger(release.versionCode) || release.versionCode <= 0) {
-        errors.push("published release requires a positive integer versionCode");
+        errors.push(`${relativePath} published release requires a positive integer versionCode`);
       }
       if (!release.versionName || typeof release.versionName !== "string") {
-        errors.push("published release requires versionName");
+        errors.push(`${relativePath} published release requires versionName`);
       }
       if (!trustedAsset.test(release.downloadUrl || "")) {
-        errors.push("published release downloadUrl must be an official GitHub Release APK asset");
+        errors.push(`${relativePath} downloadUrl must be an official GitHub Release APK asset`);
       }
       if (!/^[A-Fa-f0-9]{64}$/.test(release.sha256 || "")) {
-        errors.push("published release requires a SHA-256 digest");
+        errors.push(`${relativePath} published release requires a SHA-256 digest`);
       }
     } else if (release.sha256 || release.publishedAt) {
-      errors.push("unpublished release must not expose checksum or publishedAt metadata");
+      errors.push(`${relativePath} unpublished release must not expose checksum or publishedAt metadata`);
     }
   } catch (error) {
-    errors.push(`release manifest is not valid JSON: ${error.message}`);
+    errors.push(`${relativePath} is not valid JSON: ${error.message}`);
   }
 }
+
+validateReleaseManifest("releases/latest.json", "com.aistudio.communityledger.yrtqwx");
+validateReleaseManifest("releases/community-ledger-app.json", "com.communityledger.app");
 
 const joinScriptPath = path.join(root, "join", "join.js");
 if (fs.existsSync(joinScriptPath)) {

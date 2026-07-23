@@ -28,9 +28,9 @@ Unless explicitly stated otherwise, any contribution intentionally submitted for
 Required local validation:
 
 ```powershell
-.\gradlew.bat --no-daemon --no-configuration-cache :app:compileDebugKotlin
-.\gradlew.bat --no-daemon --no-configuration-cache :app:testDebugUnitTest
-.\gradlew.bat --no-daemon --no-configuration-cache :app:assembleDebug
+.\gradlew.bat --no-daemon --no-configuration-cache :app:compileDirectDebugKotlin :app:compilePlayDebugKotlin
+.\gradlew.bat --no-daemon --no-configuration-cache :app:testDirectDebugUnitTest :app:testPlayDebugUnitTest
+.\gradlew.bat --no-daemon --no-configuration-cache :app:assembleDirectDebug :app:assemblePlayDebug
 ```
 
 High-risk Room/share/OCR work also requires the applicable Android instrumentation tests and real private receipt fixtures. Never commit real receipt images or personal data.

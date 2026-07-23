@@ -73,8 +73,18 @@ $requiredPaths = @(
     "AEOS\13-review\QUALITY_GATES.md",
     "AEOS\14-playbooks\GIT_RECOVERY_PLAYBOOK.md",
     "AEOS\14-playbooks\AEOS_VALIDATION_LOOP_PILOT.md",
+    "AEOS\16-behavior-system\README.md",
+    "AEOS\16-behavior-system\CATALOG_CONTRACT.md",
+    "AEOS\16-behavior-system\RUNTIME_AND_ACTIVATION.md",
+    "AEOS\13-review\BEHAVIOR_SYSTEM_QUALITY_GATES.md",
+    "AEOS\14-playbooks\BEHAVIOR_SYSTEM_AUTHORING_PLAYBOOK.md",
+    "AEOS\16-behavior-system\source\catalog-blueprint.json",
+    "AEOS\16-behavior-system\generated\catalog.json",
     "AEOS\14-playbooks\contracts\aeos-governance-validation.loop.json",
-    "scripts\invoke-aeos-governance-loop.ps1"
+    "scripts\invoke-aeos-governance-loop.ps1",
+    "scripts\validate-aeos-behavior-system.ps1",
+    "scripts\generate-aeos-behavior-system.ps1",
+    "scripts\resolve-aeos-context.ps1"
 )
 
 foreach ($relativePath in $requiredPaths) {
@@ -98,6 +108,28 @@ if (Test-Path $loopRunnerPath -PathType Leaf) {
         if ($loopSelfTestText -ne "AEOS governance loop self-test passed: states, successful process, and watchdog exhaustion.") {
             Add-Failure "AEOS governance loop self-test returned unexpected output."
         }
+    }
+}
+
+$behaviorValidatorPath = Join-Path $repositoryRootPath "scripts\validate-aeos-behavior-system.ps1"
+$behaviorGeneratorPath = Join-Path $repositoryRootPath "scripts\generate-aeos-behavior-system.ps1"
+if (Test-Path $behaviorValidatorPath -PathType Leaf) {
+    $behaviorSelfTestOutput = @(& $behaviorValidatorPath -RepositoryRoot $repositoryRootPath -SelfTest 2>&1)
+    $behaviorSelfTestExitCode = $LASTEXITCODE
+    $behaviorSelfTestText = ($behaviorSelfTestOutput | ForEach-Object { $_.ToString() }) -join "`n"
+    if ($behaviorSelfTestExitCode -ne 0 -or $behaviorSelfTestText -ne "AEOS behavior-system self-test passed.") {
+        Add-Failure "AEOS behavior-system self-test failed or returned unexpected output."
+    }
+    $behaviorValidationOutput = @(& $behaviorValidatorPath -RepositoryRoot $repositoryRootPath 2>&1)
+    if ($LASTEXITCODE -ne 0) {
+        Add-Failure "AEOS behavior-system validation failed."
+    }
+}
+if (Test-Path $behaviorGeneratorPath -PathType Leaf) {
+    $behaviorGenerationOutput = @(& $behaviorGeneratorPath -RepositoryRoot $repositoryRootPath -Check 2>&1)
+    $behaviorGenerationText = ($behaviorGenerationOutput | ForEach-Object { $_.ToString() }) -join "`n"
+    if ($LASTEXITCODE -ne 0 -or $behaviorGenerationText -ne "AEOS behavior-system generated files are current.") {
+        Add-Failure "AEOS behavior-system generated artifacts are stale or invalid."
     }
 }
 

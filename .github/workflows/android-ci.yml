@@ -48,9 +48,12 @@ jobs:
           ./gradlew
           --no-daemon
           --no-configuration-cache
-          :app:compileDebugKotlin
-          :app:testDebugUnitTest
-          :app:assembleDebug
+          :app:compileDirectDebugKotlin
+          :app:compilePlayDebugKotlin
+          :app:testDirectDebugUnitTest
+          :app:testPlayDebugUnitTest
+          :app:assembleDirectDebug
+          :app:assemblePlayDebug
 
       - name: Upload test reports
         if: always()
@@ -58,15 +61,19 @@ jobs:
         with:
           name: debug-unit-test-reports
           path: |
-            app/build/reports/tests/testDebugUnitTest/
-            app/build/test-results/testDebugUnitTest/
+            app/build/reports/tests/testDirectDebugUnitTest/
+            app/build/test-results/testDirectDebugUnitTest/
+            app/build/reports/tests/testPlayDebugUnitTest/
+            app/build/test-results/testPlayDebugUnitTest/
           if-no-files-found: warn
           retention-days: 14
 
-      - name: Upload debug APK
+      - name: Upload debug APKs
         uses: actions/upload-artifact@v7
         with:
-          name: community-ledger-debug-apk
-          path: app/build/outputs/apk/debug/app-debug.apk
+          name: community-ledger-debug-apks
+          path: |
+            app/build/outputs/apk/direct/debug/app-direct-debug.apk
+            app/build/outputs/apk/play/debug/app-play-debug.apk
           if-no-files-found: error
           retention-days: 14
